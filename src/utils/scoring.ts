@@ -117,3 +117,26 @@ export function applyResetScores(match: MatchState): MatchState {
     gameWinner: null
   };
 }
+
+/** Swap court / player sides (scores, names, server). */
+export function applySwapSides(match: MatchState): MatchState {
+  if (!match || typeof match !== 'object') {
+    throw new Error('applySwapSides: match is required');
+  }
+  const swappedServer: 1 | 2 = match.server === 1 ? 2 : 1;
+  const activeServerScore = swappedServer === 1 ? (match.score2 ?? 0) : (match.score1 ?? 0);
+
+  return {
+    ...match,
+    teamA: match.teamB,
+    teamB: match.teamA,
+    player1: match.player2,
+    player2: match.player1,
+    score1: match.score2 ?? 0,
+    score2: match.score1 ?? 0,
+    server: swappedServer,
+    servingSide: getServeSide(activeServerScore),
+    gameWinner:
+      match.gameWinner === 1 ? 2 : match.gameWinner === 2 ? 1 : null
+  };
+}
