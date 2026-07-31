@@ -5,6 +5,14 @@ import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import { toYouTubeEmbedUrl } from '../utils/youtube';
 
+/** First name / short label for tight overlay space. */
+function shortName(name: string, maxChars: number): string {
+  if (typeof name !== 'string' || !name.trim()) return '—';
+  const first = name.trim().split(/\s+/)[0] ?? name.trim();
+  if (first.length <= maxChars) return first;
+  return `${first.slice(0, Math.max(1, maxChars - 1))}…`;
+}
+
 export const StreamOverlay: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
 
@@ -37,35 +45,56 @@ export const StreamOverlay: React.FC = () => {
   const maxPoints = match.maxPoints ?? 11;
   const hasWinner = match.gameWinner === 1 || match.gameWinner === 2;
 
+  // Full card only on real laptop/desktop (wide + tall). Phone landscape is wide but short — keep compact bar.
+  const compactOnly =
+    'flex [@media(min-width:1024px)_and_(min-height:600px)]:hidden';
+  const fullOnly =
+    'hidden [@media(min-width:1024px)_and_(min-height:600px)]:block';
+
   const scoreBug = (
     <div
       className="pointer-events-auto font-sans"
       role="status"
       aria-live="polite"
-      aria-label={`Score ${teamA} ${score1} to ${teamB} ${score2}`}
+      aria-label={`Score ${player1} ${score1} to ${player2} ${score2}`}
     >
-      {/* Mobile: ultra-compact scores only */}
-      <div className="flex sm:hidden items-center gap-0.5 w-max rounded bg-black/70 border border-white/10 px-1 py-0.5 shadow-md">
-        {activeServer === 1 && (
-          <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-        )}
-        <span className="text-[11px] font-black font-mono text-white tabular-nums leading-none px-0.5 rounded-[3px] bg-indigo-600 min-w-[1.1rem] text-center">
-          {score1}
-        </span>
+      {/* Phone portrait + landscape: compact bar with player names */}
+      <div
+        className={`${compactOnly} items-center gap-1 w-max max-w-[min(72vw,14rem)] landscape:max-w-[min(42vw,12rem)] rounded-md bg-black/75 border border-white/15 px-1.5 py-1 shadow-md`}
+      >
+        <div className="flex items-center gap-0.5 min-w-0">
+          {activeServer === 1 && (
+            <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          )}
+          <span className="text-[9px] landscape:text-[8px] font-semibold text-white/90 truncate max-w-[3.75rem] landscape:max-w-[2.75rem]">
+            {shortName(player1, 8)}
+          </span>
+          <span className="text-[11px] landscape:text-[10px] font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-indigo-600 min-w-[1.15rem] text-center">
+            {score1}
+          </span>
+        </div>
+
         <span className="text-[8px] text-white/35 font-bold leading-none">:</span>
-        <span className="text-[11px] font-black font-mono text-white tabular-nums leading-none px-0.5 rounded-[3px] bg-rose-600 min-w-[1.1rem] text-center">
-          {score2}
-        </span>
-        {activeServer === 2 && (
-          <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-        )}
-        <span className="text-[7px] font-mono font-bold text-amber-300/80 leading-none pl-0.5">
+
+        <div className="flex items-center gap-0.5 min-w-0">
+          <span className="text-[11px] landscape:text-[10px] font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-rose-600 min-w-[1.15rem] text-center">
+            {score2}
+          </span>
+          <span className="text-[9px] landscape:text-[8px] font-semibold text-white/90 truncate max-w-[3.75rem] landscape:max-w-[2.75rem]">
+            {shortName(player2, 8)}
+          </span>
+          {activeServer === 2 && (
+            <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          )}
+        </div>
+
+        <span className="text-[7px] font-mono font-bold text-amber-300/85 leading-none pl-0.5 border-l border-white/15">
           {servingSide.slice(0, 1)}
         </span>
       </div>
 
-      {/* Laptop / tablet: fuller score card */}
-      <div className="hidden sm:block w-[min(28vw,17.5rem)] max-w-[17.5rem]">
+      {/* Laptop / desktop: fuller score card */}
+      <div className={`${fullOnly} w-[min(28vw,17.5rem)] max-w-[17.5rem]`}>
         <div className="bg-slate-950/92 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md overflow-hidden">
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-slate-800/80 bg-slate-900/60">
             <div className="min-w-0 flex-1">
@@ -136,7 +165,7 @@ export const StreamOverlay: React.FC = () => {
   );
 
   const overlayAnchorClass =
-    'fixed z-20 pointer-events-none top-[max(0.35rem,env(safe-area-inset-top))] right-[max(0.35rem,env(safe-area-inset-right))] sm:top-[max(0.75rem,env(safe-area-inset-top))] sm:right-[max(0.75rem,env(safe-area-inset-right))]';
+    'fixed z-20 pointer-events-none top-[max(0.35rem,env(safe-area-inset-top))] right-[max(0.35rem,env(safe-area-inset-right))]';
 
   if (embedUrl) {
     return (
