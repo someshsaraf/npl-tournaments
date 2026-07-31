@@ -9,14 +9,14 @@ type BrandBannerProps = {
 const LOGO_SRC = '/nature-walk-logo-1.png';
 
 const SIZE = {
-  sm: { logo: 28, title: 'text-sm sm:text-base', gap: 'gap-2' },
-  md: { logo: 40, title: 'text-lg sm:text-xl', gap: 'gap-2.5' },
-  lg: { logo: 52, title: 'text-xl sm:text-2xl', gap: 'gap-3' }
+  sm: { logo: 32, title: 'text-base sm:text-lg', gap: 'gap-2.5' },
+  md: { logo: 44, title: 'text-xl sm:text-2xl', gap: 'gap-3' },
+  lg: { logo: 56, title: 'text-2xl sm:text-3xl', gap: 'gap-3.5' }
 } as const;
 
 /**
- * NPL 2026 brand mark: Renaissance logo + banner text.
- * Stateless presentational component.
+ * Centered NPL 2026 brand banner with attention-catching motion.
+ * Stateless presentational component (CSS animation only; no shared timers).
  */
 export function BrandBanner({
   size = 'md',
@@ -28,25 +28,37 @@ export function BrandBanner({
     typeof subtitle === 'string' && subtitle.trim() ? subtitle.trim() : null;
 
   return (
-    <div className={`flex items-center ${s.gap} min-w-0 ${className}`.trim()}>
-      <img
-        src={LOGO_SRC}
-        alt="Renaissance Nature Walk"
-        width={s.logo}
-        height={s.logo}
-        className="rounded-md object-cover shrink-0 shadow-sm ring-1 ring-white/10"
-        style={{ width: s.logo, height: s.logo }}
-        draggable={false}
-      />
-      <div className="min-w-0 leading-tight">
-        <p
-          className={`font-black tracking-wide text-amber-300 truncate ${s.title}`}
+    <div
+      className={`npl-brand-banner flex flex-col items-center justify-center text-center ${className}`.trim()}
+      role="banner"
+      aria-label="NPL 2026"
+    >
+      <div className={`npl-brand-glow flex items-center justify-center ${s.gap}`}>
+        <span
+          className="npl-brand-logo shrink-0 rounded-lg bg-white p-0.5 shadow-md ring-1 ring-amber-200/60"
+          style={{ width: s.logo, height: s.logo }}
         >
-          NPL 2026
-        </p>
-        {safeSubtitle ? (
-          <p className="text-[10px] sm:text-xs text-slate-400 truncate">{safeSubtitle}</p>
-        ) : null}
+          <img
+            src={LOGO_SRC}
+            alt="Renaissance Nature Walk"
+            width={s.logo}
+            height={s.logo}
+            className="h-full w-full rounded-md object-cover"
+            draggable={false}
+          />
+        </span>
+        <div className="min-w-0 leading-tight text-left">
+          <p
+            className={`npl-brand-title font-black tracking-[0.12em] uppercase truncate ${s.title}`}
+          >
+            NPL 2026
+          </p>
+          {safeSubtitle ? (
+            <p className="text-[10px] sm:text-xs text-slate-400 truncate">
+              {safeSubtitle}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );

@@ -157,17 +157,30 @@ export const ScoreControl: React.FC = () => {
         maxHeight: '100dvh'
       }}
     >
-      {/* Compact status strip — one row, full width */}
+      {/* Brand banner — centered top */}
+      <div
+        className="shrink-0 flex justify-center border-b border-slate-800/80 bg-slate-950"
+        style={{
+          paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
+          paddingBottom: '0.45rem'
+        }}
+      >
+        <BrandBanner size="sm" />
+      </div>
+
+      {/* Status + controls strip */}
       <header
         className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 border-b border-slate-800 bg-slate-950"
         style={{
-          paddingTop: 'max(0.4rem, env(safe-area-inset-top))',
-          paddingBottom: '0.4rem',
-          minHeight: '2.75rem'
+          paddingTop: '0.35rem',
+          paddingBottom: '0.35rem',
+          minHeight: '2.35rem'
         }}
       >
         <div className="min-w-0 overflow-hidden">
-          <BrandBanner size="sm" />
+          <span className="text-[10px] sm:text-xs font-bold text-slate-400 truncate block">
+            {match.category}
+          </span>
         </div>
 
         <div className="flex flex-col items-center justify-center gap-0.5 min-w-0">
@@ -181,12 +194,9 @@ export const ScoreControl: React.FC = () => {
             </span>
           ) : (
             <span className="text-[10px] sm:text-xs font-mono text-slate-500">
-              {match.maxPoints ?? 11} PTS
+              {match.maxPoints ?? 11} PTS · {match.stage}
             </span>
           )}
-          <span className="text-[9px] text-slate-500 truncate max-w-[40vw] hidden sm:inline">
-            {match.category} · {match.stage}
-          </span>
         </div>
 
         <div className="flex items-center justify-end gap-2">

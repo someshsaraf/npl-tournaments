@@ -358,9 +358,11 @@ export const AdminPanel: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800 pb-4">
+      <div className="flex flex-col items-center justify-center gap-1 border-b border-slate-800 pb-5 pt-1">
         <BrandBanner size="lg" subtitle="Tournament Control" />
-        <p className="text-xs text-slate-500 font-mono">Admin Console</p>
+        <p className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">
+          Admin Console
+        </p>
       </div>
       
       {/* 1. Active Match Controller */}

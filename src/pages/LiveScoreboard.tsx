@@ -31,14 +31,16 @@ export const LiveScoreboard: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
       <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-8">
         
-        {/* Header Information */}
-        <div className="flex flex-col sm:flex-row justify-between items-center border-b border-slate-800 pb-6 gap-4">
-          <div className="space-y-2">
-            <BrandBanner size="md" />
-            <div>
-              <span className="text-xs font-bold text-indigo-400 tracking-wider uppercase block">{match.category}</span>
-              <h1 className="text-2xl font-black text-amber-400">{match.stage}</h1>
-            </div>
+        {/* Brand — center top */}
+        <div className="flex justify-center border-b border-slate-800 pb-5">
+          <BrandBanner size="md" />
+        </div>
+
+        {/* Match meta */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-center sm:text-left">
+            <span className="text-xs font-bold text-indigo-400 tracking-wider uppercase block">{match.category}</span>
+            <h1 className="text-2xl font-black text-amber-400">{match.stage}</h1>
           </div>
           <div className="flex items-center space-x-3">
             {match.deuceActive && (

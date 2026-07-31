@@ -192,6 +192,8 @@ export async function downloadScoresPdf(rows: CompletedMatch[]): Promise<void> {
 
   if (logo) {
     try {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(9, 3, 20, 20, 1.5, 1.5, 'F');
       doc.addImage(logo, 'PNG', 10, 4, 18, 18);
     } catch (err) {
       console.error('Failed to embed logo in PDF:', err);

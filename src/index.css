@@ -12,3 +12,72 @@
     @apply bg-slate-950 text-slate-100 font-sans antialiased;
   }
 }
+
+/* NPL brand banner — entrance + continuous attention motion */
+@keyframes npl-brand-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes npl-brand-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.35));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.75));
+  }
+}
+
+@keyframes npl-brand-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes npl-brand-logo-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.npl-brand-banner {
+  animation: npl-brand-enter 0.7s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+.npl-brand-glow {
+  animation: npl-brand-glow 2.4s ease-in-out infinite;
+}
+
+.npl-brand-logo {
+  animation: npl-brand-logo-bob 2.8s ease-in-out infinite;
+}
+
+.npl-brand-title {
+  background: linear-gradient(
+    90deg,
+    #fbbf24 0%,
+    #fde68a 25%,
+    #ffffff 50%,
+    #fde68a 75%,
+    #fbbf24 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: npl-brand-shimmer 2.8s linear infinite;
+}
