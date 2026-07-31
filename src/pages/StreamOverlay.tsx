@@ -5,13 +5,6 @@ import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import { toYouTubeEmbedUrl } from '../utils/youtube';
 
-function shortLabel(name: string, max = 8): string {
-  const trimmed = (name || '').trim();
-  if (!trimmed) return '—';
-  if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, max - 1)}…`;
-}
-
 export const StreamOverlay: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
 
@@ -51,43 +44,24 @@ export const StreamOverlay: React.FC = () => {
       aria-live="polite"
       aria-label={`Score ${teamA} ${score1} to ${teamB} ${score2}`}
     >
-      {/* Mobile: compact single-line pill — minimal video coverage */}
-      <div className="flex sm:hidden items-center gap-1.5 w-max max-w-[min(68vw,13.5rem)] rounded-md bg-black/75 border border-white/15 px-1.5 py-1 shadow-lg backdrop-blur-[2px]">
-        <div className="flex items-center gap-1 min-w-0">
-          {activeServer === 1 && (
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-          )}
-          <span className="text-[10px] font-semibold text-white/90 truncate max-w-[3.25rem]">
-            {shortLabel(teamA, 7)}
-          </span>
-          <span className="text-sm font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-indigo-600 min-w-[1.35rem] text-center">
-            {score1}
-          </span>
-        </div>
-
-        <span className="text-[9px] text-white/40 font-bold">–</span>
-
-        <div className="flex items-center gap-1 min-w-0">
-          <span className="text-sm font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-rose-600 min-w-[1.35rem] text-center">
-            {score2}
-          </span>
-          <span className="text-[10px] font-semibold text-white/90 truncate max-w-[3.25rem]">
-            {shortLabel(teamB, 7)}
-          </span>
-          {activeServer === 2 && (
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-          )}
-        </div>
-
-        <span className="text-[8px] font-mono font-bold text-amber-300/90 pl-0.5 border-l border-white/15 leading-none">
+      {/* Mobile: ultra-compact scores only */}
+      <div className="flex sm:hidden items-center gap-0.5 w-max rounded bg-black/70 border border-white/10 px-1 py-0.5 shadow-md">
+        {activeServer === 1 && (
+          <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+        )}
+        <span className="text-[11px] font-black font-mono text-white tabular-nums leading-none px-0.5 rounded-[3px] bg-indigo-600 min-w-[1.1rem] text-center">
+          {score1}
+        </span>
+        <span className="text-[8px] text-white/35 font-bold leading-none">:</span>
+        <span className="text-[11px] font-black font-mono text-white tabular-nums leading-none px-0.5 rounded-[3px] bg-rose-600 min-w-[1.1rem] text-center">
+          {score2}
+        </span>
+        {activeServer === 2 && (
+          <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+        )}
+        <span className="text-[7px] font-mono font-bold text-amber-300/80 leading-none pl-0.5">
           {servingSide.slice(0, 1)}
         </span>
-        {match.deuceActive && (
-          <span className="text-[8px] font-bold text-red-400 uppercase leading-none">D</span>
-        )}
-        {hasWinner && (
-          <span className="text-[8px] font-bold text-emerald-400 uppercase leading-none">W</span>
-        )}
       </div>
 
       {/* Laptop / tablet: fuller score card */}
