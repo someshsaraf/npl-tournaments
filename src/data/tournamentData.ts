@@ -27,7 +27,7 @@ export interface MatchState {
   score2: number;
   maxPoints: 11 | 21;
   server: 1 | 2; // 1 = Team A serving, 2 = Team B serving
-  servingSide: 'right' | 'left'; // Even score = Right, Odd score = Left
+  servingSide: 'right' | 'left'; // Service court; updates on service over (even=right, odd=left)
   deuceActive: boolean;
   gameWinner: 1 | 2 | null;
   isTrump: boolean;

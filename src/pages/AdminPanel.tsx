@@ -54,15 +54,17 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Helper: Badminton court side based on active server's score
+  // Helper: court side from server's score when service changes hands
   // Even Score = RIGHT court | Odd Score = LEFT court
   const getServeSide = (score: number): 'right' | 'left' => {
+    if (!Number.isFinite(score) || score < 0) return 'right';
     return score % 2 === 0 ? 'right' : 'left';
   };
 
   // Manual Server Override (e.g. at start of match or correction)
   const handleSetServer = (targetServer: 1 | 2) => {
-    const activeScore = targetServer === 1 ? match.score1 : match.score2;
+    if (targetServer !== 1 && targetServer !== 2) return;
+    const activeScore = targetServer === 1 ? (match.score1 ?? 0) : (match.score2 ?? 0);
     updateMatchState({
       ...match,
       server: targetServer,
@@ -70,8 +72,9 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Correct Badminton Rally Scoring Logic
+  // Rally scoring: point winner serves next. Court side (L/R) only changes on service over.
   const handleScorePoint = (scoringTeam: 1 | 2) => {
+    if (scoringTeam !== 1 && scoringTeam !== 2) return;
     if (match.gameWinner === 1 || match.gameWinner === 2) return;
 
     const max = match.maxPoints ?? 11;
@@ -87,12 +90,15 @@ export const AdminPanel: React.FC = () => {
       s2 += 1;
     }
 
-    // Determine Server and Serving Side according to Badminton Rules:
-    // 1. Service side retains server and updates score -> court changes (Right <-> Left based on updated score)
-    // 2. Receiving side wins point -> Service Over (server transfers to winner, court based on THEIR current score)
+    const previousServer = match.server === 2 ? 2 : 1;
     const newServer: 1 | 2 = scoringTeam;
-    const newServerScore = newServer === 1 ? s1 : s2;
-    const newServingSide = getServeSide(newServerScore);
+    const serviceOver = newServer !== previousServer;
+
+    // Same server keeps the point: keep current L/R court (do not toggle).
+    // Service over: new server's court from their score (even = right, odd = left).
+    const newServingSide = serviceOver
+      ? getServeSide(newServer === 1 ? s1 : s2)
+      : (match.servingSide === 'left' ? 'left' : 'right');
 
     // Deuce & Game Winner Logic
     let isDeuce = match.deuceActive;
@@ -122,23 +128,24 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Decrement score handler (-1)
+  // Decrement score handler (-1) — does not flip L/R court; use Set Serve to correct side.
   const handleDecrementScore = (side: 1 | 2) => {
+    if (side !== 1 && side !== 2) return;
+
     let s1 = match.score1 ?? 0;
     let s2 = match.score2 ?? 0;
 
     if (side === 1) s1 = Math.max(0, s1 - 1);
     else s2 = Math.max(0, s2 - 1);
 
-    const activeServerScore = match.server === 1 ? s1 : s2;
+    const maxPoints = match.maxPoints ?? 11;
 
     updateMatchState({
       ...match,
       score1: s1,
       score2: s2,
-      servingSide: getServeSide(activeServerScore),
       gameWinner: null,
-      deuceActive: s1 >= (match.maxPoints - 1) && s2 >= (match.maxPoints - 1) && s1 === s2
+      deuceActive: s1 >= (maxPoints - 1) && s2 >= (maxPoints - 1) && s1 === s2
     });
   };
 
