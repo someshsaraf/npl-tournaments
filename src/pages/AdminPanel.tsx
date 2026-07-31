@@ -13,7 +13,8 @@ import {
 import { exportScores } from '../utils/exportScores';
 import type { ScoreExportFormat } from '../utils/exportScores';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
-import { applySwapSides } from '../utils/scoring';
+import { applySetServer, applySwapSides } from '../utils/scoring';
+import { ServeRacket } from '../components/ServeRacket';
 
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -77,22 +78,10 @@ export const AdminPanel: React.FC = () => {
     return score % 2 === 0 ? 'right' : 'left';
   };
 
-  // Manual server: assign who serves; tap again on same side to toggle court L ↔ R
+  // Manual server assignment (racket tap)
   const handleSetServer = (targetServer: 1 | 2) => {
     if (targetServer !== 1 && targetServer !== 2) return;
-    const currentSide = match.servingSide === 'left' ? 'left' : 'right';
-    if (match.server === targetServer) {
-      updateMatchState({
-        ...match,
-        servingSide: currentSide === 'left' ? 'right' : 'left'
-      });
-      return;
-    }
-    updateMatchState({
-      ...match,
-      server: targetServer,
-      servingSide: currentSide
-    });
+    updateMatchState(applySetServer(match, targetServer));
   };
 
   // Rally scoring: point winner serves next. Court side (L/R) only changes on service over.
@@ -434,9 +423,12 @@ export const AdminPanel: React.FC = () => {
             <span>↔ Swap Court Sides</span>
           </button>
 
-          {/* Active Serving Side Indicator */}
-          <span className="text-xs text-indigo-300 font-mono">
-            Active Serve: <strong className="text-amber-300 uppercase">{match.server === 1 ? match.teamA : match.teamB}</strong> ({match.servingSide?.toUpperCase()} Court)
+          {/* Active server indicator */}
+          <span className="text-xs text-indigo-300 font-mono flex items-center gap-1.5">
+            <ServeRacket active size={18} title="Serving" />
+            <strong className="text-amber-300 uppercase">
+              {match.server === 1 ? match.teamA : match.teamB}
+            </strong>
           </span>
         </div>
 
@@ -449,15 +441,22 @@ export const AdminPanel: React.FC = () => {
           }`}>
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamA}</span>
-              <button 
+              <button
+                type="button"
                 onClick={() => handleSetServer(1)}
-                className={`text-xs px-2.5 py-1 rounded-md font-bold transition-all ${
-                  match.server === 1 
-                    ? 'bg-emerald-500 text-slate-950 shadow-md' 
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                title={match.server === 1 ? 'Serving' : 'Set this side as server'}
+                className={`p-1.5 rounded-lg transition-all ${
+                  match.server === 1
+                    ? 'bg-emerald-500/20 ring-1 ring-emerald-400/60'
+                    : 'bg-slate-700/60 hover:bg-slate-600'
                 }`}
+                aria-pressed={match.server === 1}
               >
-                {match.server === 1 ? `Serving · Court ${match.servingSide?.toUpperCase()}` : 'Set Serve'}
+                <ServeRacket
+                  active={match.server === 1}
+                  size={26}
+                  title={match.server === 1 ? 'Serving' : 'Set serve'}
+                />
               </button>
             </div>
             <input 
@@ -491,15 +490,22 @@ export const AdminPanel: React.FC = () => {
           }`}>
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamB}</span>
-              <button 
+              <button
+                type="button"
                 onClick={() => handleSetServer(2)}
-                className={`text-xs px-2.5 py-1 rounded-md font-bold transition-all ${
-                  match.server === 2 
-                    ? 'bg-emerald-500 text-slate-950 shadow-md' 
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                title={match.server === 2 ? 'Serving' : 'Set this side as server'}
+                className={`p-1.5 rounded-lg transition-all ${
+                  match.server === 2
+                    ? 'bg-emerald-500/20 ring-1 ring-emerald-400/60'
+                    : 'bg-slate-700/60 hover:bg-slate-600'
                 }`}
+                aria-pressed={match.server === 2}
               >
-                {match.server === 2 ? `Serving · Court ${match.servingSide?.toUpperCase()}` : 'Set Serve'}
+                <ServeRacket
+                  active={match.server === 2}
+                  size={26}
+                  title={match.server === 2 ? 'Serving' : 'Set serve'}
+                />
               </button>
             </div>
             <input 

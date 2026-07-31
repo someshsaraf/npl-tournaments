@@ -5,6 +5,7 @@ import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import { toYouTubeEmbedUrl } from '../utils/youtube';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
+import { ServeRacket } from '../components/ServeRacket';
 
 /** First name / short label for tight overlay space. */
 function shortName(name: string, maxChars: number): string {
@@ -29,7 +30,6 @@ export const StreamOverlay: React.FC = () => {
 
   const activeServer = match.server === 2 ? 2 : 1;
   const embedUrl = toYouTubeEmbedUrl(match.youtubeLiveUrl ?? '');
-  const servingSide = (match.servingSide ?? 'right').toUpperCase();
   const teamA = match.teamA || 'Team A';
   const teamB = match.teamB || 'Team B';
   const player1 = match.player1 || 'Player 1';
@@ -58,7 +58,7 @@ export const StreamOverlay: React.FC = () => {
       >
         <div className="flex items-center gap-0.5 min-w-0">
           {activeServer === 1 && (
-            <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <ServeRacket active size={12} title="Serving" />
           )}
           <span className="text-[9px] landscape:text-[8px] font-semibold text-white/90 truncate max-w-[3.75rem] landscape:max-w-[2.75rem]">
             {shortName(player1, 8)}
@@ -78,13 +78,9 @@ export const StreamOverlay: React.FC = () => {
             {shortName(player2, 8)}
           </span>
           {activeServer === 2 && (
-            <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <ServeRacket active size={12} title="Serving" />
           )}
         </div>
-
-        <span className="text-[7px] font-mono font-bold text-amber-300/85 leading-none pl-0.5 border-l border-white/15">
-          {servingSide.slice(0, 1)}
-        </span>
       </div>
 
       {/* Laptop / desktop: fuller score card */}
@@ -103,9 +99,6 @@ export const StreamOverlay: React.FC = () => {
                   Deuce
                 </span>
               )}
-              <span className="text-[9px] bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded font-mono uppercase border border-slate-700">
-                {servingSide}
-              </span>
               <span className="text-[9px] text-amber-300/90 font-mono font-bold">{maxPoints}P</span>
             </div>
           </div>
@@ -114,7 +107,7 @@ export const StreamOverlay: React.FC = () => {
             <div className={`min-w-0 px-2.5 py-2 text-left ${activeServer === 1 ? 'bg-indigo-950/50' : ''}`}>
               <div className="flex items-center gap-1 min-w-0">
                 {activeServer === 1 && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <ServeRacket active size={14} title="Serving" />
                 )}
                 <span className="text-xs font-bold text-slate-100 truncate uppercase tracking-wide">
                   {teamA}
@@ -136,7 +129,7 @@ export const StreamOverlay: React.FC = () => {
                   {teamB}
                 </span>
                 {activeServer === 2 && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <ServeRacket active size={14} title="Serving" />
                 )}
               </div>
               <p className="text-[10px] text-slate-400 truncate mt-0.5">{player2}</p>

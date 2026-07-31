@@ -89,8 +89,8 @@ export function applyDecrementScore(match: MatchState, side: 1 | 2): MatchState 
 }
 
 /**
- * Assign who serves. Tap the current server again to toggle court L ↔ R.
- * Switching server keeps the current court side (manual control).
+ * Assign who serves. Re-tapping the current server is a no-op.
+ * Court side (servingSide) is unchanged here — use swap / scoring rules for that.
  */
 export function applySetServer(match: MatchState, targetServer: 1 | 2): MatchState {
   if (!match || typeof match !== 'object') {
@@ -99,17 +99,12 @@ export function applySetServer(match: MatchState, targetServer: 1 | 2): MatchSta
   if (targetServer !== 1 && targetServer !== 2) {
     throw new Error('applySetServer: targetServer must be 1 or 2');
   }
-  const currentSide = match.servingSide === 'left' ? 'left' : 'right';
   if (match.server === targetServer) {
-    return {
-      ...match,
-      servingSide: currentSide === 'left' ? 'right' : 'left'
-    };
+    return match;
   }
   return {
     ...match,
-    server: targetServer,
-    servingSide: currentSide
+    server: targetServer
   };
 }
 

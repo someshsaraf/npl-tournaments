@@ -11,6 +11,7 @@ import {
   applySwapSides
 } from '../utils/scoring';
 import { buildCompletedMatch } from '../utils/completedMatches';
+import { ServeRacket } from '../components/ServeRacket';
 
 /**
  * Full-viewport scoreboard for court / audience.
@@ -116,7 +117,6 @@ export const ScoreControl: React.FC = () => {
   const hasWinner = hasMatchWinner(match);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
-  const servingSide = (match.servingSide ?? 'right').toUpperCase();
   const dialogMatch =
     pendingSaveMatch && hasMatchWinner(pendingSaveMatch) ? pendingSaveMatch : match;
   const dialogWinnerName =
@@ -206,14 +206,19 @@ export const ScoreControl: React.FC = () => {
             <button
               type="button"
               onClick={() => handleSetServer(1)}
-              title={match.server === 1 ? 'Tap to toggle court L/R' : 'Set this side as server'}
-              className={`shrink-0 text-[9px] sm:text-[11px] font-bold px-2 py-1 rounded-md ${
+              title={match.server === 1 ? 'Serving' : 'Set this side as server'}
+              className={`shrink-0 p-1.5 rounded-xl transition-all active:scale-95 ${
                 match.server === 1
-                  ? 'bg-emerald-500 text-slate-950'
-                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+                  ? 'bg-emerald-500/25 ring-2 ring-emerald-400/70'
+                  : 'bg-slate-800/80 border border-slate-700'
               }`}
+              aria-pressed={match.server === 1}
             >
-              {match.server === 1 ? `SERVING · Court ${servingSide}` : 'SET SERVE'}
+              <ServeRacket
+                active={match.server === 1}
+                size={36}
+                title={match.server === 1 ? 'Serving' : 'Set serve'}
+              />
             </button>
           </div>
 
@@ -243,14 +248,19 @@ export const ScoreControl: React.FC = () => {
             <button
               type="button"
               onClick={() => handleSetServer(2)}
-              title={match.server === 2 ? 'Tap to toggle court L/R' : 'Set this side as server'}
-              className={`shrink-0 text-[9px] sm:text-[11px] font-bold px-2 py-1 rounded-md ${
+              title={match.server === 2 ? 'Serving' : 'Set this side as server'}
+              className={`shrink-0 p-1.5 rounded-xl transition-all active:scale-95 ${
                 match.server === 2
-                  ? 'bg-emerald-500 text-slate-950'
-                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+                  ? 'bg-emerald-500/25 ring-2 ring-emerald-400/70'
+                  : 'bg-slate-800/80 border border-slate-700'
               }`}
+              aria-pressed={match.server === 2}
             >
-              {match.server === 2 ? `SERVING · Court ${servingSide}` : 'SET SERVE'}
+              <ServeRacket
+                active={match.server === 2}
+                size={36}
+                title={match.server === 2 ? 'Serving' : 'Set serve'}
+              />
             </button>
           </div>
 
