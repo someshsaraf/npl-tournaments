@@ -5,6 +5,7 @@ import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 import { ServeRacket } from '../components/ServeRacket';
+import { BrandBanner } from '../components/BrandBanner';
 
 export const LiveScoreboard: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -32,9 +33,12 @@ export const LiveScoreboard: React.FC = () => {
         
         {/* Header Information */}
         <div className="flex flex-col sm:flex-row justify-between items-center border-b border-slate-800 pb-6 gap-4">
-          <div>
-            <span className="text-xs font-bold text-indigo-400 tracking-wider uppercase block">{match.category}</span>
-            <h1 className="text-2xl font-black text-amber-400">{match.stage}</h1>
+          <div className="space-y-2">
+            <BrandBanner size="md" />
+            <div>
+              <span className="text-xs font-bold text-indigo-400 tracking-wider uppercase block">{match.category}</span>
+              <h1 className="text-2xl font-black text-amber-400">{match.stage}</h1>
+            </div>
           </div>
           <div className="flex items-center space-x-3">
             {match.deuceActive && (

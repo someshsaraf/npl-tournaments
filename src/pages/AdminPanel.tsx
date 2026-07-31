@@ -15,6 +15,7 @@ import type { ScoreExportFormat } from '../utils/exportScores';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 import { applySetServer, applySwapSides } from '../utils/scoring';
 import { ServeRacket } from '../components/ServeRacket';
+import { BrandBanner } from '../components/BrandBanner';
 
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -234,7 +235,7 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleExportScores = (format: ScoreExportFormat) => {
+  const handleExportScores = async (format: ScoreExportFormat) => {
     setExportError(null);
     const rows = sortCompletedMatches(Object.values(completedById));
     if (rows.length === 0) {
@@ -242,7 +243,7 @@ export const AdminPanel: React.FC = () => {
       return;
     }
     try {
-      exportScores(rows, format);
+      await exportScores(rows, format);
     } catch (err) {
       console.error('Export failed:', err);
       setExportError(err instanceof Error ? err.message : 'Export failed.');
@@ -356,6 +357,11 @@ export const AdminPanel: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800 pb-4">
+        <BrandBanner size="lg" subtitle="Tournament Control" />
+        <p className="text-xs text-slate-500 font-mono">Admin Console</p>
+      </div>
       
       {/* 1. Active Match Controller */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">

@@ -13,6 +13,7 @@ import {
 import { buildCompletedMatch } from '../utils/completedMatches';
 import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
+import { BrandBanner } from '../components/BrandBanner';
 
 /**
  * Full-viewport scoreboard for court / audience.
@@ -165,16 +166,11 @@ export const ScoreControl: React.FC = () => {
           minHeight: '2.75rem'
         }}
       >
-        <div className="min-w-0 flex items-baseline gap-2 overflow-hidden">
-          <span className="text-[10px] sm:text-xs font-bold text-amber-400 uppercase tracking-wider truncate">
-            {match.category}
-          </span>
-          <span className="text-xs sm:text-sm font-black text-white truncate hidden xs:inline sm:inline">
-            {match.stage}
-          </span>
+        <div className="min-w-0 overflow-hidden">
+          <BrandBanner size="sm" />
         </div>
 
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex flex-col items-center justify-center gap-0.5 min-w-0">
           {hasWinner ? (
             <span className="text-xs sm:text-sm font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1 rounded-full whitespace-nowrap">
               WIN {winnerName} · {score1}-{score2}
@@ -188,6 +184,9 @@ export const ScoreControl: React.FC = () => {
               {match.maxPoints ?? 11} PTS
             </span>
           )}
+          <span className="text-[9px] text-slate-500 truncate max-w-[40vw] hidden sm:inline">
+            {match.category} · {match.stage}
+          </span>
         </div>
 
         <div className="flex items-center justify-end gap-2">

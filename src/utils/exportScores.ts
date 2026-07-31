@@ -1,3 +1,5 @@
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import type { CompletedMatch } from '../data/tournamentData';
 import { sortCompletedMatches } from './completedMatches';
 
@@ -27,6 +29,8 @@ const EXPORT_COLUMNS = [
 ] as const;
 
 type ExportColumn = (typeof EXPORT_COLUMNS)[number];
+
+const LOGO_PATH = '/nature-walk-logo-1.png';
 
 function assertRows(rows: CompletedMatch[]): CompletedMatch[] {
   if (!Array.isArray(rows)) {
@@ -148,71 +152,139 @@ export function toScoresExcelXml(rows: CompletedMatch[]): string {
 </Workbook>`;
 }
 
-function buildPdfPrintHtml(rows: CompletedMatch[]): string {
-  const data = assertRows(rows);
-  const tableRows = data
-    .map(
-      (row) => `<tr>
-      <td>${escapeXml(`${row.completedDate} ${row.completedTime}`)}</td>
-      <td>${escapeXml(`${row.scheduledDate} ${row.scheduledTime}`)}</td>
-      <td>${escapeXml(row.category || '')}</td>
-      <td>${escapeXml(row.details || '')}</td>
-      <td>${escapeXml(row.result || '')}</td>
-      <td>${escapeXml(row.winnerName || '')}${row.isTrump ? ' ★' : ''}</td>
-    </tr>`
-    )
-    .join('');
+async function loadLogoDataUrl(): Promise<string | null> {
+  if (typeof fetch === 'undefined') return null;
+  try {
+    const res = await fetch(LOGO_PATH);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(typeof reader.result === 'string' ? reader.result : null);
+      };
+      reader.onerror = () => reject(reader.error ?? new Error('Failed to read logo'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error('Failed to load PDF logo:', err);
+    return null;
+  }
+}
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>NPL 2026 Completed Matches</title>
-  <style>
-    body { font-family: Georgia, "Times New Roman", serif; color: #111; margin: 24px; }
-    h1 { font-size: 20px; margin: 0 0 4px; }
-    p { font-size: 12px; color: #444; margin: 0 0 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
-    th { background: #f3f3f3; }
-    @media print {
-      body { margin: 12px; }
-      a { display: none; }
+/**
+ * Build and download a landscape A4 PDF of completed matches.
+ * Pure aside from browser fetch/save; no shared mutable state.
+ */
+export async function downloadScoresPdf(rows: CompletedMatch[]): Promise<void> {
+  const data = assertRows(rows);
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const logo = await loadLogoDataUrl();
+  const exportedAt = new Date().toLocaleString();
+
+  // Header band
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageW, 26, 'F');
+  doc.setFillColor(245, 158, 11);
+  doc.rect(0, 26, pageW, 1.2, 'F');
+
+  if (logo) {
+    try {
+      doc.addImage(logo, 'PNG', 10, 4, 18, 18);
+    } catch (err) {
+      console.error('Failed to embed logo in PDF:', err);
     }
-  </style>
-</head>
-<body>
-  <h1>NPL 2026 — Completed Matches</h1>
-  <p>Exported ${escapeXml(new Date().toLocaleString())} · ${data.length} match${data.length === 1 ? '' : 'es'}</p>
-  <table>
-    <thead>
-      <tr>
-        <th>Completed</th>
-        <th>Scheduled</th>
-        <th>Category</th>
-        <th>Match</th>
-        <th>Result</th>
-        <th>Winner</th>
-      </tr>
-    </thead>
-    <tbody>${tableRows || '<tr><td colspan="6">No completed matches</td></tr>'}</tbody>
-  </table>
-  <script>
-    window.onload = function () {
-      window.focus();
-      window.print();
-    };
-  </script>
-</body>
-</html>`;
+  }
+
+  const textX = logo ? 32 : 12;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(251, 191, 36);
+  doc.text('NPL 2026', textX, 12);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(203, 213, 225);
+  doc.text('Completed Match Results', textX, 19);
+
+  doc.setFontSize(9);
+  doc.setTextColor(148, 163, 184);
+  doc.text(
+    `${data.length} match${data.length === 1 ? '' : 'es'}  ·  Exported ${exportedAt}`,
+    pageW - 12,
+    15,
+    { align: 'right' }
+  );
+
+  autoTable(doc, {
+    startY: 32,
+    head: [['#', 'Completed', 'Scheduled', 'Category', 'Match', 'Result', 'Winner']],
+    body: data.map((row, index) => [
+      String(index + 1),
+      `${row.completedDate || ''} ${row.completedTime || ''}`.trim(),
+      `${row.scheduledDate || ''} ${row.scheduledTime || ''}`.trim(),
+      row.category || '',
+      row.details || '',
+      row.result || '',
+      `${row.winnerName || ''}${row.isTrump ? ' ★' : ''}`
+    ]),
+    theme: 'grid',
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 2.4,
+      textColor: [30, 41, 59],
+      lineColor: [203, 213, 225],
+      lineWidth: 0.2,
+      valign: 'middle'
+    },
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: [251, 191, 36],
+      fontStyle: 'bold',
+      fontSize: 8.5,
+      halign: 'left'
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 32 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 38 },
+      4: { cellWidth: 'auto' },
+      5: { cellWidth: 22, fontStyle: 'bold', textColor: [180, 83, 9] },
+      6: { cellWidth: 36, textColor: [5, 150, 105], fontStyle: 'bold' }
+    },
+    margin: { left: 10, right: 10, bottom: 16 },
+    didDrawPage: (hookData) => {
+      const pageCount = doc.getNumberOfPages();
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `NPL 2026 · Renaissance  ·  Page ${hookData.pageNumber} of ${pageCount}`,
+        pageW / 2,
+        pageH - 6,
+        { align: 'center' }
+      );
+    }
+  });
+
+  doc.save(`npl-2026-scores-${stamp()}.pdf`);
 }
 
 /**
  * Exports completed match scores.
- * PDF opens a print dialog (Save as PDF). Other formats download a file.
- * Concurrency: pure transform + one-shot DOM download/print; no shared mutable state.
+ * PDF downloads a styled .pdf file; other formats download immediately.
+ * Concurrency: pure transform + one-shot browser download; no shared mutable state.
  */
-export function exportScores(rows: CompletedMatch[], format: ScoreExportFormat): void {
+export async function exportScores(
+  rows: CompletedMatch[],
+  format: ScoreExportFormat
+): Promise<void> {
   if (!['csv', 'json', 'excel', 'pdf'].includes(format)) {
     throw new Error(`exportScores: unsupported format "${String(format)}"`);
   }
@@ -239,13 +311,5 @@ export function exportScores(rows: CompletedMatch[], format: ScoreExportFormat):
     return;
   }
 
-  // PDF via browser print → Save as PDF
-  const html = buildPdfPrintHtml(data);
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=960,height=720');
-  if (!printWindow) {
-    throw new Error('exportScores: pop-up blocked — allow pop-ups to export PDF');
-  }
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
+  await downloadScoresPdf(data);
 }
