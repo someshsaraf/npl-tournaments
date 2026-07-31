@@ -10,12 +10,18 @@ export const AdminPanel: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedMaxPoints, setSelectedMaxPoints] = useState<11 | 21>(11);
 
-  // Sync state from Firebase
+  // Sync state from Firebase with normalization for missing RTDB keys
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribeMatch = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setMatch(data);
+      if (data) {
+        setMatch({
+          ...INITIAL_MATCH,
+          ...data,
+          gameWinner: (data.gameWinner === 1 || data.gameWinner === 2) ? data.gameWinner : null
+        });
+      }
     });
 
     const teamsRef = ref(db, 'teams');
@@ -24,7 +30,7 @@ export const AdminPanel: React.FC = () => {
       if (data) {
         setTeams(data);
       } else {
-        set(ref(db, 'teams'), TEAMS);
+        set(ref(db, 'teams'), TEAMS).catch((err) => console.error("Firebase write error:", err));
       }
     });
 
@@ -36,12 +42,16 @@ export const AdminPanel: React.FC = () => {
 
   const updateMatchState = (newMatchState: MatchState) => {
     setMatch(newMatchState);
-    set(ref(db, 'currentMatch'), newMatchState);
+    set(ref(db, 'currentMatch'), newMatchState).catch((err) => {
+      console.error("Failed to sync match state to Firebase:", err);
+    });
   };
 
   const updateTeamsState = (newTeams: Team[]) => {
     setTeams(newTeams);
-    set(ref(db, 'teams'), newTeams);
+    set(ref(db, 'teams'), newTeams).catch((err) => {
+      console.error("Failed to sync teams to Firebase:", err);
+    });
   };
 
   // Helper function: Calculate serve court based on server's current score
@@ -49,16 +59,28 @@ export const AdminPanel: React.FC = () => {
     return score % 2 === 0 ? 'right' : 'left';
   };
 
+  // Explicit Toggle Server Logic
+  const handleSetServer = (targetServer: 1 | 2) => {
+    const activeScore = targetServer === 1 ? match.score1 : match.score2;
+    const side = getServeSide(activeScore);
+    updateMatchState({
+      ...match,
+      server: targetServer,
+      servingSide: side
+    });
+  };
+
   // Rally Scoring Engine (+1) & Automatic Serve Control
   const handleScorePoint = (scoringTeam: 1 | 2) => {
-    if (match.gameWinner !== null) return;
+    // Check if game is already won (Strict 1 or 2 check)
+    if (match.gameWinner === 1 || match.gameWinner === 2) return;
 
     const max = match.maxPoints ?? 11;
     const cap = max === 11 ? 15 : 30;
     const deuceThreshold = max - 1;
 
-    let s1 = match.score1;
-    let s2 = match.score2;
+    let s1 = match.score1 ?? 0;
+    let s2 = match.score2 ?? 0;
 
     if (scoringTeam === 1) {
       s1 += 1;
@@ -69,7 +91,7 @@ export const AdminPanel: React.FC = () => {
     // Serve ownership transfers to whichever team just won the point
     const newServer: 1 | 2 = scoringTeam;
 
-    // Serving court direction derived strictly from the active server's score
+    // Serving court direction derived strictly from active server's score
     const activeServerScore = newServer === 1 ? s1 : s2;
     const newServingSide = getServeSide(activeServerScore);
 
@@ -103,8 +125,8 @@ export const AdminPanel: React.FC = () => {
 
   // Decrement score handler (-1)
   const handleDecrementScore = (side: 1 | 2) => {
-    let s1 = match.score1;
-    let s2 = match.score2;
+    let s1 = match.score1 ?? 0;
+    let s2 = match.score2 ?? 0;
 
     if (side === 1) s1 = Math.max(0, s1 - 1);
     else s2 = Math.max(0, s2 - 1);
@@ -223,6 +245,8 @@ export const AdminPanel: React.FC = () => {
     ? FIXTURES
     : FIXTURES.filter((f) => f.category === selectedCategory);
 
+  const hasWinner = match.gameWinner === 1 || match.gameWinner === 2;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
       
@@ -246,7 +270,7 @@ export const AdminPanel: React.FC = () => {
         </div>
 
         {/* Game Winner Alert Banner */}
-        {match.gameWinner !== null && (
+        {hasWinner && (
           <div className="mb-6 bg-emerald-500/10 border border-emerald-500/50 rounded-xl p-4 flex justify-between items-center">
             <span className="text-emerald-400 font-bold text-base">
               🎉 Game Won by {match.gameWinner === 1 ? match.teamA : match.teamB}! ({match.score1} - {match.score2})
@@ -310,7 +334,7 @@ export const AdminPanel: React.FC = () => {
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamA}</span>
               <button 
-                onClick={() => updateMatchState({ ...match, server: 1, servingSide: match.score1 % 2 === 0 ? 'right' : 'left' })}
+                onClick={() => handleSetServer(1)}
                 className={`text-xs px-2.5 py-1 rounded-md font-bold transition-all ${
                   match.server === 1 
                     ? 'bg-emerald-500 text-slate-950 shadow-md' 
@@ -322,7 +346,7 @@ export const AdminPanel: React.FC = () => {
             </div>
             <input 
               type="text" 
-              value={match.player1} 
+              value={match.player1 || ''} 
               onChange={(e) => updateMatchState({ ...match, player1: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 mb-3" 
               placeholder="Player 1 / Team A Member"
@@ -333,7 +357,7 @@ export const AdminPanel: React.FC = () => {
                 className="bg-slate-700 text-white px-4 py-3 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
               >-1</button>
               <div className="flex-1 text-center">
-                <span className="text-4xl font-black font-mono text-amber-300 block">{match.score1}</span>
+                <span className="text-4xl font-black font-mono text-amber-300 block">{match.score1 ?? 0}</span>
                 <span className="text-[10px] text-slate-400">Target: {match.maxPoints ?? 11}</span>
               </div>
               <button 
@@ -352,7 +376,7 @@ export const AdminPanel: React.FC = () => {
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamB}</span>
               <button 
-                onClick={() => updateMatchState({ ...match, server: 2, servingSide: match.score2 % 2 === 0 ? 'right' : 'left' })}
+                onClick={() => handleSetServer(2)}
                 className={`text-xs px-2.5 py-1 rounded-md font-bold transition-all ${
                   match.server === 2 
                     ? 'bg-emerald-500 text-slate-950 shadow-md' 
@@ -364,7 +388,7 @@ export const AdminPanel: React.FC = () => {
             </div>
             <input 
               type="text" 
-              value={match.player2} 
+              value={match.player2 || ''} 
               onChange={(e) => updateMatchState({ ...match, player2: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 mb-3" 
               placeholder="Player 2 / Team B Member"
@@ -375,7 +399,7 @@ export const AdminPanel: React.FC = () => {
                 className="bg-slate-700 text-white px-4 py-3 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
               >-1</button>
               <div className="flex-1 text-center">
-                <span className="text-4xl font-black font-mono text-amber-300 block">{match.score2}</span>
+                <span className="text-4xl font-black font-mono text-amber-300 block">{match.score2 ?? 0}</span>
                 <span className="text-[10px] text-slate-400">Target: {match.maxPoints ?? 11}</span>
               </div>
               <button 
@@ -391,7 +415,7 @@ export const AdminPanel: React.FC = () => {
           <label className="flex items-center space-x-3 cursor-pointer">
             <input 
               type="checkbox"
-              checked={match.isTrump}
+              checked={!!match.isTrump}
               onChange={(e) => updateMatchState({ ...match, isTrump: e.target.checked })}
               className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700"
             />
