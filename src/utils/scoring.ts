@@ -118,13 +118,13 @@ export function applyResetScores(match: MatchState): MatchState {
   };
 }
 
-/** Swap court / player sides (scores, names, server). */
+/** Swap court / player sides (scores, names, server). Also flips L/R serve court. */
 export function applySwapSides(match: MatchState): MatchState {
   if (!match || typeof match !== 'object') {
     throw new Error('applySwapSides: match is required');
   }
   const swappedServer: 1 | 2 = match.server === 1 ? 2 : 1;
-  const activeServerScore = swappedServer === 1 ? (match.score2 ?? 0) : (match.score1 ?? 0);
+  const currentSide = match.servingSide === 'left' ? 'left' : 'right';
 
   return {
     ...match,
@@ -135,7 +135,8 @@ export function applySwapSides(match: MatchState): MatchState {
     score1: match.score2 ?? 0,
     score2: match.score1 ?? 0,
     server: swappedServer,
-    servingSide: getServeSide(activeServerScore),
+    // Physical court swap: LEFT ↔ RIGHT from camera / audience view
+    servingSide: currentSide === 'left' ? 'right' : 'left',
     gameWinner:
       match.gameWinner === 1 ? 2 : match.gameWinner === 2 ? 1 : null
   };

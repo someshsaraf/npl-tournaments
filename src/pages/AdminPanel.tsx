@@ -164,10 +164,10 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Swap Court / Player Sides
+  // Swap Court / Player Sides — also flips LEFT ↔ RIGHT serve court
   const handleSwapSides = () => {
     const swappedServer: 1 | 2 = match.server === 1 ? 2 : 1;
-    const activeServerScore = swappedServer === 1 ? match.score2 : match.score1;
+    const currentSide = match.servingSide === 'left' ? 'left' : 'right';
 
     updateMatchState({
       ...match,
@@ -178,7 +178,7 @@ export const AdminPanel: React.FC = () => {
       score1: match.score2,
       score2: match.score1,
       server: swappedServer,
-      servingSide: getServeSide(activeServerScore),
+      servingSide: currentSide === 'left' ? 'right' : 'left',
       gameWinner: match.gameWinner === 1 ? 2 : match.gameWinner === 2 ? 1 : null
     });
   };
