@@ -3,6 +3,7 @@ import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
+import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 
 export const LiveScoreboard: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -11,13 +12,18 @@ export const LiveScoreboard: React.FC = () => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setMatch(data);
+      if (data) setMatch(normalizeMatchState(data));
     });
 
     return () => unsubscribe();
   }, []);
 
-  const activeServer = match.server ?? 1;
+  const activeServer = match.server === 2 ? 2 : 1;
+  const showWinner = hasMatchWinner(match);
+  const winnerLabel =
+    match.gameWinner === 1
+      ? (match.player1 || match.teamA)
+      : (match.player2 || match.teamB);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
@@ -44,11 +50,11 @@ export const LiveScoreboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Winner Banner */}
-        {match.gameWinner !== null && (
+        {/* Winner Banner — only when gameWinner is strictly 1 or 2 */}
+        {showWinner && (
           <div className="bg-emerald-500/20 border border-emerald-500/50 rounded-2xl p-4 text-center">
             <h2 className="text-2xl font-black text-emerald-400">
-              🏆 WINNER: {match.gameWinner === 1 ? match.teamA : match.teamB}
+              🏆 WINNER: {winnerLabel}
             </h2>
           </div>
         )}
@@ -67,7 +73,7 @@ export const LiveScoreboard: React.FC = () => {
             </div>
 
             <div className={`py-6 rounded-2xl font-black text-6xl ${activeServer === 1 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-slate-800 text-indigo-400'}`}>
-              {match.score1}
+              {match.score1 ?? 0}
             </div>
 
             {activeServer === 1 && (
@@ -91,7 +97,7 @@ export const LiveScoreboard: React.FC = () => {
             </div>
 
             <div className={`py-6 rounded-2xl font-black text-6xl ${activeServer === 2 ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/30' : 'bg-slate-800 text-rose-400'}`}>
-              {match.score2}
+              {match.score2 ?? 0}
             </div>
 
             {activeServer === 2 && (

@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import { toYouTubeEmbedUrl } from '../utils/youtube';
+import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 
 /** First name / short label for tight overlay space. */
 function shortName(name: string, maxChars: number): string {
@@ -20,14 +21,7 @@ export const StreamOverlay: React.FC = () => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        setMatch({
-          ...INITIAL_MATCH,
-          ...data,
-          youtubeLiveUrl: typeof data.youtubeLiveUrl === 'string' ? data.youtubeLiveUrl : '',
-          gameWinner: (data.gameWinner === 1 || data.gameWinner === 2) ? data.gameWinner : null
-        });
-      }
+      if (data) setMatch(normalizeMatchState(data));
     });
 
     return () => unsubscribe();
@@ -43,7 +37,7 @@ export const StreamOverlay: React.FC = () => {
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
   const maxPoints = match.maxPoints ?? 11;
-  const hasWinner = match.gameWinner === 1 || match.gameWinner === 2;
+  const hasWinner = hasMatchWinner(match);
 
   // Full card only on real laptop/desktop (wide + tall). Phone landscape is wide but short — keep compact bar.
   const compactOnly =

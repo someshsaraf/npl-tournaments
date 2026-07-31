@@ -12,6 +12,7 @@ import {
 } from '../utils/completedMatches';
 import { exportScores } from '../utils/exportScores';
 import type { ScoreExportFormat } from '../utils/exportScores';
+import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -29,14 +30,7 @@ export const AdminPanel: React.FC = () => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribeMatch = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        setMatch({
-          ...INITIAL_MATCH,
-          ...data,
-          youtubeLiveUrl: typeof data.youtubeLiveUrl === 'string' ? data.youtubeLiveUrl : '',
-          gameWinner: (data.gameWinner === 1 || data.gameWinner === 2) ? data.gameWinner : null
-        });
-      }
+      if (data) setMatch(normalizeMatchState(data));
     });
 
     const teamsRef = ref(db, 'teams');
@@ -345,7 +339,7 @@ export const AdminPanel: React.FC = () => {
   const completedRows = sortCompletedMatches(Object.values(completedById));
   const currentFixtureCompleted = completedById[match.currentMatchId];
 
-  const hasWinner = match.gameWinner === 1 || match.gameWinner === 2;
+  const hasWinner = hasMatchWinner(match);
   const youtubeUrl = match.youtubeLiveUrl ?? '';
   const youtubeUrlValid = isValidYouTubeLiveUrl(youtubeUrl);
   const youtubeConfigured = !!parseYouTubeVideoId(youtubeUrl);

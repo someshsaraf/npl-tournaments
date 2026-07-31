@@ -3,6 +3,7 @@ import AdminPanel from './pages/AdminPanel';
 import LiveScoreboard from './pages/LiveScoreboard';
 import StreamOverlay from './pages/StreamOverlay';
 import RulesPage from './pages/RulesPage';
+import ScoreControl from './pages/ScoreControl';
 
 export default function App() {
   return (
@@ -10,6 +11,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LiveScoreboard />} />
         <Route path="/live" element={<LiveScoreboard />} />
+        <Route path="/score" element={<ScoreControl />} />
+        <Route path="/scorer" element={<ScoreControl />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/overlay" element={<StreamOverlay />} />
         <Route path="/rules" element={<RulesPage />} />
