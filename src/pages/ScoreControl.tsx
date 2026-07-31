@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { FIXTURES, INITIAL_MATCH } from '../data/tournamentData';
@@ -20,6 +20,9 @@ export const ScoreControl: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [pendingSaveMatch, setPendingSaveMatch] = useState<MatchState | null>(null);
+  const promptedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -37,11 +40,30 @@ export const ScoreControl: React.FC = () => {
     });
   };
 
+  const winnerPromptKey = (m: MatchState): string =>
+    `${m.currentMatchId}:${m.score1}-${m.score2}:w${m.gameWinner}`;
+
+  const openSaveDialog = (finishedMatch: MatchState) => {
+    if (!hasMatchWinner(finishedMatch)) return;
+    const key = winnerPromptKey(finishedMatch);
+    if (promptedKeyRef.current === key) return;
+    promptedKeyRef.current = key;
+    setPendingSaveMatch(finishedMatch);
+    setShowSaveDialog(true);
+  };
+
   const handleScorePoint = (side: 1 | 2) => {
-    updateMatchState(applyScorePoint(match, side));
+    const next = applyScorePoint(match, side);
+    updateMatchState(next);
+    if (hasMatchWinner(next)) {
+      openSaveDialog(next);
+    }
   };
 
   const handleDecrement = (side: 1 | 2) => {
+    promptedKeyRef.current = null;
+    setShowSaveDialog(false);
+    setPendingSaveMatch(null);
     updateMatchState(applyDecrementScore(match, side));
   };
 
@@ -50,40 +72,62 @@ export const ScoreControl: React.FC = () => {
   };
 
   const handleReset = () => {
+    promptedKeyRef.current = null;
+    setShowSaveDialog(false);
+    setPendingSaveMatch(null);
     setSaveMessage(null);
     updateMatchState(applyResetScores(match));
   };
 
-  const handleCompleteMatch = async () => {
-    if (match.gameWinner !== 1 && match.gameWinner !== 2) {
+  const saveCompletedMatch = async (matchToSave: MatchState) => {
+    if (matchToSave.gameWinner !== 1 && matchToSave.gameWinner !== 2) {
       setSaveMessage('Finish the game before saving.');
-      return;
+      return false;
     }
-    const fixtureId = match.currentMatchId?.trim();
+    const fixtureId = matchToSave.currentMatchId?.trim();
     if (!fixtureId) {
       setSaveMessage('Missing fixture id.');
-      return;
+      return false;
     }
 
     setIsSavingResult(true);
     setSaveMessage(null);
     try {
       const fixture = FIXTURES.find((f) => f.id === fixtureId);
-      const completed = buildCompletedMatch(match, fixture, new Date());
+      const completed = buildCompletedMatch(matchToSave, fixture, new Date());
       await set(ref(db, `completedMatches/${fixtureId}`), completed);
       setSaveMessage(`Saved ${completed.result} · ${completed.completedDate} ${completed.completedTime}`);
+      setShowSaveDialog(false);
+      setPendingSaveMatch(null);
+      return true;
     } catch (err) {
       console.error('Failed to save completed match:', err);
       setSaveMessage('Failed to save result.');
+      return false;
     } finally {
       setIsSavingResult(false);
     }
+  };
+
+  const handleConfirmSave = async () => {
+    const toSave = pendingSaveMatch ?? match;
+    await saveCompletedMatch(toSave);
+  };
+
+  const handleDismissSaveDialog = () => {
+    setShowSaveDialog(false);
+    setSaveMessage('Result not saved yet — tap Complete & Save when ready.');
   };
 
   const hasWinner = hasMatchWinner(match);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
   const servingSide = (match.servingSide ?? 'right').toUpperCase();
+  const dialogMatch = pendingSaveDialogMatch(pendingSaveMatch, match);
+  const dialogWinnerName =
+    dialogMatch.gameWinner === 1
+      ? dialogMatch.player1 || dialogMatch.teamA
+      : dialogMatch.player2 || dialogMatch.teamB;
 
   const sideCard = (side: 1 | 2) => {
     const isServer = match.server === side;
@@ -195,7 +239,10 @@ export const ScoreControl: React.FC = () => {
         {hasWinner && (
           <button
             type="button"
-            onClick={handleCompleteMatch}
+            onClick={() => {
+              setPendingSaveMatch(match);
+              setShowSaveDialog(true);
+            }}
             disabled={isSavingResult}
             className="flex-1 min-w-[140px] bg-emerald-500 text-slate-950 font-bold text-sm px-4 py-3 rounded-xl disabled:opacity-50"
           >
@@ -214,8 +261,59 @@ export const ScoreControl: React.FC = () => {
       {saveMessage && (
         <p className="text-xs text-slate-400 text-center">{saveMessage}</p>
       )}
+
+      {showSaveDialog && hasMatchWinner(dialogMatch) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="save-score-title"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-5 space-y-4">
+            <div className="space-y-1">
+              <h2 id="save-score-title" className="text-lg font-black text-emerald-400">
+                Match complete
+              </h2>
+              <p className="text-sm text-slate-200">
+                Winner: <strong className="text-white">{dialogWinnerName}</strong>
+              </p>
+              <p className="text-2xl font-black font-mono text-amber-300">
+                {dialogMatch.score1 ?? 0}-{dialogMatch.score2 ?? 0}
+              </p>
+              <p className="text-xs text-slate-400">
+                Save this result to completed matches?
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleDismissSaveDialog}
+                disabled={isSavingResult}
+                className="rounded-xl bg-slate-800 text-slate-200 font-bold text-sm py-3 border border-slate-700 disabled:opacity-50"
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSave}
+                disabled={isSavingResult}
+                className="rounded-xl bg-emerald-500 text-slate-950 font-bold text-sm py-3 disabled:opacity-50"
+              >
+                {isSavingResult ? 'Saving…' : 'Save result'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+function pendingSaveDialogMatch(
+  pending: MatchState | null,
+  current: MatchState
+): MatchState {
+  return pending && hasMatchWinner(pending) ? pending : current;
+}
 
 export default ScoreControl;
