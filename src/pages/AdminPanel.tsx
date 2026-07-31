@@ -3,6 +3,7 @@ import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { TEAMS, FIXTURES, INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState, Fixture, Team } from '../data/tournamentData';
+import { isValidYouTubeLiveUrl, parseYouTubeVideoId } from '../utils/youtube';
 
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -19,6 +20,7 @@ export const AdminPanel: React.FC = () => {
         setMatch({
           ...INITIAL_MATCH,
           ...data,
+          youtubeLiveUrl: typeof data.youtubeLiveUrl === 'string' ? data.youtubeLiveUrl : '',
           gameWinner: (data.gameWinner === 1 || data.gameWinner === 2) ? data.gameWinner : null
         });
       }
@@ -219,6 +221,15 @@ export const AdminPanel: React.FC = () => {
     updateTeamsState(updated);
   };
 
+  const handleYoutubeLiveUrlChange = (raw: string) => {
+    if (typeof raw !== 'string') return;
+    updateMatchState({ ...match, youtubeLiveUrl: raw });
+  };
+
+  const handleClearYoutubeLiveUrl = () => {
+    updateMatchState({ ...match, youtubeLiveUrl: '' });
+  };
+
   const handleStartFixture = (fixture: Fixture, pointsLimit: 11 | 21) => {
     const players = fixture.details.split(' vs ');
     const updatedState: MatchState = {
@@ -250,6 +261,9 @@ export const AdminPanel: React.FC = () => {
     : FIXTURES.filter((f) => f.category === selectedCategory);
 
   const hasWinner = match.gameWinner === 1 || match.gameWinner === 2;
+  const youtubeUrl = match.youtubeLiveUrl ?? '';
+  const youtubeUrlValid = isValidYouTubeLiveUrl(youtubeUrl);
+  const youtubeConfigured = !!parseYouTubeVideoId(youtubeUrl);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
@@ -431,6 +445,50 @@ export const AdminPanel: React.FC = () => {
           >
             Reset Scores
           </button>
+        </div>
+
+        {/* YouTube Live Link for Overlay */}
+        <div className="mt-6 pt-4 border-t border-slate-800 space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <label htmlFor="youtube-live-url" className="text-sm font-semibold text-slate-200">
+              YouTube Live Link
+            </label>
+            <span className="text-[11px] text-slate-500">
+              Used by <code className="text-indigo-300">/overlay</code>
+              {youtubeConfigured ? (
+                <span className="ml-2 text-emerald-400 font-semibold">● Live linked</span>
+              ) : null}
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              id="youtube-live-url"
+              type="url"
+              value={youtubeUrl}
+              onChange={(e) => handleYoutubeLiveUrlChange(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=… or /live/…"
+              className={`flex-1 bg-slate-900 border rounded-lg p-2.5 text-sm text-white focus:outline-none ${
+                youtubeUrl.trim() && !youtubeUrlValid
+                  ? 'border-red-500 focus:border-red-400'
+                  : 'border-slate-700 focus:border-indigo-500'
+              }`}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              onClick={handleClearYoutubeLiveUrl}
+              disabled={!youtubeUrl}
+              className="text-xs text-slate-300 hover:text-white bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-lg transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+          {youtubeUrl.trim() && !youtubeUrlValid && (
+            <p className="text-[11px] text-red-400">
+              Enter a valid YouTube watch, live, or share URL.
+            </p>
+          )}
         </div>
       </div>
 

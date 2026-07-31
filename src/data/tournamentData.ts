@@ -32,6 +32,8 @@ export interface MatchState {
   gameWinner: 1 | 2 | null;
   isTrump: boolean;
   trumpTeam: 1 | 2 | null;
+  /** YouTube live (or VOD) URL consumed by the /overlay page */
+  youtubeLiveUrl: string;
 }
 
 export const TEAMS: Team[] = [
@@ -86,5 +88,6 @@ export const INITIAL_MATCH: MatchState = {
   deuceActive: false,
   gameWinner: null,
   isTrump: false,
-  trumpTeam: null
+  trumpTeam: null,
+  youtubeLiveUrl: ''
 };
