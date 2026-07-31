@@ -8,8 +8,9 @@ export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [teams, setTeams] = useState<Team[]>(TEAMS);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedMaxPoints, setSelectedMaxPoints] = useState<11 | 21>(11);
 
-  // Sync current match state and teams from Firebase on mount
+  // Sync state from Firebase
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribeMatch = onValue(matchRef, (snapshot) => {
@@ -23,7 +24,6 @@ export const AdminPanel: React.FC = () => {
       if (data) {
         setTeams(data);
       } else {
-        // Initialize Firebase with local TEAMS if empty
         set(ref(db, 'teams'), TEAMS);
       }
     });
@@ -83,8 +83,8 @@ export const AdminPanel: React.FC = () => {
     updateTeamsState(updated);
   };
 
-  // Load selected fixture directly into active match state
-  const handleStartFixture = (fixture: Fixture) => {
+  // Start fixture with selected max point target (11 or 21)
+  const handleStartFixture = (fixture: Fixture, pointsLimit: 11 | 21) => {
     const players = fixture.details.split(' vs ');
     const updatedState: MatchState = {
       ...match,
@@ -97,6 +97,7 @@ export const AdminPanel: React.FC = () => {
       player2: players[1] || match.player2,
       score1: 0,
       score2: 0,
+      maxPoints: pointsLimit,
       server: 1,
       serving: 1,
       isTrump: false,
@@ -120,11 +121,38 @@ export const AdminPanel: React.FC = () => {
           <h2 className="text-xl font-bold text-amber-400">Active Match Control</h2>
           <div className="flex items-center space-x-2">
             <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700">
-              {match.category} • {match.stage}
+              Target: <strong className="text-amber-300">{match.maxPoints ?? 11} Pts</strong>
             </span>
             <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">
               ID: {match.currentMatchId}
             </span>
+          </div>
+        </div>
+
+        {/* Scoring Mode Selection (11 vs 21 Points) */}
+        <div className="mb-6 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="text-xs font-semibold text-slate-300">Target Match Points:</span>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => updateMatchState({ ...match, maxPoints: 11 })}
+              className={`text-xs px-4 py-1.5 rounded-lg font-bold transition-all ${
+                (match.maxPoints ?? 11) === 11
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              11 Points Match
+            </button>
+            <button
+              onClick={() => updateMatchState({ ...match, maxPoints: 21 })}
+              className={`text-xs px-4 py-1.5 rounded-lg font-bold transition-all ${
+                match.maxPoints === 21
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              21 Points Match
+            </button>
           </div>
         </div>
 
@@ -156,7 +184,9 @@ export const AdminPanel: React.FC = () => {
                 onClick={() => updateMatchState({ ...match, score1: Math.max(0, match.score1 - 1) })}
                 className="bg-slate-700 text-white px-4 py-2 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
               >-1</button>
-              <span className="text-4xl font-black font-mono text-amber-300 flex-1 text-center">{match.score1}</span>
+              <span className="text-4xl font-black font-mono text-amber-300 flex-1 text-center">
+                {match.score1} <span className="text-xs text-slate-500 font-normal">/ {match.maxPoints ?? 11}</span>
+              </span>
               <button 
                 onClick={() => updateMatchState({ ...match, score1: match.score1 + 1 })}
                 className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-lg hover:bg-indigo-500 active:scale-95 transition-all"
@@ -191,7 +221,9 @@ export const AdminPanel: React.FC = () => {
                 onClick={() => updateMatchState({ ...match, score2: Math.max(0, match.score2 - 1) })}
                 className="bg-slate-700 text-white px-4 py-2 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
               >-1</button>
-              <span className="text-4xl font-black font-mono text-amber-300 flex-1 text-center">{match.score2}</span>
+              <span className="text-4xl font-black font-mono text-amber-300 flex-1 text-center">
+                {match.score2} <span className="text-xs text-slate-500 font-normal">/ {match.maxPoints ?? 11}</span>
+              </span>
               <button 
                 onClick={() => updateMatchState({ ...match, score2: match.score2 + 1 })}
                 className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-lg hover:bg-indigo-500 active:scale-95 transition-all"
@@ -224,7 +256,6 @@ export const AdminPanel: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
           {teams.map((team) => (
             <div key={team.id} className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl space-y-3">
-              {/* Editable Team Name */}
               <input
                 type="text"
                 value={team.name}
@@ -233,7 +264,6 @@ export const AdminPanel: React.FC = () => {
                 placeholder="Team Name"
               />
 
-              {/* Editable Player List */}
               <div className="space-y-1.5">
                 {team.players.map((player, idx) => (
                   <div key={idx} className="flex items-center space-x-1 group">
@@ -255,7 +285,6 @@ export const AdminPanel: React.FC = () => {
                 ))}
               </div>
 
-              {/* Add Player Button */}
               <button
                 onClick={() => handleAddPlayer(team.id)}
                 className="w-full text-center text-[11px] text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 border border-indigo-800/40 rounded py-1 font-semibold transition-colors"
@@ -270,7 +299,29 @@ export const AdminPanel: React.FC = () => {
       {/* 3. Tournament Fixtures & Master Schedule Browser */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h3 className="text-lg font-bold text-indigo-300">Tournament Fixtures</h3>
+          <div className="flex items-center space-x-4">
+            <h3 className="text-lg font-bold text-indigo-300">Tournament Fixtures</h3>
+            {/* Quick Match Point Target Selector */}
+            <div className="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700">
+              <button
+                onClick={() => setSelectedMaxPoints(11)}
+                className={`text-[10px] px-2 py-1 rounded font-bold ${
+                  selectedMaxPoints === 11 ? 'bg-amber-400 text-slate-950' : 'text-slate-400'
+                }`}
+              >
+                11 Pts
+              </button>
+              <button
+                onClick={() => setSelectedMaxPoints(21)}
+                className={`text-[10px] px-2 py-1 rounded font-bold ${
+                  selectedMaxPoints === 21 ? 'bg-amber-400 text-slate-950' : 'text-slate-400'
+                }`}
+              >
+                21 Pts
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center space-x-2 overflow-x-auto max-w-full pb-2 sm:pb-0">
             {categories.map((cat) => (
               <button
@@ -310,16 +361,30 @@ export const AdminPanel: React.FC = () => {
 
                 <div className="mt-3.5 flex justify-between items-center pt-2 border-t border-slate-800/80">
                   <span className="text-[10px] text-slate-400 uppercase tracking-wider">{fixture.stage}</span>
-                  <button
-                    onClick={() => handleStartFixture(fixture)}
-                    className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
-                      isLive
-                        ? 'bg-emerald-500 text-slate-950 shadow'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-500'
-                    }`}
-                  >
-                    {isLive ? 'Live Now' : 'Start Match'}
-                  </button>
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() => handleStartFixture(fixture, 11)}
+                      className={`text-[11px] px-2 py-1 rounded font-bold transition-all ${
+                        isLive && match.maxPoints === 11
+                          ? 'bg-emerald-500 text-slate-950 shadow'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                      }`}
+                      title="Start as 11 Point Match"
+                    >
+                      {isLive && match.maxPoints === 11 ? 'Live (11p)' : 'Start 11p'}
+                    </button>
+                    <button
+                      onClick={() => handleStartFixture(fixture, 21)}
+                      className={`text-[11px] px-2 py-1 rounded font-bold transition-all ${
+                        isLive && match.maxPoints === 21
+                          ? 'bg-emerald-500 text-slate-950 shadow'
+                          : 'bg-indigo-700 text-white hover:bg-indigo-600'
+                      }`}
+                      title="Start as 21 Point Match"
+                    >
+                      {isLive && match.maxPoints === 21 ? 'Live (21p)' : 'Start 21p'}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
