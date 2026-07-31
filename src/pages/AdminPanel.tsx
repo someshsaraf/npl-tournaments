@@ -441,23 +441,23 @@ export const AdminPanel: React.FC = () => {
           }`}>
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamA}</span>
-              <button
-                type="button"
-                onClick={() => handleSetServer(1)}
-                title={match.server === 1 ? 'Serving' : 'Set this side as server'}
-                className={`p-1.5 rounded-lg transition-all ${
-                  match.server === 1
-                    ? 'bg-emerald-500/20 ring-1 ring-emerald-400/60'
-                    : 'bg-slate-700/60 hover:bg-slate-600'
-                }`}
-                aria-pressed={match.server === 1}
-              >
-                <ServeRacket
-                  active={match.server === 1}
-                  size={26}
-                  title={match.server === 1 ? 'Serving' : 'Set serve'}
-                />
-              </button>
+              {match.server === 1 ? (
+                <span
+                  className="p-1.5 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/60"
+                  title="Serving"
+                >
+                  <ServeRacket active size={26} title="Serving" />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSetServer(1)}
+                  title="Set this side as server"
+                  className="text-xs px-2.5 py-1 rounded-md font-bold bg-slate-700 text-slate-300 hover:bg-slate-600"
+                >
+                  Set Serve
+                </button>
+              )}
             </div>
             <input 
               type="text" 
@@ -490,23 +490,23 @@ export const AdminPanel: React.FC = () => {
           }`}>
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamB}</span>
-              <button
-                type="button"
-                onClick={() => handleSetServer(2)}
-                title={match.server === 2 ? 'Serving' : 'Set this side as server'}
-                className={`p-1.5 rounded-lg transition-all ${
-                  match.server === 2
-                    ? 'bg-emerald-500/20 ring-1 ring-emerald-400/60'
-                    : 'bg-slate-700/60 hover:bg-slate-600'
-                }`}
-                aria-pressed={match.server === 2}
-              >
-                <ServeRacket
-                  active={match.server === 2}
-                  size={26}
-                  title={match.server === 2 ? 'Serving' : 'Set serve'}
-                />
-              </button>
+              {match.server === 2 ? (
+                <span
+                  className="p-1.5 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/60"
+                  title="Serving"
+                >
+                  <ServeRacket active size={26} title="Serving" />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSetServer(2)}
+                  title="Set this side as server"
+                  className="text-xs px-2.5 py-1 rounded-md font-bold bg-slate-700 text-slate-300 hover:bg-slate-600"
+                >
+                  Set Serve
+                </button>
+              )}
             </div>
             <input 
               type="text" 

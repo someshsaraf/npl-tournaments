@@ -1,20 +1,19 @@
 type ServeRacketProps = {
-  /** When true, indicator is highlighted as the active server */
-  active?: boolean;
   className?: string;
   title?: string;
   /** Pixel size (width & height). Default 28. */
   size?: number;
+  /** Kept for callers; image is only rendered for the server. */
+  active?: boolean;
 };
 
 const SERVE_IMAGE_SRC = '/Badminton_service_rules.jpg';
 
 /**
- * Serve indicator using the badminton service photo.
+ * Serve indicator photo — render only for the side that is serving.
  * Stateless; safe under concurrent React renders.
  */
 export function ServeRacket({
-  active = false,
   className = '',
   title = 'Serving',
   size = 28
@@ -28,11 +27,11 @@ export function ServeRacket({
       title={title}
       width={safeSize}
       height={safeSize}
-      className={`object-cover rounded-md shrink-0 ${active ? 'opacity-100' : 'opacity-40'} ${className}`.trim()}
+      className={`object-cover rounded-md shrink-0 opacity-100 ${className}`.trim()}
       style={{
         width: safeSize,
         height: safeSize,
-        boxShadow: active ? '0 0 0 2px rgba(52, 211, 153, 0.7)' : undefined
+        boxShadow: '0 0 0 2px rgba(52, 211, 153, 0.7)'
       }}
       draggable={false}
     />

@@ -203,23 +203,23 @@ export const ScoreControl: React.FC = () => {
             <p className="text-base sm:text-2xl md:text-3xl font-black text-white truncate leading-none">
               {name1}
             </p>
-            <button
-              type="button"
-              onClick={() => handleSetServer(1)}
-              title={match.server === 1 ? 'Serving' : 'Set this side as server'}
-              className={`shrink-0 p-1.5 rounded-xl transition-all active:scale-95 ${
-                match.server === 1
-                  ? 'bg-emerald-500/25 ring-2 ring-emerald-400/70'
-                  : 'bg-slate-800/80 border border-slate-700'
-              }`}
-              aria-pressed={match.server === 1}
-            >
-              <ServeRacket
-                active={match.server === 1}
-                size={36}
-                title={match.server === 1 ? 'Serving' : 'Set serve'}
-              />
-            </button>
+            {match.server === 1 ? (
+              <span
+                className="shrink-0 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
+                title="Serving"
+              >
+                <ServeRacket active size={36} title="Serving" />
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleSetServer(1)}
+                title="Set this side as server"
+                className="shrink-0 text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 active:scale-95"
+              >
+                SET SERVE
+              </button>
+            )}
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center">
@@ -245,23 +245,23 @@ export const ScoreControl: React.FC = () => {
             <p className="text-base sm:text-2xl md:text-3xl font-black text-white truncate leading-none">
               {name2}
             </p>
-            <button
-              type="button"
-              onClick={() => handleSetServer(2)}
-              title={match.server === 2 ? 'Serving' : 'Set this side as server'}
-              className={`shrink-0 p-1.5 rounded-xl transition-all active:scale-95 ${
-                match.server === 2
-                  ? 'bg-emerald-500/25 ring-2 ring-emerald-400/70'
-                  : 'bg-slate-800/80 border border-slate-700'
-              }`}
-              aria-pressed={match.server === 2}
-            >
-              <ServeRacket
-                active={match.server === 2}
-                size={36}
-                title={match.server === 2 ? 'Serving' : 'Set serve'}
-              />
-            </button>
+            {match.server === 2 ? (
+              <span
+                className="shrink-0 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
+                title="Serving"
+              >
+                <ServeRacket active size={36} title="Serving" />
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleSetServer(2)}
+                title="Set this side as server"
+                className="shrink-0 text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 active:scale-95"
+              >
+                SET SERVE
+              </button>
+            )}
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center">
