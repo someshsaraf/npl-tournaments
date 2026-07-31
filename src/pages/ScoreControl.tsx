@@ -206,13 +206,14 @@ export const ScoreControl: React.FC = () => {
             <button
               type="button"
               onClick={() => handleSetServer(1)}
+              title={match.server === 1 ? 'Tap to toggle court L/R' : 'Set this side as server'}
               className={`shrink-0 text-[9px] sm:text-[11px] font-bold px-2 py-1 rounded-md ${
                 match.server === 1
                   ? 'bg-emerald-500 text-slate-950'
                   : 'bg-slate-800 text-slate-400 border border-slate-700'
               }`}
             >
-              {match.server === 1 ? `SERVE ${servingSide}` : 'SERVE'}
+              {match.server === 1 ? `SERVING · Court ${servingSide}` : 'SET SERVE'}
             </button>
           </div>
 
@@ -242,13 +243,14 @@ export const ScoreControl: React.FC = () => {
             <button
               type="button"
               onClick={() => handleSetServer(2)}
+              title={match.server === 2 ? 'Tap to toggle court L/R' : 'Set this side as server'}
               className={`shrink-0 text-[9px] sm:text-[11px] font-bold px-2 py-1 rounded-md ${
                 match.server === 2
                   ? 'bg-emerald-500 text-slate-950'
                   : 'bg-slate-800 text-slate-400 border border-slate-700'
               }`}
             >
-              {match.server === 2 ? `SERVE ${servingSide}` : 'SERVE'}
+              {match.server === 2 ? `SERVING · Court ${servingSide}` : 'SET SERVE'}
             </button>
           </div>
 

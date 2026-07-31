@@ -17,10 +17,16 @@ export function normalizeMatchState(data: unknown): MatchState {
       ? gameWinnerRaw
       : null;
 
+  const serverRaw = raw.server;
+  const server = serverRaw === 2 ? 2 : 1;
+  const servingSide = raw.servingSide === 'left' ? 'left' : 'right';
+
   return {
     ...INITIAL_MATCH,
     ...(raw as Partial<MatchState>),
     youtubeLiveUrl: typeof raw.youtubeLiveUrl === 'string' ? raw.youtubeLiveUrl : '',
+    server,
+    servingSide,
     gameWinner
   };
 }

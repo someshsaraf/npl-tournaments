@@ -88,6 +88,10 @@ export function applyDecrementScore(match: MatchState, side: 1 | 2): MatchState 
   };
 }
 
+/**
+ * Assign who serves. Tap the current server again to toggle court L ↔ R.
+ * Switching server keeps the current court side (manual control).
+ */
 export function applySetServer(match: MatchState, targetServer: 1 | 2): MatchState {
   if (!match || typeof match !== 'object') {
     throw new Error('applySetServer: match is required');
@@ -95,11 +99,17 @@ export function applySetServer(match: MatchState, targetServer: 1 | 2): MatchSta
   if (targetServer !== 1 && targetServer !== 2) {
     throw new Error('applySetServer: targetServer must be 1 or 2');
   }
-  const activeScore = targetServer === 1 ? (match.score1 ?? 0) : (match.score2 ?? 0);
+  const currentSide = match.servingSide === 'left' ? 'left' : 'right';
+  if (match.server === targetServer) {
+    return {
+      ...match,
+      servingSide: currentSide === 'left' ? 'right' : 'left'
+    };
+  }
   return {
     ...match,
     server: targetServer,
-    servingSide: getServeSide(activeScore)
+    servingSide: currentSide
   };
 }
 

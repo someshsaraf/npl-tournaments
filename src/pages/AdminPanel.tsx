@@ -76,14 +76,21 @@ export const AdminPanel: React.FC = () => {
     return score % 2 === 0 ? 'right' : 'left';
   };
 
-  // Manual Server Override (e.g. at start of match or correction)
+  // Manual server: assign who serves; tap again on same side to toggle court L ↔ R
   const handleSetServer = (targetServer: 1 | 2) => {
     if (targetServer !== 1 && targetServer !== 2) return;
-    const activeScore = targetServer === 1 ? (match.score1 ?? 0) : (match.score2 ?? 0);
+    const currentSide = match.servingSide === 'left' ? 'left' : 'right';
+    if (match.server === targetServer) {
+      updateMatchState({
+        ...match,
+        servingSide: currentSide === 'left' ? 'right' : 'left'
+      });
+      return;
+    }
     updateMatchState({
       ...match,
       server: targetServer,
-      servingSide: getServeSide(activeScore)
+      servingSide: currentSide
     });
   };
 
@@ -463,7 +470,7 @@ export const AdminPanel: React.FC = () => {
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
               >
-                {match.server === 1 ? `Serving (${match.servingSide?.toUpperCase()})` : 'Set Serve'}
+                {match.server === 1 ? `Serving · Court ${match.servingSide?.toUpperCase()}` : 'Set Serve'}
               </button>
             </div>
             <input 
@@ -505,7 +512,7 @@ export const AdminPanel: React.FC = () => {
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
               >
-                {match.server === 2 ? `Serving (${match.servingSide?.toUpperCase()})` : 'Set Serve'}
+                {match.server === 2 ? `Serving · Court ${match.servingSide?.toUpperCase()}` : 'Set Serve'}
               </button>
             </div>
             <input 

@@ -45,7 +45,7 @@ export const LiveScoreboard: React.FC = () => {
               Target: <strong className="text-amber-300">{match.maxPoints ?? 11} Pts</strong>
             </span>
             <span className="text-xs bg-indigo-500/20 text-indigo-300 px-3 py-1.5 rounded-full font-mono uppercase border border-indigo-500/30">
-              Serve: <strong className="text-amber-300">{match.servingSide?.toUpperCase() ?? 'RIGHT'}</strong>
+              Court: <strong className="text-amber-300">{match.servingSide?.toUpperCase() ?? 'RIGHT'}</strong>
             </span>
           </div>
         </div>
@@ -79,7 +79,7 @@ export const LiveScoreboard: React.FC = () => {
             {activeServer === 1 && (
               <div className="flex justify-center items-center space-x-2">
                 <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full uppercase tracking-wider font-bold border border-indigo-500/30">
-                  Serving ({match.servingSide?.toUpperCase()})
+                  Serving · Court {match.servingSide?.toUpperCase()}
                 </span>
               </div>
             )}
@@ -103,7 +103,7 @@ export const LiveScoreboard: React.FC = () => {
             {activeServer === 2 && (
               <div className="flex justify-center items-center space-x-2">
                 <span className="text-[10px] bg-rose-500/20 text-rose-300 px-3 py-1 rounded-full uppercase tracking-wider font-bold border border-rose-500/30">
-                  Serving ({match.servingSide?.toUpperCase()})
+                  Serving · Court {match.servingSide?.toUpperCase()}
                 </span>
               </div>
             )}
