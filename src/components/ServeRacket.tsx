@@ -1,5 +1,5 @@
 type ServeRacketProps = {
-  /** When true, racket is highlighted as the active server */
+  /** When true, indicator is highlighted as the active server */
   active?: boolean;
   className?: string;
   title?: string;
@@ -7,8 +7,10 @@ type ServeRacketProps = {
   size?: number;
 };
 
+const SERVE_IMAGE_SRC = '/Badminton_service_rules.jpg';
+
 /**
- * Badminton racket indicator for who is serving.
+ * Serve indicator using the badminton service photo.
  * Stateless; safe under concurrent React renders.
  */
 export function ServeRacket({
@@ -18,70 +20,22 @@ export function ServeRacket({
   size = 28
 }: ServeRacketProps) {
   const safeSize = Number.isFinite(size) && size > 0 ? size : 28;
-  const stroke = active ? '#34d399' : '#64748b';
-  const fill = active ? '#10b981' : 'transparent';
-  const opacity = active ? 1 : 0.45;
 
   return (
-    <svg
+    <img
+      src={SERVE_IMAGE_SRC}
+      alt={title}
+      title={title}
       width={safeSize}
       height={safeSize}
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      style={{ opacity }}
-      role="img"
-      aria-label={title}
-    >
-      <title>{title}</title>
-      {/* Head / oval */}
-      <ellipse
-        cx="28"
-        cy="22"
-        rx="16"
-        ry="18"
-        stroke={stroke}
-        strokeWidth="3"
-        fill={fill}
-        fillOpacity={active ? 0.25 : 0}
-      />
-      {/* String grid */}
-      <path
-        d="M18 14v16M22 12v20M26 11v22M30 11v22M34 12v20M38 14v16"
-        stroke={stroke}
-        strokeWidth="1.2"
-        opacity="0.7"
-      />
-      <path
-        d="M14 16h28M13 20h30M12 24h32M13 28h30M14 32h28"
-        stroke={stroke}
-        strokeWidth="1.2"
-        opacity="0.7"
-      />
-      {/* Throat */}
-      <path
-        d="M28 40c0-2 0-4 0-4"
-        stroke={stroke}
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      {/* Handle */}
-      <path
-        d="M28 40 L36 58"
-        stroke={stroke}
-        strokeWidth="4.5"
-        strokeLinecap="round"
-      />
-      {/* Grip wrap */}
-      <path
-        d="M30.5 48 L34.5 56"
-        stroke={active ? '#a7f3d0' : '#94a3b8'}
-        strokeWidth="2"
-        strokeLinecap="round"
-        opacity="0.9"
-      />
-    </svg>
+      className={`object-cover rounded-md shrink-0 ${active ? 'opacity-100' : 'opacity-40'} ${className}`.trim()}
+      style={{
+        width: safeSize,
+        height: safeSize,
+        boxShadow: active ? '0 0 0 2px rgba(52, 211, 153, 0.7)' : undefined
+      }}
+      draggable={false}
+    />
   );
 }
 
