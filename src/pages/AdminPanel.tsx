@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
-import { TEAMS, FIXTURES, INITIAL_MATCH } from '../data/tournamentData';
+import { TEAMS, FIXTURES, FIXTURE_DATES, INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState, Fixture, Team } from '../data/tournamentData';
 import { isValidYouTubeLiveUrl, parseYouTubeVideoId } from '../utils/youtube';
 
@@ -9,6 +9,7 @@ export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [teams, setTeams] = useState<Team[]>(TEAMS);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedDate, setSelectedDate] = useState<string>(FIXTURE_DATES[0] ?? 'All');
   const [selectedMaxPoints, setSelectedMaxPoints] = useState<11 | 21>(11);
 
   // Sync state from Firebase with normalization
@@ -231,16 +232,24 @@ export const AdminPanel: React.FC = () => {
   };
 
   const handleStartFixture = (fixture: Fixture, pointsLimit: 11 | 21) => {
-    const players = fixture.details.split(' vs ');
+    if (!fixture || (pointsLimit !== 11 && pointsLimit !== 21)) return;
+
+    const sides = fixture.details.split(/\s+vs\s+/i);
+    const stripMatch = (value: string) =>
+      value.replace(/\s*\(Match\s+\d+\)\s*$/i, '').trim();
+
+    const left = stripMatch(fixture.teamA || sides[0] || match.player1);
+    const right = stripMatch(fixture.teamB || sides[1] || match.player2);
+
     const updatedState: MatchState = {
       ...match,
       currentMatchId: fixture.id,
       category: fixture.category,
       stage: fixture.stage,
-      teamA: fixture.teamA || match.teamA,
-      teamB: fixture.teamB || match.teamB,
-      player1: players[0] || match.player1,
-      player2: players[1] || match.player2,
+      teamA: left || match.teamA,
+      teamB: right || match.teamB,
+      player1: left || match.player1,
+      player2: right || match.player2,
       score1: 0,
       score2: 0,
       maxPoints: pointsLimit,
@@ -255,10 +264,19 @@ export const AdminPanel: React.FC = () => {
   };
 
   const categories = ['All', ...Array.from(new Set(FIXTURES.map((f) => f.category)))];
+  const dates = ['All', ...FIXTURE_DATES];
 
-  const filteredFixtures = selectedCategory === 'All'
-    ? FIXTURES
-    : FIXTURES.filter((f) => f.category === selectedCategory);
+  const filteredFixtures = FIXTURES.filter((f) => {
+    const dateOk = selectedDate === 'All' || f.date === selectedDate;
+    const categoryOk = selectedCategory === 'All' || f.category === selectedCategory;
+    return dateOk && categoryOk;
+  });
+
+  const fixturesByDate = filteredFixtures.reduce<Record<string, Fixture[]>>((acc, fixture) => {
+    if (!acc[fixture.date]) acc[fixture.date] = [];
+    acc[fixture.date].push(fixture);
+    return acc;
+  }, {});
 
   const hasWinner = match.gameWinner === 1 || match.gameWinner === 2;
   const youtubeUrl = match.youtubeLiveUrl ?? '';
@@ -544,96 +562,136 @@ export const AdminPanel: React.FC = () => {
 
       {/* 3. Tournament Fixtures & Master Schedule Browser */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center space-x-4">
-            <h3 className="text-lg font-bold text-indigo-300">Tournament Fixtures</h3>
-            <div className="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700">
-              <button
-                onClick={() => setSelectedMaxPoints(11)}
-                className={`text-[10px] px-2 py-1 rounded font-bold ${
-                  selectedMaxPoints === 11 ? 'bg-amber-400 text-slate-950' : 'text-slate-400'
-                }`}
-              >
-                11 Pts
-              </button>
-              <button
-                onClick={() => setSelectedMaxPoints(21)}
-                className={`text-[10px] px-2 py-1 rounded font-bold ${
-                  selectedMaxPoints === 21 ? 'bg-amber-400 text-slate-950' : 'text-slate-400'
-                }`}
-              >
-                21 Pts
-              </button>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="text-lg font-bold text-indigo-300">Tournament Fixtures</h3>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {filteredFixtures.length} / {FIXTURES.length} matches
+              </span>
+              <div className="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700">
+                <button
+                  onClick={() => setSelectedMaxPoints(11)}
+                  className={`text-[10px] px-2 py-1 rounded font-bold ${
+                    selectedMaxPoints === 11 ? 'bg-amber-400 text-slate-950' : 'text-slate-400'
+                  }`}
+                >
+                  11 Pts
+                </button>
+                <button
+                  onClick={() => setSelectedMaxPoints(21)}
+                  className={`text-[10px] px-2 py-1 rounded font-bold ${
+                    selectedMaxPoints === 21 ? 'bg-amber-400 text-slate-950' : 'text-slate-400'
+                  }`}
+                >
+                  21 Pts
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 overflow-x-auto max-w-full pb-2 sm:pb-0">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
-                  selectedCategory === cat 
-                    ? 'bg-indigo-600 text-white font-bold shadow-md' 
-                    : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Date</p>
+            <div className="flex items-center space-x-2 overflow-x-auto max-w-full pb-1">
+              {dates.map((date) => (
+                <button
+                  key={date}
+                  onClick={() => setSelectedDate(date)}
+                  className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
+                    selectedDate === date
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-md'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {date}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Category</p>
+            <div className="flex items-center space-x-2 overflow-x-auto max-w-full pb-1">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
+                    selectedCategory === cat
+                      ? 'bg-indigo-600 text-white font-bold shadow-md'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[520px] overflow-y-auto pr-1">
-          {filteredFixtures.map((fixture) => {
-            const isLive = match.currentMatchId === fixture.id;
-            return (
-              <div 
-                key={fixture.id} 
-                className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
-                  isLive 
-                    ? 'bg-indigo-950/70 border-indigo-500 shadow-md ring-1 ring-indigo-500/50' 
-                    : 'bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/80'
-                }`}
-              >
-                <div>
-                  <div className="flex justify-between items-center text-[11px] text-slate-400 mb-1.5">
-                    <span>{fixture.date} • {fixture.time}</span>
-                    <span className="font-semibold text-indigo-400">{fixture.category}</span>
-                  </div>
-                  <p className="text-sm font-bold text-slate-100">{fixture.details}</p>
-                </div>
-
-                <div className="mt-3.5 flex justify-between items-center pt-2 border-t border-slate-800/80">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider">{fixture.stage}</span>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => handleStartFixture(fixture, 11)}
-                      className={`text-[11px] px-2 py-1 rounded font-bold transition-all ${
-                        isLive && match.maxPoints === 11
-                          ? 'bg-emerald-500 text-slate-950 shadow'
-                          : 'bg-indigo-600 text-white hover:bg-indigo-500'
-                      }`}
-                      title="Start as 11 Point Match"
-                    >
-                      {isLive && match.maxPoints === 11 ? 'Live (11p)' : 'Start 11p'}
-                    </button>
-                    <button
-                      onClick={() => handleStartFixture(fixture, 21)}
-                      className={`text-[11px] px-2 py-1 rounded font-bold transition-all ${
-                        isLive && match.maxPoints === 21
-                          ? 'bg-emerald-500 text-slate-950 shadow'
-                          : 'bg-indigo-700 text-white hover:bg-indigo-600'
-                      }`}
-                      title="Start as 21 Point Match"
-                    >
-                      {isLive && match.maxPoints === 21 ? 'Live (21p)' : 'Start 21p'}
-                    </button>
-                  </div>
-                </div>
+        <div className="space-y-6 max-h-[640px] overflow-y-auto pr-1">
+          {Object.keys(fixturesByDate).length === 0 && (
+            <p className="text-sm text-slate-500 text-center py-8">No fixtures for this filter.</p>
+          )}
+          {Object.entries(fixturesByDate).map(([date, dayFixtures]) => (
+            <div key={date} className="space-y-3">
+              <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800 py-2 flex items-center justify-between">
+                <h4 className="text-sm font-bold text-amber-400">{date}</h4>
+                <span className="text-[11px] text-slate-500">{dayFixtures.length} matches</span>
               </div>
-            );
-          })}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {dayFixtures.map((fixture) => {
+                  const isLive = match.currentMatchId === fixture.id;
+                  return (
+                    <div
+                      key={fixture.id}
+                      className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
+                        isLive
+                          ? 'bg-indigo-950/70 border-indigo-500 shadow-md ring-1 ring-indigo-500/50'
+                          : 'bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/80'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex justify-between items-center text-[11px] text-slate-400 mb-1.5 gap-2">
+                          <span className="font-mono">{fixture.time}</span>
+                          <span className="font-semibold text-indigo-400 text-right">{fixture.category}</span>
+                        </div>
+                        <p className="text-sm font-bold text-slate-100">{fixture.details}</p>
+                      </div>
+
+                      <div className="mt-3.5 flex justify-between items-center pt-2 border-t border-slate-800/80 gap-2">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider">{fixture.stage}</span>
+                        <div className="flex items-center space-x-1 shrink-0">
+                          <button
+                            onClick={() => handleStartFixture(fixture, 11)}
+                            className={`text-[11px] px-2 py-1 rounded font-bold transition-all ${
+                              isLive && match.maxPoints === 11
+                                ? 'bg-emerald-500 text-slate-950 shadow'
+                                : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                            }`}
+                            title="Start as 11 Point Match"
+                          >
+                            {isLive && match.maxPoints === 11 ? 'Live (11p)' : 'Start 11p'}
+                          </button>
+                          <button
+                            onClick={() => handleStartFixture(fixture, 21)}
+                            className={`text-[11px] px-2 py-1 rounded font-bold transition-all ${
+                              isLive && match.maxPoints === 21
+                                ? 'bg-emerald-500 text-slate-950 shadow'
+                                : 'bg-indigo-700 text-white hover:bg-indigo-600'
+                            }`}
+                            title="Start as 21 Point Match"
+                          >
+                            {isLive && match.maxPoints === 21 ? 'Live (21p)' : 'Start 21p'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
