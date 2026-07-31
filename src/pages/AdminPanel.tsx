@@ -10,6 +10,8 @@ import {
   mergeFixturesWithResults,
   sortCompletedMatches
 } from '../utils/completedMatches';
+import { exportScores } from '../utils/exportScores';
+import type { ScoreExportFormat } from '../utils/exportScores';
 
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -20,6 +22,7 @@ export const AdminPanel: React.FC = () => {
   const [selectedMaxPoints, setSelectedMaxPoints] = useState<11 | 21>(11);
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Sync state from Firebase with normalization
   useEffect(() => {
@@ -224,6 +227,21 @@ export const AdminPanel: React.FC = () => {
       setSaveError('Failed to save result. Check connection and try again.');
     } finally {
       setIsSavingResult(false);
+    }
+  };
+
+  const handleExportScores = (format: ScoreExportFormat) => {
+    setExportError(null);
+    const rows = sortCompletedMatches(Object.values(completedById));
+    if (rows.length === 0) {
+      setExportError('No completed matches to export yet.');
+      return;
+    }
+    try {
+      exportScores(rows, format);
+    } catch (err) {
+      console.error('Export failed:', err);
+      setExportError(err instanceof Error ? err.message : 'Export failed.');
     }
   };
 
@@ -790,10 +808,34 @@ export const AdminPanel: React.FC = () => {
 
       {/* 4. Completed Matches Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-          <h3 className="text-lg font-bold text-indigo-300">Completed Matches</h3>
-          <span className="text-xs text-slate-400 font-mono">{completedRows.length} recorded</span>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-bold text-indigo-300">Completed Matches</h3>
+            <span className="text-xs text-slate-400 font-mono">{completedRows.length} recorded</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {([
+              { format: 'csv' as const, label: 'CSV' },
+              { format: 'excel' as const, label: 'Excel' },
+              { format: 'json' as const, label: 'JSON' },
+              { format: 'pdf' as const, label: 'PDF' }
+            ]).map(({ format, label }) => (
+              <button
+                key={format}
+                type="button"
+                onClick={() => handleExportScores(format)}
+                disabled={completedRows.length === 0}
+                className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title={`Export completed scores as ${label}`}
+              >
+                Export {label}
+              </button>
+            ))}
+          </div>
         </div>
+        {exportError && (
+          <p className="text-[11px] text-red-400">{exportError}</p>
+        )}
 
         {completedRows.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-8">
