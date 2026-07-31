@@ -13,6 +13,7 @@ import {
 import { exportScores } from '../utils/exportScores';
 import type { ScoreExportFormat } from '../utils/exportScores';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
+import { applySwapSides } from '../utils/scoring';
 
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -171,23 +172,9 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Swap Court / Player Sides — serve L/R follows the serving player's score
+  // Swap Court / Player Sides — flips stored court L ↔ R with the end-change
   const handleSwapSides = () => {
-    const swappedServer: 1 | 2 = match.server === 1 ? 2 : 1;
-    const serverScore = match.server === 1 ? (match.score1 ?? 0) : (match.score2 ?? 0);
-
-    updateMatchState({
-      ...match,
-      teamA: match.teamB,
-      teamB: match.teamA,
-      player1: match.player2,
-      player2: match.player1,
-      score1: match.score2,
-      score2: match.score1,
-      server: swappedServer,
-      servingSide: getServeSide(serverScore),
-      gameWinner: match.gameWinner === 1 ? 2 : match.gameWinner === 2 ? 1 : null
-    });
+    updateMatchState(applySwapSides(match));
   };
 
   const handleResetMatch = () => {
