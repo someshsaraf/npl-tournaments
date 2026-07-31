@@ -1,5 +1,3 @@
-import React from 'react';
-
 type ServeRacketProps = {
   /** When true, racket is highlighted as the active server */
   active?: boolean;
