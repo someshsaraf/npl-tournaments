@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { FIXTURES, INITIAL_MATCH } from '../data/tournamentData';
@@ -167,12 +166,6 @@ export const ScoreControl: React.FC = () => {
             Target {match.maxPoints ?? 11} · ID {match.currentMatchId}
           </p>
         </div>
-        <Link
-          to="/admin"
-          className="shrink-0 text-[11px] text-slate-400 hover:text-white bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded-lg"
-        >
-          Full Admin
-        </Link>
       </header>
 
       {(match.deuceActive || hasWinner) && (
