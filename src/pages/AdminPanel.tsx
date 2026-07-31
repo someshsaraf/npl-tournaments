@@ -10,7 +10,7 @@ export const AdminPanel: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedMaxPoints, setSelectedMaxPoints] = useState<11 | 21>(11);
 
-  // Sync state from Firebase with normalization for missing RTDB keys
+  // Sync state from Firebase with normalization
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribeMatch = onValue(matchRef, (snapshot) => {
@@ -54,25 +54,24 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Helper function: Calculate serve court based on server's current score
+  // Helper: Badminton court side based on active server's score
+  // Even Score = RIGHT court | Odd Score = LEFT court
   const getServeSide = (score: number): 'right' | 'left' => {
     return score % 2 === 0 ? 'right' : 'left';
   };
 
-  // Explicit Toggle Server Logic
+  // Manual Server Override (e.g. at start of match or correction)
   const handleSetServer = (targetServer: 1 | 2) => {
     const activeScore = targetServer === 1 ? match.score1 : match.score2;
-    const side = getServeSide(activeScore);
     updateMatchState({
       ...match,
       server: targetServer,
-      servingSide: side
+      servingSide: getServeSide(activeScore)
     });
   };
 
-  // Rally Scoring Engine (+1) & Automatic Serve Control
+  // Correct Badminton Rally Scoring Logic
   const handleScorePoint = (scoringTeam: 1 | 2) => {
-    // Check if game is already won (Strict 1 or 2 check)
     if (match.gameWinner === 1 || match.gameWinner === 2) return;
 
     const max = match.maxPoints ?? 11;
@@ -88,14 +87,14 @@ export const AdminPanel: React.FC = () => {
       s2 += 1;
     }
 
-    // Serve ownership transfers to whichever team just won the point
+    // Determine Server and Serving Side according to Badminton Rules:
+    // 1. Service side retains server and updates score -> court changes (Right <-> Left based on updated score)
+    // 2. Receiving side wins point -> Service Over (server transfers to winner, court based on THEIR current score)
     const newServer: 1 | 2 = scoringTeam;
+    const newServerScore = newServer === 1 ? s1 : s2;
+    const newServingSide = getServeSide(newServerScore);
 
-    // Serving court direction derived strictly from active server's score
-    const activeServerScore = newServer === 1 ? s1 : s2;
-    const newServingSide = getServeSide(activeServerScore);
-
-    // Deuce & Winner Determination
+    // Deuce & Game Winner Logic
     let isDeuce = match.deuceActive;
     let winner: 1 | 2 | null = null;
     const winningScore = scoringTeam === 1 ? s1 : s2;
@@ -132,23 +131,21 @@ export const AdminPanel: React.FC = () => {
     else s2 = Math.max(0, s2 - 1);
 
     const activeServerScore = match.server === 1 ? s1 : s2;
-    const newServingSide = getServeSide(activeServerScore);
 
     updateMatchState({
       ...match,
       score1: s1,
       score2: s2,
-      servingSide: newServingSide,
+      servingSide: getServeSide(activeServerScore),
       gameWinner: null,
       deuceActive: s1 >= (match.maxPoints - 1) && s2 >= (match.maxPoints - 1) && s1 === s2
     });
   };
 
-  // Swap Court / Player Sides Handler
+  // Swap Court / Player Sides
   const handleSwapSides = () => {
     const swappedServer: 1 | 2 = match.server === 1 ? 2 : 1;
     const activeServerScore = swappedServer === 1 ? match.score2 : match.score1;
-    const newServingSide = getServeSide(activeServerScore);
 
     updateMatchState({
       ...match,
@@ -159,7 +156,7 @@ export const AdminPanel: React.FC = () => {
       score1: match.score2,
       score2: match.score1,
       server: swappedServer,
-      servingSide: newServingSide,
+      servingSide: getServeSide(activeServerScore),
       gameWinner: match.gameWinner === 1 ? 2 : match.gameWinner === 2 ? 1 : null
     });
   };
