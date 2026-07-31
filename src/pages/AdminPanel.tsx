@@ -44,30 +44,34 @@ export const AdminPanel: React.FC = () => {
     set(ref(db, 'teams'), newTeams);
   };
 
-  // Official Badminton Scoring Engine
+  // Official Rally Scoring Engine & Automatic Serve Rotation
   const handleScorePoint = (winningSide: 1 | 2) => {
-    if (match.gameWinner !== null) return; // Game already finished
+    if (match.gameWinner !== null) return; // Stop if match concluded
 
     const max = match.maxPoints ?? 11;
-    const cap = max === 11 ? 15 : 30; // BWF Max cap: 15 for 11p, 30 for 21p
+    const cap = max === 11 ? 15 : 30; // Max hard caps (15 for 11p, 30 for 21p)
     const deuceThreshold = max - 1;
 
     let s1 = match.score1;
     let s2 = match.score2;
 
-    if (winningSide === 1) s1 += 1;
-    else s2 += 1;
+    if (winningSide === 1) {
+      s1 += 1;
+    } else {
+      s2 += 1;
+    }
 
-    let newServer = winningSide; // Rally point system: point winner serves next
-    const winnerScore = winningSide === 1 ? s1 : s2;
+    // Intelligent Server Switch: rally point winner gets/retains serve
+    const newServer: 1 | 2 = winningSide;
 
-    // Determine court side based on server's score (Even = Right, Odd = Left)
+    // Court side selection: Even = Right, Odd = Left based on new server's score
     const currentServerScore = newServer === 1 ? s1 : s2;
     const newServingSide: 'right' | 'left' = currentServerScore % 2 === 0 ? 'right' : 'left';
 
-    // Deuce & Win detection
+    // Win condition & Deuce detection
     let isDeuce = match.deuceActive;
     let winner: 1 | 2 | null = null;
+    const winnerScore = winningSide === 1 ? s1 : s2;
 
     if (s1 >= deuceThreshold && s2 >= deuceThreshold) {
       if (s1 === s2) {
@@ -92,6 +96,7 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
+  // Decrement score handler with re-calculation of serve side
   const handleDecrementScore = (side: 1 | 2) => {
     let s1 = match.score1;
     let s2 = match.score2;
@@ -109,6 +114,26 @@ export const AdminPanel: React.FC = () => {
       servingSide: newServingSide,
       gameWinner: null,
       deuceActive: s1 >= (match.maxPoints - 1) && s2 >= (match.maxPoints - 1) && s1 === s2
+    });
+  };
+
+  // Swap Court / Player Sides Handler
+  const handleSwapSides = () => {
+    const swappedServer: 1 | 2 = match.server === 1 ? 2 : 1;
+    const currentServerScore = swappedServer === 1 ? match.score2 : match.score1;
+    const newServingSide: 'right' | 'left' = currentServerScore % 2 === 0 ? 'right' : 'left';
+
+    updateMatchState({
+      ...match,
+      teamA: match.teamB,
+      teamB: match.teamA,
+      player1: match.player2,
+      player2: match.player1,
+      score1: match.score2,
+      score2: match.score1,
+      server: swappedServer,
+      servingSide: newServingSide,
+      gameWinner: match.gameWinner === 1 ? 2 : match.gameWinner === 2 ? 1 : null
     });
   };
 
@@ -163,7 +188,6 @@ export const AdminPanel: React.FC = () => {
     updateTeamsState(updated);
   };
 
-  // Start fixture with selected max point target (11 or 21)
   const handleStartFixture = (fixture: Fixture, pointsLimit: 11 | 21) => {
     const players = fixture.details.split(' vs ');
     const updatedState: MatchState = {
@@ -231,7 +255,7 @@ export const AdminPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Target Points Option Selector */}
+        {/* Options, Swap Sides, and Court Indicator Toolbar */}
         <div className="mb-6 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-semibold text-slate-300">Format:</span>
@@ -256,6 +280,14 @@ export const AdminPanel: React.FC = () => {
               21 Points
             </button>
           </div>
+
+          {/* Swap Court / Player Sides Button */}
+          <button
+            onClick={handleSwapSides}
+            className="bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/50 text-indigo-200 hover:text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-all flex items-center space-x-1.5"
+          >
+            <span>↔ Swap Court Sides</span>
+          </button>
 
           {/* Serve Court Direction Indicator */}
           <span className="text-xs text-indigo-300 font-mono">
@@ -302,7 +334,7 @@ export const AdminPanel: React.FC = () => {
               <button 
                 onClick={() => handleScorePoint(1)}
                 className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold text-xl hover:bg-indigo-500 active:scale-95 transition-all shadow-md"
-              >+1 Rally Point</button>
+              >+1 Point</button>
             </div>
           </div>
 
@@ -344,7 +376,7 @@ export const AdminPanel: React.FC = () => {
               <button 
                 onClick={() => handleScorePoint(2)}
                 className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold text-xl hover:bg-indigo-500 active:scale-95 transition-all shadow-md"
-              >+1 Rally Point</button>
+              >+1 Point</button>
             </div>
           </div>
         </div>
@@ -424,7 +456,6 @@ export const AdminPanel: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center space-x-4">
             <h3 className="text-lg font-bold text-indigo-300">Tournament Fixtures</h3>
-            {/* Quick Match Point Target Selector */}
             <div className="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700">
               <button
                 onClick={() => setSelectedMaxPoints(11)}
