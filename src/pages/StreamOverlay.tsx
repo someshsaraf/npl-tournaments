@@ -1,46 +1,80 @@
-import { useEffect, useState } from 'react';
-import { db } from '../firebase';
+import React, { useEffect, useState } from 'react';
 import { ref, onValue } from 'firebase/database';
-import { INITIAL_MATCH } from '../data/tournamentData';
-import type { MatchState } from '../data/tournamentData';
+import { db } from '../firebase';
+import { MatchState, INITIAL_MATCH } from '../data/tournamentData';
 
-export default function StreamOverlay() {
+export const StreamOverlay: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
 
   useEffect(() => {
-    const matchRef = ref(db, 'active_match');
-    return onValue(matchRef, (snapshot) => {
+    const matchRef = ref(db, 'currentMatch');
+    const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setMatch(data);
+      if (data) {
+        setMatch(data);
+      }
     });
+
+    return () => unsubscribe();
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-transparent p-6 flex items-end justify-center">
-      {/* Lower Third OBS Banner */}
-      <div className="bg-slate-900/95 border-2 border-amber-500/80 rounded-2xl shadow-2xl overflow-hidden flex items-stretch min-w-[650px]">
-        {/* Category Header */}
-        <div className="bg-gradient-to-b from-amber-500 to-amber-600 text-slate-950 font-black px-4 py-3 flex flex-col justify-center items-center text-xs tracking-wider uppercase">
-          <span>NPL</span>
-          <span>2026</span>
-          {match.isTrump && <span className="mt-1 bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px]">TRUMP</span>}
-        </div>
+    <div className="fixed top-0 left-0 w-screen h-screen pointer-events-none bg-transparent font-sans overflow-hidden">
+      {/* Positioned Top-Right for optimal camera framing */}
+      <div className="absolute top-3 right-3 sm:top-6 sm:right-6 w-[88vw] max-w-[340px] sm:max-w-[400px]">
+        <div className="bg-slate-900/90 text-white rounded-xl shadow-2xl border border-slate-700/60 backdrop-blur-md overflow-hidden">
+          
+          {/* Category & Header Badge */}
+          <div className="bg-gradient-to-r from-indigo-700 to-purple-700 px-3 py-1.5 flex justify-between items-center text-[10px] sm:text-xs font-semibold tracking-wide uppercase">
+            <span className="truncate">{match.category} • {match.stage}</span>
+            {match.isTrump && (
+              <span className="bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black text-[9px]">
+                TRUMP MATCH
+              </span>
+            )}
+          </div>
 
-        {/* Player 1 */}
-        <div className={`flex-1 p-3 px-5 flex items-center justify-between border-r border-slate-800 ${match.serving === 1 ? 'bg-indigo-900/40' : ''}`}>
-          <span className="font-bold text-xl text-white truncate max-w-[200px]">{match.player1}</span>
-          <span className="text-4xl font-black text-indigo-400 ml-4">{match.score1}</span>
-        </div>
+          {/* Scores & Team Info */}
+          <div className="p-2 sm:p-3 space-y-1.5">
+            {/* Team / Player 1 */}
+            <div className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-colors ${
+              match.server === 1 ? 'bg-indigo-950/80 border-l-4 border-indigo-500' : 'bg-slate-800/50'
+            }`}>
+              <div className="flex flex-col truncate pr-2">
+                <span className="text-[10px] text-indigo-300 uppercase font-bold truncate">{match.teamA}</span>
+                <span className="text-xs sm:text-sm font-semibold truncate">{match.player1}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {match.server === 1 && (
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Serving" />
+                )}
+                <span className="text-xl sm:text-2xl font-black text-amber-300 min-w-[2rem] text-right font-mono">
+                  {match.score1}
+                </span>
+              </div>
+            </div>
 
-        {/* VS Separator */}
-        <div className="bg-slate-800 text-slate-500 font-bold text-xs flex items-center px-2">VS</div>
+            {/* Team / Player 2 */}
+            <div className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-colors ${
+              match.server === 2 ? 'bg-indigo-950/80 border-l-4 border-indigo-500' : 'bg-slate-800/50'
+            }`}>
+              <div className="flex flex-col truncate pr-2">
+                <span className="text-[10px] text-indigo-300 uppercase font-bold truncate">{match.teamB}</span>
+                <span className="text-xs sm:text-sm font-semibold truncate">{match.player2}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {match.server === 2 && (
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Serving" />
+                )}
+                <span className="text-xl sm:text-2xl font-black text-amber-300 min-w-[2rem] text-right font-mono">
+                  {match.score2}
+                </span>
+              </div>
+            </div>
+          </div>
 
-        {/* Player 2 */}
-        <div className={`flex-1 p-3 px-5 flex items-center justify-between ${match.serving === 2 ? 'bg-rose-900/40' : ''}`}>
-          <span className="text-4xl font-black text-rose-400 mr-4">{match.score2}</span>
-          <span className="font-bold text-xl text-white truncate max-w-[200px] text-right">{match.player2}</span>
         </div>
       </div>
     </div>
   );
-}
+};
