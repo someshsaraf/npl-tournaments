@@ -26,8 +26,10 @@ export interface MatchState {
   score1: number;
   score2: number;
   maxPoints: 11 | 21;
-  server?: 1 | 2;
-  serving?: 1 | 2;
+  server: 1 | 2; // 1 = Team A, 2 = Team B
+  servingSide: 'right' | 'left'; // Right for Even score, Left for Odd score
+  deuceActive: boolean;
+  gameWinner: 1 | 2 | null;
   isTrump: boolean;
   trumpTeam: 1 | 2 | null;
 }
@@ -80,7 +82,9 @@ export const INITIAL_MATCH: MatchState = {
   score2: 0,
   maxPoints: 11,
   server: 1,
-  serving: 1,
+  servingSide: 'right',
+  deuceActive: false,
+  gameWinner: null,
   isTrump: false,
   trumpTeam: null
 };

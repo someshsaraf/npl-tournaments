@@ -1,61 +1,121 @@
-import { useEffect, useState } from 'react';
-import { db } from '../firebase';
+import React, { useState, useEffect } from 'react';
 import { ref, onValue } from 'firebase/database';
+import { db } from '../firebase';
 import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
-import { Link } from 'react-router-dom';
-import { BookOpen, Shield } from 'lucide-react';
 
-export default function LiveScoreboard() {
+export const LiveScoreboard: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
 
   useEffect(() => {
-    const matchRef = ref(db, 'active_match');
-    return onValue(matchRef, (snapshot) => {
+    const matchRef = ref(db, 'currentMatch');
+    const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
       if (data) setMatch(data);
     });
+
+    return () => unsubscribe();
   }, []);
 
-  return (
-    <div className="max-w-xl mx-auto p-4 space-y-6">
-      {/* Top Header */}
-      <div className="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-        <div>
-          <h1 className="text-lg font-bold text-amber-400">NPL 2026 Badminton</h1>
-          <p className="text-xs text-slate-400">{match.category} • {match.stage}</p>
-        </div>
-        <Link to="/rules" className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 flex items-center gap-1.5">
-          <BookOpen className="w-3.5 h-3.5 text-amber-400" /> Rules
-        </Link>
-      </div>
+  const activeServer = match.server ?? 1;
 
-      {/* Main Scorecard */}
-      <div className="bg-gradient-to-b from-slate-800 to-slate-900 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-6">
-        {match.isTrump && (
-          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs text-center py-1.5 rounded-lg font-semibold flex justify-center items-center gap-1">
-            <Shield className="w-3.5 h-3.5" /> TRUMP GAME (+2 / -1 Points)
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
+      <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-8">
+        
+        {/* Header Information */}
+        <div className="flex flex-col sm:flex-row justify-between items-center border-b border-slate-800 pb-6 gap-4">
+          <div>
+            <span className="text-xs font-bold text-indigo-400 tracking-wider uppercase block">{match.category}</span>
+            <h1 className="text-2xl font-black text-amber-400">{match.stage}</h1>
+          </div>
+          <div className="flex items-center space-x-3">
+            {match.deuceActive && (
+              <span className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded-full font-bold animate-pulse border border-red-500/30">
+                DEUCE (Win by 2)
+              </span>
+            )}
+            <span className="text-xs bg-slate-800 text-slate-300 px-3.5 py-1.5 rounded-full border border-slate-700 font-semibold">
+              Target: <strong className="text-amber-300">{match.maxPoints ?? 11} Pts</strong>
+            </span>
+            <span className="text-xs bg-indigo-500/20 text-indigo-300 px-3 py-1.5 rounded-full font-mono uppercase border border-indigo-500/30">
+              Serve: <strong className="text-amber-300">{match.servingSide?.toUpperCase() ?? 'RIGHT'}</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Winner Banner */}
+        {match.gameWinner !== null && (
+          <div className="bg-emerald-500/20 border border-emerald-500/50 rounded-2xl p-4 text-center">
+            <h2 className="text-2xl font-black text-emerald-400">
+              🏆 WINNER: {match.gameWinner === 1 ? match.teamA : match.teamB}
+            </h2>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 text-center">
-          <div className="space-y-2">
-            <p className="font-semibold text-slate-300 truncate">{match.player1}</p>
-            <div className={`py-6 rounded-2xl font-black text-6xl ${match.serving === 1 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-slate-800 text-indigo-400'}`}>
+        {/* Live Score Display */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+          {/* Team A */}
+          <div className={`p-6 rounded-2xl border transition-all text-center space-y-4 ${
+            activeServer === 1 
+              ? 'bg-slate-800/90 border-indigo-500/80 shadow-indigo-500/10 shadow-xl' 
+              : 'bg-slate-800/40 border-slate-700/50'
+          }`}>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-slate-300 uppercase tracking-wide">{match.teamA}</h2>
+              <p className="text-sm font-medium text-indigo-300">{match.player1 || 'Player 1'}</p>
+            </div>
+
+            <div className={`py-6 rounded-2xl font-black text-6xl ${activeServer === 1 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-slate-800 text-indigo-400'}`}>
               {match.score1}
             </div>
-            {match.serving === 1 && <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Serving</span>}
+
+            {activeServer === 1 && (
+              <div className="flex justify-center items-center space-x-2">
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full uppercase tracking-wider font-bold border border-indigo-500/30">
+                  Serving ({match.servingSide?.toUpperCase()})
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <p className="font-semibold text-slate-300 truncate">{match.player2}</p>
-            <div className={`py-6 rounded-2xl font-black text-6xl ${match.serving === 2 ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/30' : 'bg-slate-800 text-rose-400'}`}>
+          {/* Team B */}
+          <div className={`p-6 rounded-2xl border transition-all text-center space-y-4 ${
+            activeServer === 2 
+              ? 'bg-slate-800/90 border-rose-500/80 shadow-rose-500/10 shadow-xl' 
+              : 'bg-slate-800/40 border-slate-700/50'
+          }`}>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-slate-300 uppercase tracking-wide">{match.teamB}</h2>
+              <p className="text-sm font-medium text-rose-300">{match.player2 || 'Player 2'}</p>
+            </div>
+
+            <div className={`py-6 rounded-2xl font-black text-6xl ${activeServer === 2 ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/30' : 'bg-slate-800 text-rose-400'}`}>
               {match.score2}
             </div>
-            {match.serving === 2 && <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Serving</span>}
+
+            {activeServer === 2 && (
+              <div className="flex justify-center items-center space-x-2">
+                <span className="text-[10px] bg-rose-500/20 text-rose-300 px-3 py-1 rounded-full uppercase tracking-wider font-bold border border-rose-500/30">
+                  Serving ({match.servingSide?.toUpperCase()})
+                </span>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Footer / Trump Indicator */}
+        {match.isTrump && (
+          <div className="text-center pt-2">
+            <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs px-4 py-1.5 rounded-full font-bold uppercase tracking-widest">
+              ★ Trump Match ★
+            </span>
+          </div>
+        )}
+
       </div>
     </div>
   );
-}
+};
+
+export default LiveScoreboard;

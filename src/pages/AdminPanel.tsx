@@ -44,6 +44,86 @@ export const AdminPanel: React.FC = () => {
     set(ref(db, 'teams'), newTeams);
   };
 
+  // Official Badminton Scoring Engine
+  const handleScorePoint = (winningSide: 1 | 2) => {
+    if (match.gameWinner !== null) return; // Game already finished
+
+    const max = match.maxPoints ?? 11;
+    const cap = max === 11 ? 15 : 30; // BWF Max cap: 15 for 11p, 30 for 21p
+    const deuceThreshold = max - 1;
+
+    let s1 = match.score1;
+    let s2 = match.score2;
+
+    if (winningSide === 1) s1 += 1;
+    else s2 += 1;
+
+    let newServer = winningSide; // Rally point system: point winner serves next
+    const winnerScore = winningSide === 1 ? s1 : s2;
+
+    // Determine court side based on server's score (Even = Right, Odd = Left)
+    const currentServerScore = newServer === 1 ? s1 : s2;
+    const newServingSide: 'right' | 'left' = currentServerScore % 2 === 0 ? 'right' : 'left';
+
+    // Deuce & Win detection
+    let isDeuce = match.deuceActive;
+    let winner: 1 | 2 | null = null;
+
+    if (s1 >= deuceThreshold && s2 >= deuceThreshold) {
+      if (s1 === s2) {
+        isDeuce = true;
+      } else if (Math.abs(s1 - s2) >= 2 || winnerScore === cap) {
+        winner = winningSide;
+      } else {
+        isDeuce = true;
+      }
+    } else if (winnerScore >= max) {
+      winner = winningSide;
+    }
+
+    updateMatchState({
+      ...match,
+      score1: s1,
+      score2: s2,
+      server: newServer,
+      servingSide: newServingSide,
+      deuceActive: isDeuce,
+      gameWinner: winner
+    });
+  };
+
+  const handleDecrementScore = (side: 1 | 2) => {
+    let s1 = match.score1;
+    let s2 = match.score2;
+
+    if (side === 1) s1 = Math.max(0, s1 - 1);
+    else s2 = Math.max(0, s2 - 1);
+
+    const currentServerScore = match.server === 1 ? s1 : s2;
+    const newServingSide: 'right' | 'left' = currentServerScore % 2 === 0 ? 'right' : 'left';
+
+    updateMatchState({
+      ...match,
+      score1: s1,
+      score2: s2,
+      servingSide: newServingSide,
+      gameWinner: null,
+      deuceActive: s1 >= (match.maxPoints - 1) && s2 >= (match.maxPoints - 1) && s1 === s2
+    });
+  };
+
+  const handleResetMatch = () => {
+    updateMatchState({
+      ...match,
+      score1: 0,
+      score2: 0,
+      server: 1,
+      servingSide: 'right',
+      deuceActive: false,
+      gameWinner: null
+    });
+  };
+
   // Team roster editing handlers
   const handleTeamNameChange = (teamId: string, newName: string) => {
     const updated = teams.map((t) => (t.id === teamId ? { ...t, name: newName } : t));
@@ -99,7 +179,9 @@ export const AdminPanel: React.FC = () => {
       score2: 0,
       maxPoints: pointsLimit,
       server: 1,
-      serving: 1,
+      servingSide: 'right',
+      deuceActive: false,
+      gameWinner: null,
       isTrump: false,
       trumpTeam: null
     };
@@ -117,9 +199,14 @@ export const AdminPanel: React.FC = () => {
       
       {/* 1. Active Match Controller */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
           <h2 className="text-xl font-bold text-amber-400">Active Match Control</h2>
           <div className="flex items-center space-x-2">
+            {match.deuceActive && (
+              <span className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded-full font-bold animate-pulse">
+                DEUCE (Win by 2)
+              </span>
+            )}
             <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700">
               Target: <strong className="text-amber-300">{match.maxPoints ?? 11} Pts</strong>
             </span>
@@ -129,110 +216,140 @@ export const AdminPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Scoring Mode Selection (11 vs 21 Points) */}
-        <div className="mb-6 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="text-xs font-semibold text-slate-300">Target Match Points:</span>
-          <div className="flex items-center space-x-2">
+        {/* Game Winner Alert Banner */}
+        {match.gameWinner !== null && (
+          <div className="mb-6 bg-emerald-500/10 border border-emerald-500/50 rounded-xl p-4 flex justify-between items-center">
+            <span className="text-emerald-400 font-bold text-base">
+              🎉 Game Won by {match.gameWinner === 1 ? match.teamA : match.teamB}! ({match.score1} - {match.score2})
+            </span>
             <button
-              onClick={() => updateMatchState({ ...match, maxPoints: 11 })}
-              className={`text-xs px-4 py-1.5 rounded-lg font-bold transition-all ${
-                (match.maxPoints ?? 11) === 11
-                  ? 'bg-amber-400 text-slate-950 shadow-md'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
+              onClick={handleResetMatch}
+              className="bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg hover:bg-emerald-400 transition-colors"
             >
-              11 Points Match
-            </button>
-            <button
-              onClick={() => updateMatchState({ ...match, maxPoints: 21 })}
-              className={`text-xs px-4 py-1.5 rounded-lg font-bold transition-all ${
-                match.maxPoints === 21
-                  ? 'bg-amber-400 text-slate-950 shadow-md'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              21 Points Match
+              Reset / Next Game
             </button>
           </div>
+        )}
+
+        {/* Target Points Option Selector */}
+        <div className="mb-6 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold text-slate-300">Format:</span>
+            <button
+              onClick={() => updateMatchState({ ...match, maxPoints: 11, gameWinner: null })}
+              className={`text-xs px-3 py-1 rounded-lg font-bold transition-all ${
+                (match.maxPoints ?? 11) === 11
+                  ? 'bg-amber-400 text-slate-950'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              11 Points
+            </button>
+            <button
+              onClick={() => updateMatchState({ ...match, maxPoints: 21, gameWinner: null })}
+              className={`text-xs px-3 py-1 rounded-lg font-bold transition-all ${
+                match.maxPoints === 21
+                  ? 'bg-amber-400 text-slate-950'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              21 Points
+            </button>
+          </div>
+
+          {/* Serve Court Direction Indicator */}
+          <span className="text-xs text-indigo-300 font-mono">
+            Serve Court: <strong className="text-amber-300 uppercase">{match.servingSide ?? 'RIGHT'}</strong> ({match.server === 1 ? match.teamA : match.teamB})
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Side A Control */}
-          <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 space-y-3">
-            <div className="flex justify-between items-center">
+          <div className={`p-4 rounded-xl border transition-all ${
+            match.server === 1 
+              ? 'bg-slate-800/90 border-indigo-500/80 shadow-lg' 
+              : 'bg-slate-800/40 border-slate-700/50'
+          }`}>
+            <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamA}</span>
               <button 
-                onClick={() => updateMatchState({ ...match, server: 1, serving: 1 })}
+                onClick={() => updateMatchState({ ...match, server: 1, servingSide: match.score1 % 2 === 0 ? 'right' : 'left' })}
                 className={`text-xs px-2.5 py-1 rounded-md font-bold transition-all ${
-                  (match.serving ?? match.server) === 1 
+                  match.server === 1 
                     ? 'bg-emerald-500 text-slate-950 shadow-md' 
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
               >
-                {(match.serving ?? match.server) === 1 ? 'Serving' : 'Set Serve'}
+                {match.server === 1 ? `Serving (${match.servingSide?.toUpperCase()})` : 'Set Serve'}
               </button>
             </div>
             <input 
               type="text" 
               value={match.player1} 
               onChange={(e) => updateMatchState({ ...match, player1: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" 
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 mb-3" 
               placeholder="Player 1 / Team A Member"
             />
-            <div className="flex items-center space-x-3 pt-2">
+            <div className="flex items-center space-x-3">
               <button 
-                onClick={() => updateMatchState({ ...match, score1: Math.max(0, match.score1 - 1) })}
-                className="bg-slate-700 text-white px-4 py-2 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
+                onClick={() => handleDecrementScore(1)}
+                className="bg-slate-700 text-white px-4 py-3 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
               >-1</button>
-              <span className="text-4xl font-black font-mono text-amber-300 flex-1 text-center">
-                {match.score1} <span className="text-xs text-slate-500 font-normal">/ {match.maxPoints ?? 11}</span>
-              </span>
+              <div className="flex-1 text-center">
+                <span className="text-4xl font-black font-mono text-amber-300 block">{match.score1}</span>
+                <span className="text-[10px] text-slate-400">Target: {match.maxPoints ?? 11}</span>
+              </div>
               <button 
-                onClick={() => updateMatchState({ ...match, score1: match.score1 + 1 })}
-                className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-lg hover:bg-indigo-500 active:scale-95 transition-all"
-              >+1</button>
+                onClick={() => handleScorePoint(1)}
+                className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold text-xl hover:bg-indigo-500 active:scale-95 transition-all shadow-md"
+              >+1 Rally Point</button>
             </div>
           </div>
 
           {/* Side B Control */}
-          <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 space-y-3">
-            <div className="flex justify-between items-center">
+          <div className={`p-4 rounded-xl border transition-all ${
+            match.server === 2 
+              ? 'bg-slate-800/90 border-indigo-500/80 shadow-lg' 
+              : 'bg-slate-800/40 border-slate-700/50'
+          }`}>
+            <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamB}</span>
               <button 
-                onClick={() => updateMatchState({ ...match, server: 2, serving: 2 })}
+                onClick={() => updateMatchState({ ...match, server: 2, servingSide: match.score2 % 2 === 0 ? 'right' : 'left' })}
                 className={`text-xs px-2.5 py-1 rounded-md font-bold transition-all ${
-                  (match.serving ?? match.server) === 2 
+                  match.server === 2 
                     ? 'bg-emerald-500 text-slate-950 shadow-md' 
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
               >
-                {(match.serving ?? match.server) === 2 ? 'Serving' : 'Set Serve'}
+                {match.server === 2 ? `Serving (${match.servingSide?.toUpperCase()})` : 'Set Serve'}
               </button>
             </div>
             <input 
               type="text" 
               value={match.player2} 
               onChange={(e) => updateMatchState({ ...match, player2: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" 
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 mb-3" 
               placeholder="Player 2 / Team B Member"
             />
-            <div className="flex items-center space-x-3 pt-2">
+            <div className="flex items-center space-x-3">
               <button 
-                onClick={() => updateMatchState({ ...match, score2: Math.max(0, match.score2 - 1) })}
-                className="bg-slate-700 text-white px-4 py-2 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
+                onClick={() => handleDecrementScore(2)}
+                className="bg-slate-700 text-white px-4 py-3 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
               >-1</button>
-              <span className="text-4xl font-black font-mono text-amber-300 flex-1 text-center">
-                {match.score2} <span className="text-xs text-slate-500 font-normal">/ {match.maxPoints ?? 11}</span>
-              </span>
+              <div className="flex-1 text-center">
+                <span className="text-4xl font-black font-mono text-amber-300 block">{match.score2}</span>
+                <span className="text-[10px] text-slate-400">Target: {match.maxPoints ?? 11}</span>
+              </div>
               <button 
-                onClick={() => updateMatchState({ ...match, score2: match.score2 + 1 })}
-                className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-lg hover:bg-indigo-500 active:scale-95 transition-all"
-              >+1</button>
+                onClick={() => handleScorePoint(2)}
+                className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold text-xl hover:bg-indigo-500 active:scale-95 transition-all shadow-md"
+              >+1 Rally Point</button>
             </div>
           </div>
         </div>
 
-        {/* Trump Match Toggle */}
+        {/* Trump Match Toggle & Reset */}
         <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
           <label className="flex items-center space-x-3 cursor-pointer">
             <input 
@@ -243,6 +360,12 @@ export const AdminPanel: React.FC = () => {
             />
             <span className="text-sm font-semibold text-slate-200">Trump Match Active</span>
           </label>
+          <button
+            onClick={handleResetMatch}
+            className="text-xs text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Reset Scores
+          </button>
         </div>
       </div>
 
