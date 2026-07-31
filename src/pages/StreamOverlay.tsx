@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { ref, onValue } from 'firebase/database';
-import { MatchState, INITIAL_MATCH } from '../tournamentData';
+import { INITIAL_MATCH } from '../data/tournamentData';
+import type { MatchState } from '../data/tournamentData';
 
 export default function StreamOverlay() {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { ref, onValue, set } from 'firebase/database';
-import { MatchState, INITIAL_MATCH } from '../tournamentData';
+import { INITIAL_MATCH } from '../data/tournamentData';
+import type { MatchState } from '../data/tournamentData';
 import { Plus, Minus, RotateCcw, Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
