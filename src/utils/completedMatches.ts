@@ -120,7 +120,16 @@ export function completedMatchesFromFirebase(
     if (typeof row.fixtureId !== 'string' && typeof row.id !== 'string') continue;
     const id = (row.fixtureId || row.id || key).trim();
     if (!id) continue;
-    out[id] = { ...(row as CompletedMatch), id, fixtureId: id };
+
+    const base = { ...(row as CompletedMatch), id, fixtureId: id };
+    // Prefer ISO completedAt as source of truth for display date/time
+    const parsed = Date.parse(base.completedAt || '');
+    if (Number.isFinite(parsed)) {
+      const when = new Date(parsed);
+      base.completedDate = formatMatchDate(when);
+      base.completedTime = formatMatchTime(when);
+    }
+    out[id] = base;
   }
   return out;
 }
@@ -131,4 +140,47 @@ export function sortCompletedMatches(rows: CompletedMatch[]): CompletedMatch[] {
     const tb = Date.parse(b.completedAt || '') || 0;
     return tb - ta;
   });
+}
+
+export type ActualPlayTime = {
+  /** ISO timestamp when the match was actually finished/saved */
+  actualAt: string;
+  /** Local date `31-Jul-26` from actualAt */
+  actualDate: string;
+  /** Local time `HH:mm` from actualAt */
+  actualTime: string;
+  /** Combined local display string */
+  actualDateTime: string;
+};
+
+/**
+ * Resolve when the match actually happened from `completedAt` (preferred),
+ * falling back to stored completedDate/Time.
+ */
+export function resolveActualPlayTime(row: CompletedMatch): ActualPlayTime {
+  if (!row || typeof row !== 'object') {
+    return { actualAt: '', actualDate: '', actualTime: '', actualDateTime: '' };
+  }
+
+  const parsed = Date.parse(row.completedAt || '');
+  if (Number.isFinite(parsed)) {
+    const when = new Date(parsed);
+    const actualDate = formatMatchDate(when);
+    const actualTime = formatMatchTime(when);
+    return {
+      actualAt: row.completedAt,
+      actualDate,
+      actualTime,
+      actualDateTime: `${actualDate} ${actualTime}`
+    };
+  }
+
+  const actualDate = typeof row.completedDate === 'string' ? row.completedDate : '';
+  const actualTime = typeof row.completedTime === 'string' ? row.completedTime : '';
+  return {
+    actualAt: typeof row.completedAt === 'string' ? row.completedAt : '',
+    actualDate,
+    actualTime,
+    actualDateTime: `${actualDate} ${actualTime}`.trim()
+  };
 }
