@@ -67,7 +67,7 @@ export interface MatchState {
   gameWinner: 1 | 2 | null;
   isTrump: boolean;
   trumpTeam: 1 | 2 | null;
-  /** YouTube live (or VOD) URL consumed by the /overlay page */
+  /** YouTube live (or VOD) URL consumed by the /live page */
   youtubeLiveUrl: string;
 }
 

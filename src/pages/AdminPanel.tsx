@@ -606,7 +606,7 @@ export const AdminPanel: React.FC = () => {
               YouTube Live Link
             </label>
             <span className="text-[11px] text-slate-500">
-              Used by <code className="text-indigo-300">/overlay</code>
+              Used by <code className="text-indigo-300">/live</code>
               {youtubeConfigured ? (
                 <span className="ml-2 text-emerald-400 font-semibold">● Live linked</span>
               ) : null}

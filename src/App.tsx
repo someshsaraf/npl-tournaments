@@ -9,14 +9,24 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LiveScoreboard />} />
-        <Route path="/live" element={<LiveScoreboard />} />
-        <Route path="/score" element={<ScoreControl />} />
+        {/* Audience scoreboard (was /live) */}
+        <Route path="/" element={<Navigate to="/score" replace />} />
+        <Route path="/score" element={<LiveScoreboard />} />
+
+        {/* Court scorer (was /score) */}
         <Route path="/scorer" element={<ScoreControl />} />
+
+        {/* Stream overlay (was /overlay) */}
+        <Route path="/live" element={<StreamOverlay />} />
+
         <Route path="/admin" element={<AdminPanel />} />
-        <Route path="/overlay" element={<StreamOverlay />} />
         <Route path="/rules" element={<RulesPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        {/* Legacy redirects */}
+        <Route path="/overlay" element={<Navigate to="/live" replace />} />
+        <Route path="/score-control" element={<Navigate to="/scorer" replace />} />
+
+        <Route path="*" element={<Navigate to="/score" replace />} />
       </Routes>
     </BrowserRouter>
   );
