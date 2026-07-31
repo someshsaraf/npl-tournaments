@@ -25,72 +25,114 @@ export const StreamOverlay: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const activeServer = match.server ?? 1;
+  const activeServer = match.server === 2 ? 2 : 1;
   const embedUrl = toYouTubeEmbedUrl(match.youtubeLiveUrl ?? '');
+  const servingSide = (match.servingSide ?? 'right').toUpperCase();
+  const teamA = match.teamA || 'Team A';
+  const teamB = match.teamB || 'Team B';
+  const player1 = match.player1 || 'Player 1';
+  const player2 = match.player2 || 'Player 2';
+  const score1 = match.score1 ?? 0;
+  const score2 = match.score2 ?? 0;
+  const maxPoints = match.maxPoints ?? 11;
+  const hasWinner = match.gameWinner === 1 || match.gameWinner === 2;
 
   const scoreBug = (
-    <div className="bg-slate-950/95 border border-slate-800 text-white rounded-2xl p-4 shadow-2xl backdrop-blur-md flex items-center space-x-6 max-w-4xl w-full justify-between pointer-events-auto">
-      {/* Match / Category Tag */}
-      <div className="flex flex-col">
-        <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{match.category}</span>
-        <span className="text-xs font-semibold text-slate-300">{match.stage}</span>
-      </div>
-
-      {/* Team A */}
-      <div className="flex items-center space-x-3">
-        <div className="text-right">
-          <div className="flex items-center space-x-1.5 justify-end">
-            {activeServer === 1 && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title={`Serving ${match.servingSide}`} />
-            )}
-            <span className="font-bold text-sm text-slate-100">{match.teamA}</span>
+    <div
+      className="pointer-events-auto w-[min(92vw,17.5rem)] sm:w-[min(42vw,20rem)] landscape:w-[min(48vw,22rem)] font-sans"
+      role="status"
+      aria-live="polite"
+      aria-label={`Score ${teamA} ${score1} to ${teamB} ${score2}`}
+    >
+      <div className="bg-slate-950/92 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md overflow-hidden">
+        {/* Meta row */}
+        <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-slate-800/80 bg-slate-900/60">
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] sm:text-[10px] font-bold text-amber-400 uppercase tracking-wider truncate">
+              {match.category || 'Match'}
+            </p>
+            <p className="text-[9px] sm:text-[10px] text-slate-400 truncate">{match.stage || ''}</p>
           </div>
-          <span className="text-[11px] text-slate-400 block">{match.player1}</span>
-        </div>
-        <span className="bg-indigo-600 text-white font-black text-2xl px-3.5 py-1.5 rounded-xl font-mono shadow">
-          {match.score1}
-        </span>
-      </div>
-
-      {/* Divider / Target Pts */}
-      <div className="flex flex-col items-center px-2 border-x border-slate-800">
-        <span className="text-[10px] text-slate-500 font-bold uppercase">VS</span>
-        <span className="text-[10px] text-amber-300 font-mono font-bold">{match.maxPoints ?? 11}P</span>
-      </div>
-
-      {/* Team B */}
-      <div className="flex items-center space-x-3">
-        <span className="bg-rose-600 text-white font-black text-2xl px-3.5 py-1.5 rounded-xl font-mono shadow">
-          {match.score2}
-        </span>
-        <div className="text-left">
-          <div className="flex items-center space-x-1.5">
-            <span className="font-bold text-sm text-slate-100">{match.teamB}</span>
-            {activeServer === 2 && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title={`Serving ${match.servingSide}`} />
+          <div className="flex items-center gap-1 shrink-0">
+            {match.deuceActive && (
+              <span className="text-[8px] sm:text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold uppercase animate-pulse border border-red-500/30">
+                Deuce
+              </span>
             )}
+            <span className="text-[8px] sm:text-[9px] bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded font-mono uppercase border border-slate-700">
+              {servingSide}
+            </span>
+            <span className="text-[8px] sm:text-[9px] text-amber-300/90 font-mono font-bold">
+              {maxPoints}P
+            </span>
           </div>
-          <span className="text-[11px] text-slate-400 block">{match.player2}</span>
         </div>
-      </div>
 
-      {/* Court / State Tags */}
-      <div className="flex items-center space-x-2">
-        {match.deuceActive && (
-          <span className="bg-red-500/20 text-red-400 text-[10px] px-2 py-1 rounded-md font-bold uppercase animate-pulse border border-red-500/30">
-            Deuce
-          </span>
+        {/* Scores */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-0">
+          {/* Team A */}
+          <div
+            className={`min-w-0 px-2.5 py-2 text-left ${
+              activeServer === 1 ? 'bg-indigo-950/50' : ''
+            }`}
+          >
+            <div className="flex items-center gap-1 min-w-0">
+              {activeServer === 1 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              )}
+              <span className="text-[10px] sm:text-xs font-bold text-slate-100 truncate uppercase tracking-wide">
+                {teamA}
+              </span>
+            </div>
+            <p className="text-[9px] sm:text-[10px] text-slate-400 truncate mt-0.5">{player1}</p>
+            <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-indigo-300 leading-none tabular-nums">
+              {score1}
+            </p>
+          </div>
+
+          {/* Center divider */}
+          <div className="flex flex-col items-center justify-center px-1.5 py-2 border-x border-slate-800">
+            <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase">vs</span>
+          </div>
+
+          {/* Team B */}
+          <div
+            className={`min-w-0 px-2.5 py-2 text-right ${
+              activeServer === 2 ? 'bg-rose-950/50' : ''
+            }`}
+          >
+            <div className="flex items-center justify-end gap-1 min-w-0">
+              <span className="text-[10px] sm:text-xs font-bold text-slate-100 truncate uppercase tracking-wide">
+                {teamB}
+              </span>
+              {activeServer === 2 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              )}
+            </div>
+            <p className="text-[9px] sm:text-[10px] text-slate-400 truncate mt-0.5">{player2}</p>
+            <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-rose-300 leading-none tabular-nums">
+              {score2}
+            </p>
+          </div>
+        </div>
+
+        {hasWinner && (
+          <div className="px-2.5 py-1.5 border-t border-emerald-500/40 bg-emerald-500/15 text-center">
+            <p className="text-[9px] sm:text-[10px] font-bold text-emerald-400 uppercase tracking-wide truncate">
+              Winner: {match.gameWinner === 1 ? teamA : teamB}
+            </p>
+          </div>
         )}
-        <span className="bg-slate-800 text-indigo-300 text-[10px] px-2 py-1 rounded-md font-mono uppercase border border-slate-700">
-          {match.servingSide ?? 'RIGHT'}
-        </span>
       </div>
     </div>
   );
 
+  const overlayAnchorClass =
+    'fixed z-20 pointer-events-none top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))] sm:top-[max(0.75rem,env(safe-area-inset-top))] sm:right-[max(0.75rem,env(safe-area-inset-right))]';
+
   if (embedUrl) {
     return (
-      <div className="fixed inset-0 bg-black font-sans overflow-hidden">
+      <div className="fixed inset-0 bg-black overflow-hidden">
         <iframe
           title="YouTube Live"
           src={embedUrl}
@@ -99,18 +141,12 @@ export const StreamOverlay: React.FC = () => {
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
-        <div className="absolute bottom-6 left-6 right-6 flex justify-center pointer-events-none z-10">
-          {scoreBug}
-        </div>
+        <div className={overlayAnchorClass}>{scoreBug}</div>
       </div>
     );
   }
 
-  return (
-    <div className="fixed bottom-6 left-6 right-6 flex justify-center pointer-events-none font-sans">
-      {scoreBug}
-    </div>
-  );
+  return <div className={overlayAnchorClass}>{scoreBug}</div>;
 };
 
 export default StreamOverlay;
