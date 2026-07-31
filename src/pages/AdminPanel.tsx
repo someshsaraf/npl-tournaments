@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ref, set, onValue } from 'firebase/database';
+import { ref, set, onValue, remove } from 'firebase/database';
 import { db } from '../firebase';
 import { TEAMS, FIXTURES, FIXTURE_DATES, INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState, Fixture, Team, CompletedMatch } from '../data/tournamentData';
@@ -26,6 +26,9 @@ export const AdminPanel: React.FC = () => {
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [showFreshStartConfirm, setShowFreshStartConfirm] = useState(false);
+  const [isResettingAll, setIsResettingAll] = useState(false);
+  const [freshStartMessage, setFreshStartMessage] = useState<string | null>(null);
 
   // Sync state from Firebase with normalization
   useEffect(() => {
@@ -176,6 +179,30 @@ export const AdminPanel: React.FC = () => {
       deuceActive: false,
       gameWinner: null
     });
+  };
+
+  /**
+   * Wipe all completed match records and reset live scores to INITIAL_MATCH.
+   * Requires an explicit confirmation dialog before running.
+   */
+  const handleConfirmFreshStart = async () => {
+    setIsResettingAll(true);
+    setFreshStartMessage(null);
+    setSaveError(null);
+    setExportError(null);
+    try {
+      await remove(ref(db, 'completedMatches'));
+      await set(ref(db, 'currentMatch'), { ...INITIAL_MATCH });
+      setCompletedById({});
+      setMatch({ ...INITIAL_MATCH });
+      setShowFreshStartConfirm(false);
+      setFreshStartMessage('All completed matches cleared. Live scores reset.');
+    } catch (err) {
+      console.error('Failed to reset tournament data:', err);
+      setFreshStartMessage('Failed to reset. Check connection and try again.');
+    } finally {
+      setIsResettingAll(false);
+    }
   };
 
   /**
@@ -533,7 +560,7 @@ export const AdminPanel: React.FC = () => {
         </div>
 
         {/* Trump Match Toggle & Reset */}
-        <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
+        <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between gap-3">
           <label className="flex items-center space-x-3 cursor-pointer">
             <input 
               type="checkbox"
@@ -543,12 +570,25 @@ export const AdminPanel: React.FC = () => {
             />
             <span className="text-sm font-semibold text-slate-200">Trump Match Active</span>
           </label>
-          <button
-            onClick={handleResetMatch}
-            className="text-xs text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            Reset Scores
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetMatch}
+              className="text-xs text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Reset Scores
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFreshStartMessage(null);
+                setShowFreshStartConfirm(true);
+              }}
+              className="text-xs font-bold text-red-300 hover:text-white bg-red-950/50 border border-red-500/40 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Start Fresh…
+            </button>
+          </div>
         </div>
 
         {/* YouTube Live Link for Overlay */}
@@ -825,10 +865,27 @@ export const AdminPanel: React.FC = () => {
                 Export {label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setFreshStartMessage(null);
+                setShowFreshStartConfirm(true);
+              }}
+              disabled={isResettingAll}
+              className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-950/60 text-red-200 border border-red-500/40 hover:bg-red-900/70 hover:text-white disabled:opacity-50 transition-colors"
+              title="Delete all completed matches and reset live scores"
+            >
+              Start Fresh…
+            </button>
           </div>
         </div>
         {exportError && (
           <p className="text-[11px] text-red-400">{exportError}</p>
+        )}
+        {freshStartMessage && (
+          <p className={`text-[11px] ${freshStartMessage.startsWith('Failed') ? 'text-red-400' : 'text-emerald-400'}`}>
+            {freshStartMessage}
+          </p>
         )}
 
         {completedRows.length === 0 ? (
@@ -875,6 +932,51 @@ export const AdminPanel: React.FC = () => {
           </div>
         )}
       </div>
+
+      {showFreshStartConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="fresh-start-title"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-red-500/40 shadow-2xl p-5 space-y-4">
+            <div className="space-y-2 text-center">
+              <h2 id="fresh-start-title" className="text-xl font-black text-red-400">
+                Start fresh?
+              </h2>
+              <p className="text-sm text-slate-300">
+                This will permanently delete <strong className="text-white">all completed matches</strong> and
+                reset the live scoreboard to the default starting match.
+              </p>
+              <p className="text-xs text-slate-500">
+                Team rosters are kept. This cannot be undone.
+              </p>
+              {freshStartMessage?.startsWith('Failed') && (
+                <p className="text-xs text-red-400">{freshStartMessage}</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFreshStartConfirm(false)}
+                disabled={isResettingAll}
+                className="rounded-xl bg-slate-800 text-slate-200 font-bold text-sm py-3.5 border border-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmFreshStart}
+                disabled={isResettingAll}
+                className="rounded-xl bg-red-600 text-white font-bold text-sm py-3.5 disabled:opacity-50 hover:bg-red-500"
+              >
+                {isResettingAll ? 'Clearing…' : 'Yes, clear everything'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
