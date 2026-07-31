@@ -26,8 +26,8 @@ export interface MatchState {
   score1: number;
   score2: number;
   maxPoints: 11 | 21;
-  server: 1 | 2; // 1 = Team A, 2 = Team B
-  servingSide: 'right' | 'left'; // Right for Even score, Left for Odd score
+  server: 1 | 2; // 1 = Team A serving, 2 = Team B serving
+  servingSide: 'right' | 'left'; // Even score = Right, Odd score = Left
   deuceActive: boolean;
   gameWinner: 1 | 2 | null;
   isTrump: boolean;

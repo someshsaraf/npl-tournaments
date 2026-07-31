@@ -44,45 +44,50 @@ export const AdminPanel: React.FC = () => {
     set(ref(db, 'teams'), newTeams);
   };
 
-  // Official Rally Scoring Engine & Automatic Serve Rotation
-  const handleScorePoint = (winningSide: 1 | 2) => {
-    if (match.gameWinner !== null) return; // Stop if match concluded
+  // Helper function: Calculate serve court based on server's current score
+  const getServeSide = (score: number): 'right' | 'left' => {
+    return score % 2 === 0 ? 'right' : 'left';
+  };
+
+  // Rally Scoring Engine (+1) & Automatic Serve Control
+  const handleScorePoint = (scoringTeam: 1 | 2) => {
+    if (match.gameWinner !== null) return;
 
     const max = match.maxPoints ?? 11;
-    const cap = max === 11 ? 15 : 30; // Max hard caps (15 for 11p, 30 for 21p)
+    const cap = max === 11 ? 15 : 30;
     const deuceThreshold = max - 1;
 
     let s1 = match.score1;
     let s2 = match.score2;
 
-    if (winningSide === 1) {
+    if (scoringTeam === 1) {
       s1 += 1;
     } else {
       s2 += 1;
     }
 
-    // Intelligent Server Switch: rally point winner gets/retains serve
-    const newServer: 1 | 2 = winningSide;
+    // Serve ownership transfers to whichever team just won the point
+    const newServer: 1 | 2 = scoringTeam;
 
-    // Court side selection: Even = Right, Odd = Left based on new server's score
-    const currentServerScore = newServer === 1 ? s1 : s2;
-    const newServingSide: 'right' | 'left' = currentServerScore % 2 === 0 ? 'right' : 'left';
+    // Serving court direction derived strictly from the active server's score
+    const activeServerScore = newServer === 1 ? s1 : s2;
+    const newServingSide = getServeSide(activeServerScore);
 
-    // Win condition & Deuce detection
+    // Deuce & Winner Determination
     let isDeuce = match.deuceActive;
     let winner: 1 | 2 | null = null;
-    const winnerScore = winningSide === 1 ? s1 : s2;
+    const winningScore = scoringTeam === 1 ? s1 : s2;
 
     if (s1 >= deuceThreshold && s2 >= deuceThreshold) {
       if (s1 === s2) {
         isDeuce = true;
-      } else if (Math.abs(s1 - s2) >= 2 || winnerScore === cap) {
-        winner = winningSide;
+      } else if (Math.abs(s1 - s2) >= 2 || winningScore === cap) {
+        winner = scoringTeam;
       } else {
         isDeuce = true;
       }
-    } else if (winnerScore >= max) {
-      winner = winningSide;
+    } else if (winningScore >= max) {
+      winner = scoringTeam;
     }
 
     updateMatchState({
@@ -96,7 +101,7 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Decrement score handler with re-calculation of serve side
+  // Decrement score handler (-1)
   const handleDecrementScore = (side: 1 | 2) => {
     let s1 = match.score1;
     let s2 = match.score2;
@@ -104,8 +109,8 @@ export const AdminPanel: React.FC = () => {
     if (side === 1) s1 = Math.max(0, s1 - 1);
     else s2 = Math.max(0, s2 - 1);
 
-    const currentServerScore = match.server === 1 ? s1 : s2;
-    const newServingSide: 'right' | 'left' = currentServerScore % 2 === 0 ? 'right' : 'left';
+    const activeServerScore = match.server === 1 ? s1 : s2;
+    const newServingSide = getServeSide(activeServerScore);
 
     updateMatchState({
       ...match,
@@ -120,8 +125,8 @@ export const AdminPanel: React.FC = () => {
   // Swap Court / Player Sides Handler
   const handleSwapSides = () => {
     const swappedServer: 1 | 2 = match.server === 1 ? 2 : 1;
-    const currentServerScore = swappedServer === 1 ? match.score2 : match.score1;
-    const newServingSide: 'right' | 'left' = currentServerScore % 2 === 0 ? 'right' : 'left';
+    const activeServerScore = swappedServer === 1 ? match.score2 : match.score1;
+    const newServingSide = getServeSide(activeServerScore);
 
     updateMatchState({
       ...match,
@@ -289,9 +294,9 @@ export const AdminPanel: React.FC = () => {
             <span>↔ Swap Court Sides</span>
           </button>
 
-          {/* Serve Court Direction Indicator */}
+          {/* Active Serving Side Indicator */}
           <span className="text-xs text-indigo-300 font-mono">
-            Serve Court: <strong className="text-amber-300 uppercase">{match.servingSide ?? 'RIGHT'}</strong> ({match.server === 1 ? match.teamA : match.teamB})
+            Active Serve: <strong className="text-amber-300 uppercase">{match.server === 1 ? match.teamA : match.teamB}</strong> ({match.servingSide?.toUpperCase()} Court)
           </span>
         </div>
 
@@ -334,7 +339,7 @@ export const AdminPanel: React.FC = () => {
               <button 
                 onClick={() => handleScorePoint(1)}
                 className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold text-xl hover:bg-indigo-500 active:scale-95 transition-all shadow-md"
-              >+1 Point</button>
+              >+1</button>
             </div>
           </div>
 
@@ -376,7 +381,7 @@ export const AdminPanel: React.FC = () => {
               <button 
                 onClick={() => handleScorePoint(2)}
                 className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold text-xl hover:bg-indigo-500 active:scale-95 transition-all shadow-md"
-              >+1 Point</button>
+              >+1</button>
             </div>
           </div>
         </div>
