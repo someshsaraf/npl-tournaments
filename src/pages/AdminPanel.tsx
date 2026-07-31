@@ -2,30 +2,88 @@ import React, { useState, useEffect } from 'react';
 import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { TEAMS, FIXTURES, INITIAL_MATCH } from '../data/tournamentData';
-import type { MatchState, Fixture } from '../data/tournamentData';
+import type { MatchState, Fixture, Team } from '../data/tournamentData';
 
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
+  const [teams, setTeams] = useState<Team[]>(TEAMS);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  // Sync current match state from Firebase on mount
+  // Sync current match state and teams from Firebase on mount
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
-    const unsubscribe = onValue(matchRef, (snapshot) => {
+    const unsubscribeMatch = onValue(matchRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) setMatch(data);
+    });
+
+    const teamsRef = ref(db, 'teams');
+    const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setMatch(data);
+        setTeams(data);
+      } else {
+        // Initialize Firebase with local TEAMS if empty
+        set(ref(db, 'teams'), TEAMS);
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeMatch();
+      unsubscribeTeams();
+    };
   }, []);
 
-  const updateFirebase = (newMatchState: MatchState) => {
+  const updateMatchState = (newMatchState: MatchState) => {
     setMatch(newMatchState);
     set(ref(db, 'currentMatch'), newMatchState);
   };
 
-  // Load selected fixture directly into the live match state
+  const updateTeamsState = (newTeams: Team[]) => {
+    setTeams(newTeams);
+    set(ref(db, 'teams'), newTeams);
+  };
+
+  // Team roster editing handlers
+  const handleTeamNameChange = (teamId: string, newName: string) => {
+    const updated = teams.map((t) => (t.id === teamId ? { ...t, name: newName } : t));
+    updateTeamsState(updated);
+  };
+
+  const handlePlayerNameChange = (teamId: string, playerIndex: number, newName: string) => {
+    const updated = teams.map((t) => {
+      if (t.id === teamId) {
+        const updatedPlayers = [...t.players];
+        updatedPlayers[playerIndex] = newName;
+        return { ...t, players: updatedPlayers };
+      }
+      return t;
+    });
+    updateTeamsState(updated);
+  };
+
+  const handleAddPlayer = (teamId: string) => {
+    const updated = teams.map((t) => {
+      if (t.id === teamId) {
+        return { ...t, players: [...t.players, 'New Player'] };
+      }
+      return t;
+    });
+    updateTeamsState(updated);
+  };
+
+  const handleRemovePlayer = (teamId: string, playerIndex: number) => {
+    const updated = teams.map((t) => {
+      if (t.id === teamId) {
+        const updatedPlayers = t.players.filter((_, idx) => idx !== playerIndex);
+        return { ...t, players: updatedPlayers };
+      }
+      return t;
+    });
+    updateTeamsState(updated);
+  };
+
+  // Load selected fixture directly into active match state
   const handleStartFixture = (fixture: Fixture) => {
     const players = fixture.details.split(' vs ');
     const updatedState: MatchState = {
@@ -44,7 +102,7 @@ export const AdminPanel: React.FC = () => {
       isTrump: false,
       trumpTeam: null
     };
-    updateFirebase(updatedState);
+    updateMatchState(updatedState);
   };
 
   const categories = ['All', ...Array.from(new Set(FIXTURES.map((f) => f.category)))];
@@ -76,7 +134,7 @@ export const AdminPanel: React.FC = () => {
             <div className="flex justify-between items-center">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamA}</span>
               <button 
-                onClick={() => updateFirebase({ ...match, server: 1, serving: 1 })}
+                onClick={() => updateMatchState({ ...match, server: 1, serving: 1 })}
                 className={`text-xs px-2.5 py-1 rounded-md font-bold transition-all ${
                   (match.serving ?? match.server) === 1 
                     ? 'bg-emerald-500 text-slate-950 shadow-md' 
@@ -89,18 +147,18 @@ export const AdminPanel: React.FC = () => {
             <input 
               type="text" 
               value={match.player1} 
-              onChange={(e) => updateFirebase({ ...match, player1: e.target.value })}
+              onChange={(e) => updateMatchState({ ...match, player1: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" 
               placeholder="Player 1 / Team A Member"
             />
             <div className="flex items-center space-x-3 pt-2">
               <button 
-                onClick={() => updateFirebase({ ...match, score1: Math.max(0, match.score1 - 1) })}
+                onClick={() => updateMatchState({ ...match, score1: Math.max(0, match.score1 - 1) })}
                 className="bg-slate-700 text-white px-4 py-2 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
               >-1</button>
               <span className="text-4xl font-black font-mono text-amber-300 flex-1 text-center">{match.score1}</span>
               <button 
-                onClick={() => updateFirebase({ ...match, score1: match.score1 + 1 })}
+                onClick={() => updateMatchState({ ...match, score1: match.score1 + 1 })}
                 className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-lg hover:bg-indigo-500 active:scale-95 transition-all"
               >+1</button>
             </div>
@@ -111,7 +169,7 @@ export const AdminPanel: React.FC = () => {
             <div className="flex justify-between items-center">
               <span className="text-xs text-indigo-400 font-bold uppercase">{match.teamB}</span>
               <button 
-                onClick={() => updateFirebase({ ...match, server: 2, serving: 2 })}
+                onClick={() => updateMatchState({ ...match, server: 2, serving: 2 })}
                 className={`text-xs px-2.5 py-1 rounded-md font-bold transition-all ${
                   (match.serving ?? match.server) === 2 
                     ? 'bg-emerald-500 text-slate-950 shadow-md' 
@@ -124,18 +182,18 @@ export const AdminPanel: React.FC = () => {
             <input 
               type="text" 
               value={match.player2} 
-              onChange={(e) => updateFirebase({ ...match, player2: e.target.value })}
+              onChange={(e) => updateMatchState({ ...match, player2: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" 
               placeholder="Player 2 / Team B Member"
             />
             <div className="flex items-center space-x-3 pt-2">
               <button 
-                onClick={() => updateFirebase({ ...match, score2: Math.max(0, match.score2 - 1) })}
+                onClick={() => updateMatchState({ ...match, score2: Math.max(0, match.score2 - 1) })}
                 className="bg-slate-700 text-white px-4 py-2 rounded-lg font-bold text-lg hover:bg-slate-600 active:scale-95 transition-all"
               >-1</button>
               <span className="text-4xl font-black font-mono text-amber-300 flex-1 text-center">{match.score2}</span>
               <button 
-                onClick={() => updateFirebase({ ...match, score2: match.score2 + 1 })}
+                onClick={() => updateMatchState({ ...match, score2: match.score2 + 1 })}
                 className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-lg hover:bg-indigo-500 active:scale-95 transition-all"
               >+1</button>
             </div>
@@ -148,7 +206,7 @@ export const AdminPanel: React.FC = () => {
             <input 
               type="checkbox"
               checked={match.isTrump}
-              onChange={(e) => updateFirebase({ ...match, isTrump: e.target.checked })}
+              onChange={(e) => updateMatchState({ ...match, isTrump: e.target.checked })}
               className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700"
             />
             <span className="text-sm font-semibold text-slate-200">Trump Match Active</span>
@@ -156,18 +214,54 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Teams & Rosters Drawer */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-        <h3 className="text-lg font-bold text-indigo-300 mb-4">Teams & Roster Overview</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-          {TEAMS.map((team) => (
-            <div key={team.id} className="bg-slate-800/40 border border-slate-700/60 p-3 rounded-xl">
-              <h4 className="font-bold text-amber-400 text-sm mb-2 pb-1 border-b border-slate-700">{team.name}</h4>
-              <ul className="text-xs text-slate-300 space-y-1">
+      {/* 2. Editable Teams & Rosters Overview */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+          <h3 className="text-lg font-bold text-indigo-300">Editable Teams & Rosters</h3>
+          <span className="text-xs text-slate-400">Click any name to edit</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+          {teams.map((team) => (
+            <div key={team.id} className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl space-y-3">
+              {/* Editable Team Name */}
+              <input
+                type="text"
+                value={team.name}
+                onChange={(e) => handleTeamNameChange(team.id, e.target.value)}
+                className="w-full bg-slate-900/90 border border-slate-700/80 text-amber-400 font-bold text-sm px-2 py-1 rounded focus:outline-none focus:border-amber-400"
+                placeholder="Team Name"
+              />
+
+              {/* Editable Player List */}
+              <div className="space-y-1.5">
                 {team.players.map((player, idx) => (
-                  <li key={idx} className="truncate">• {player}</li>
+                  <div key={idx} className="flex items-center space-x-1 group">
+                    <input
+                      type="text"
+                      value={player}
+                      onChange={(e) => handlePlayerNameChange(team.id, idx, e.target.value)}
+                      className="w-full bg-slate-900/60 border border-slate-800 text-xs text-slate-200 px-2 py-1 rounded focus:outline-none focus:border-indigo-500"
+                      placeholder={`Player ${idx + 1}`}
+                    />
+                    <button
+                      onClick={() => handleRemovePlayer(team.id, idx)}
+                      className="text-red-400 hover:text-red-300 px-1 text-xs font-bold opacity-70 group-hover:opacity-100 transition-opacity"
+                      title="Remove Player"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
-              </ul>
+              </div>
+
+              {/* Add Player Button */}
+              <button
+                onClick={() => handleAddPlayer(team.id)}
+                className="w-full text-center text-[11px] text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 border border-indigo-800/40 rounded py-1 font-semibold transition-colors"
+              >
+                + Add Player
+              </button>
             </div>
           ))}
         </div>
