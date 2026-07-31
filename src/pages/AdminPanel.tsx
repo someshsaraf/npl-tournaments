@@ -2,15 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { TEAMS, FIXTURES, FIXTURE_DATES, INITIAL_MATCH } from '../data/tournamentData';
-import type { MatchState, Fixture, Team } from '../data/tournamentData';
+import type { MatchState, Fixture, Team, CompletedMatch } from '../data/tournamentData';
 import { isValidYouTubeLiveUrl, parseYouTubeVideoId } from '../utils/youtube';
+import {
+  buildCompletedMatch,
+  completedMatchesFromFirebase,
+  mergeFixturesWithResults,
+  sortCompletedMatches
+} from '../utils/completedMatches';
 
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [teams, setTeams] = useState<Team[]>(TEAMS);
+  const [completedById, setCompletedById] = useState<Record<string, CompletedMatch>>({});
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDate, setSelectedDate] = useState<string>(FIXTURE_DATES[0] ?? 'All');
   const [selectedMaxPoints, setSelectedMaxPoints] = useState<11 | 21>(11);
+  const [isSavingResult, setIsSavingResult] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Sync state from Firebase with normalization
   useEffect(() => {
@@ -37,9 +46,15 @@ export const AdminPanel: React.FC = () => {
       }
     });
 
+    const completedRef = ref(db, 'completedMatches');
+    const unsubscribeCompleted = onValue(completedRef, (snapshot) => {
+      setCompletedById(completedMatchesFromFirebase(snapshot.val()));
+    });
+
     return () => {
       unsubscribeMatch();
       unsubscribeTeams();
+      unsubscribeCompleted();
     };
   }, []);
 
@@ -183,6 +198,35 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
+  /**
+   * Persist finished match to Firebase table and mark fixture completed
+   * with result + actual completion date/time.
+   */
+  const handleCompleteMatch = async () => {
+    if (match.gameWinner !== 1 && match.gameWinner !== 2) {
+      setSaveError('No winner to save — finish the game first.');
+      return;
+    }
+    const fixtureId = match.currentMatchId?.trim();
+    if (!fixtureId) {
+      setSaveError('Missing fixture id on current match.');
+      return;
+    }
+
+    setIsSavingResult(true);
+    setSaveError(null);
+    try {
+      const fixture = FIXTURES.find((f) => f.id === fixtureId);
+      const completed = buildCompletedMatch(match, fixture, new Date());
+      await set(ref(db, `completedMatches/${fixtureId}`), completed);
+    } catch (err) {
+      console.error('Failed to save completed match:', err);
+      setSaveError('Failed to save result. Check connection and try again.');
+    } finally {
+      setIsSavingResult(false);
+    }
+  };
+
   // Team roster editing handlers
   const handleTeamNameChange = (teamId: string, newName: string) => {
     const updated = teams.map((t) => (t.id === teamId ? { ...t, name: newName } : t));
@@ -266,7 +310,9 @@ export const AdminPanel: React.FC = () => {
   const categories = ['All', ...Array.from(new Set(FIXTURES.map((f) => f.category)))];
   const dates = ['All', ...FIXTURE_DATES];
 
-  const filteredFixtures = FIXTURES.filter((f) => {
+  const fixturesWithResults = mergeFixturesWithResults(FIXTURES, completedById);
+
+  const filteredFixtures = fixturesWithResults.filter((f) => {
     const dateOk = selectedDate === 'All' || f.date === selectedDate;
     const categoryOk = selectedCategory === 'All' || f.category === selectedCategory;
     return dateOk && categoryOk;
@@ -277,6 +323,9 @@ export const AdminPanel: React.FC = () => {
     acc[fixture.date].push(fixture);
     return acc;
   }, {});
+
+  const completedRows = sortCompletedMatches(Object.values(completedById));
+  const currentFixtureCompleted = completedById[match.currentMatchId];
 
   const hasWinner = match.gameWinner === 1 || match.gameWinner === 2;
   const youtubeUrl = match.youtubeLiveUrl ?? '';
@@ -307,16 +356,41 @@ export const AdminPanel: React.FC = () => {
 
         {/* Game Winner Alert Banner */}
         {hasWinner && (
-          <div className="mb-6 bg-emerald-500/10 border border-emerald-500/50 rounded-xl p-4 flex justify-between items-center">
-            <span className="text-emerald-400 font-bold text-base">
-              🎉 Game Won by {match.gameWinner === 1 ? match.teamA : match.teamB}! ({match.score1} - {match.score2})
-            </span>
-            <button
-              onClick={handleResetMatch}
-              className="bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg hover:bg-emerald-400 transition-colors"
-            >
-              Reset / Next Game
-            </button>
+          <div className="mb-6 bg-emerald-500/10 border border-emerald-500/50 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="space-y-1">
+              <span className="text-emerald-400 font-bold text-base block">
+                🎉 Game Won by {match.gameWinner === 1 ? match.player1 || match.teamA : match.player2 || match.teamB}! ({match.score1} - {match.score2})
+              </span>
+              {currentFixtureCompleted ? (
+                <span className="text-[11px] text-emerald-300/90">
+                  Saved: {currentFixtureCompleted.result} on {currentFixtureCompleted.completedDate} {currentFixtureCompleted.completedTime}
+                </span>
+              ) : (
+                <span className="text-[11px] text-amber-300/90">
+                  Save result to mark this fixture completed in the schedule.
+                </span>
+              )}
+              {saveError && <span className="text-[11px] text-red-400 block">{saveError}</span>}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleCompleteMatch}
+                disabled={isSavingResult}
+                className="bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg hover:bg-emerald-400 transition-colors disabled:opacity-50"
+              >
+                {isSavingResult
+                  ? 'Saving…'
+                  : currentFixtureCompleted
+                    ? 'Update Saved Result'
+                    : 'Complete Match & Save'}
+              </button>
+              <button
+                onClick={handleResetMatch}
+                className="bg-slate-800 text-slate-200 font-bold text-xs px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700"
+              >
+                Reset / Next Game
+              </button>
+            </div>
           </div>
         )}
 
@@ -568,6 +642,7 @@ export const AdminPanel: React.FC = () => {
               <h3 className="text-lg font-bold text-indigo-300">Tournament Fixtures</h3>
               <span className="text-[11px] text-slate-400 font-mono">
                 {filteredFixtures.length} / {FIXTURES.length} matches
+                {completedRows.length > 0 ? ` · ${completedRows.length} completed` : ''}
               </span>
               <div className="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700">
                 <button
@@ -642,13 +717,16 @@ export const AdminPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {dayFixtures.map((fixture) => {
                   const isLive = match.currentMatchId === fixture.id;
+                  const isCompleted = fixture.status === 'completed';
                   return (
                     <div
                       key={fixture.id}
                       className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
                         isLive
                           ? 'bg-indigo-950/70 border-indigo-500 shadow-md ring-1 ring-indigo-500/50'
-                          : 'bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/80'
+                          : isCompleted
+                            ? 'bg-emerald-950/30 border-emerald-700/50'
+                            : 'bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/80'
                       }`}
                     >
                       <div>
@@ -657,10 +735,25 @@ export const AdminPanel: React.FC = () => {
                           <span className="font-semibold text-indigo-400 text-right">{fixture.category}</span>
                         </div>
                         <p className="text-sm font-bold text-slate-100">{fixture.details}</p>
+                        {isCompleted && (
+                          <div className="mt-2 space-y-0.5">
+                            <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">
+                              Match completed · {fixture.result}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              Winner: {fixture.winnerName}
+                              {fixture.completedDate
+                                ? ` · ${fixture.completedDate} ${fixture.completedTime ?? ''}`
+                                : ''}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-3.5 flex justify-between items-center pt-2 border-t border-slate-800/80 gap-2">
-                        <span className="text-[10px] text-slate-400 uppercase tracking-wider">{fixture.stage}</span>
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider">
+                          {isCompleted ? 'Completed' : fixture.stage}
+                        </span>
                         <div className="flex items-center space-x-1 shrink-0">
                           <button
                             onClick={() => handleStartFixture(fixture, 11)}
@@ -671,7 +764,7 @@ export const AdminPanel: React.FC = () => {
                             }`}
                             title="Start as 11 Point Match"
                           >
-                            {isLive && match.maxPoints === 11 ? 'Live (11p)' : 'Start 11p'}
+                            {isLive && match.maxPoints === 11 ? 'Live (11p)' : isCompleted ? 'Replay 11p' : 'Start 11p'}
                           </button>
                           <button
                             onClick={() => handleStartFixture(fixture, 21)}
@@ -682,7 +775,7 @@ export const AdminPanel: React.FC = () => {
                             }`}
                             title="Start as 21 Point Match"
                           >
-                            {isLive && match.maxPoints === 21 ? 'Live (21p)' : 'Start 21p'}
+                            {isLive && match.maxPoints === 21 ? 'Live (21p)' : isCompleted ? 'Replay 21p' : 'Start 21p'}
                           </button>
                         </div>
                       </div>
@@ -693,6 +786,58 @@ export const AdminPanel: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* 4. Completed Matches Table */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+          <h3 className="text-lg font-bold text-indigo-300">Completed Matches</h3>
+          <span className="text-xs text-slate-400 font-mono">{completedRows.length} recorded</span>
+        </div>
+
+        {completedRows.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-8">
+            No finished matches yet. When a game ends, click <strong className="text-emerald-400">Complete Match &amp; Save</strong>.
+          </p>
+        ) : (
+          <div className="overflow-x-auto max-h-[420px] overflow-y-auto rounded-xl border border-slate-800">
+            <table className="w-full text-left text-sm min-w-[720px]">
+              <thead className="sticky top-0 bg-slate-950 text-[11px] uppercase tracking-wider text-slate-400">
+                <tr>
+                  <th className="px-3 py-2.5 font-semibold">Completed</th>
+                  <th className="px-3 py-2.5 font-semibold">Scheduled</th>
+                  <th className="px-3 py-2.5 font-semibold">Category</th>
+                  <th className="px-3 py-2.5 font-semibold">Match</th>
+                  <th className="px-3 py-2.5 font-semibold">Result</th>
+                  <th className="px-3 py-2.5 font-semibold">Winner</th>
+                </tr>
+              </thead>
+              <tbody>
+                {completedRows.map((row) => (
+                  <tr key={row.fixtureId} className="border-t border-slate-800/80 hover:bg-slate-800/40">
+                    <td className="px-3 py-2.5 text-slate-200 whitespace-nowrap font-mono text-xs">
+                      {row.completedDate} {row.completedTime}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap font-mono text-xs">
+                      {row.scheduledDate} {row.scheduledTime}
+                    </td>
+                    <td className="px-3 py-2.5 text-indigo-300 text-xs">{row.category}</td>
+                    <td className="px-3 py-2.5 text-slate-100 text-xs max-w-[220px]">
+                      <span className="line-clamp-2">{row.details}</span>
+                    </td>
+                    <td className="px-3 py-2.5 font-mono font-bold text-amber-300 whitespace-nowrap">
+                      {row.result}
+                    </td>
+                    <td className="px-3 py-2.5 text-emerald-400 text-xs font-semibold">
+                      {row.winnerName}
+                      {row.isTrump ? <span className="ml-1 text-amber-400">★</span> : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
     </div>

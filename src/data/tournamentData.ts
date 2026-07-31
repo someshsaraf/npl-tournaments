@@ -13,6 +13,41 @@ export interface Fixture {
   details: string;
   teamA?: string;
   teamB?: string;
+  /** Runtime fields merged from Firebase when the match has been completed */
+  status?: 'scheduled' | 'completed';
+  result?: string;
+  winnerName?: string;
+  completedAt?: string;
+  completedDate?: string;
+  completedTime?: string;
+  finalScore1?: number;
+  finalScore2?: number;
+}
+
+/** Persisted finished-match row (Firebase `completedMatches/{fixtureId}`). */
+export interface CompletedMatch {
+  id: string;
+  fixtureId: string;
+  category: string;
+  stage: string;
+  details: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  teamA: string;
+  teamB: string;
+  player1: string;
+  player2: string;
+  score1: number;
+  score2: number;
+  maxPoints: 11 | 21;
+  winnerSide: 1 | 2;
+  winnerName: string;
+  result: string;
+  status: 'completed';
+  completedAt: string;
+  completedDate: string;
+  completedTime: string;
+  isTrump: boolean;
 }
 
 export interface MatchState {
