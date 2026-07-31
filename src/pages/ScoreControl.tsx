@@ -12,6 +12,7 @@ import {
 } from '../utils/scoring';
 import { buildCompletedMatch } from '../utils/completedMatches';
 import { ServeRacket } from '../components/ServeRacket';
+import { WinnerCelebration } from '../components/WinnerCelebration';
 
 /**
  * Full-viewport scoreboard for court / audience.
@@ -23,6 +24,10 @@ export const ScoreControl: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [pendingSaveMatch, setPendingSaveMatch] = useState<MatchState | null>(null);
+  const [celebration, setCelebration] = useState<{
+    winnerName: string;
+    scoreLabel: string;
+  } | null>(null);
   const promptedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -63,6 +68,7 @@ export const ScoreControl: React.FC = () => {
     promptedKeyRef.current = null;
     setShowSaveDialog(false);
     setPendingSaveMatch(null);
+    setCelebration(null);
     setSaveMessage(null);
     updateMatchState(applyDecrementScore(match, side));
   };
@@ -95,6 +101,14 @@ export const ScoreControl: React.FC = () => {
       setSaveMessage(`Saved ${completed.result}`);
       setShowSaveDialog(false);
       setPendingSaveMatch(null);
+      const winName =
+        matchToSave.gameWinner === 1
+          ? matchToSave.player1 || matchToSave.teamA || 'Winner'
+          : matchToSave.player2 || matchToSave.teamB || 'Winner';
+      setCelebration({
+        winnerName: winName,
+        scoreLabel: `${matchToSave.score1 ?? 0}–${matchToSave.score2 ?? 0}`
+      });
       return true;
     } catch (err) {
       console.error('Failed to save completed match:', err);
@@ -379,6 +393,14 @@ export const ScoreControl: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {celebration && (
+        <WinnerCelebration
+          winnerName={celebration.winnerName}
+          scoreLabel={celebration.scoreLabel}
+          onDismiss={() => setCelebration(null)}
+        />
       )}
     </div>
   );
