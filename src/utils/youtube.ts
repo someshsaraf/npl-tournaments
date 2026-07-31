@@ -59,6 +59,34 @@ export function toYouTubeEmbedUrl(raw: string): string | null {
   return `https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1&rel=0`;
 }
 
+/**
+ * Embed URL for the /live page: autoplay, no controls, JS API enabled
+ * so the host page can force continuous playback.
+ */
+export function toYouTubeLiveOverlayEmbedUrl(raw: string): string | null {
+  const id = parseYouTubeVideoId(raw);
+  if (!id) return null;
+
+  const params = new URLSearchParams({
+    autoplay: '1',
+    mute: '0',
+    controls: '0',
+    disablekb: '1',
+    fs: '0',
+    modestbranding: '1',
+    playsinline: '1',
+    rel: '0',
+    enablejsapi: '1',
+    iv_load_policy: '3'
+  });
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    params.set('origin', window.location.origin);
+  }
+
+  return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
+}
+
 export function isValidYouTubeLiveUrl(raw: string): boolean {
   if (typeof raw !== 'string') return false;
   const trimmed = raw.trim();
