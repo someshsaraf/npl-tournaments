@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
-import { INITIAL_MATCH } from '../data/tournamentData';
-import type { CompletedMatch, MatchState } from '../data/tournamentData';
+import { INITIAL_MATCH, isMaxPoints } from '../data/tournamentData';
+import type { CompletedMatch, MatchState, MaxPoints } from '../data/tournamentData';
 import { parseYouTubeVideoId } from '../utils/youtube';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 import {
@@ -22,7 +22,7 @@ type HeldResult = {
   player2: string;
   score1: number;
   score2: number;
-  maxPoints: number;
+  maxPoints: MaxPoints;
   winnerSide: 1 | 2;
 };
 
@@ -42,7 +42,7 @@ function heldFromMatch(match: MatchState): HeldResult | null {
     player2: match.player2 || match.teamB || 'Player 2',
     score1: match.score1 ?? 0,
     score2: match.score2 ?? 0,
-    maxPoints: match.maxPoints ?? 11,
+    maxPoints: isMaxPoints(match.maxPoints) ? match.maxPoints : 11,
     winnerSide: match.gameWinner
   };
 }
@@ -58,7 +58,7 @@ function heldFromCompleted(row: CompletedMatch): HeldResult {
     player2: row.player2 || row.teamB || 'Player 2',
     score1: row.score1 ?? 0,
     score2: row.score2 ?? 0,
-    maxPoints: row.maxPoints ?? 11,
+    maxPoints: isMaxPoints(row.maxPoints) ? row.maxPoints : 11,
     winnerSide: row.winnerSide === 2 ? 2 : 1
   };
 }
