@@ -222,6 +222,41 @@ function startMutedPlayback(player: YtPlayer): void {
   forcePlay(player);
 }
 
+/**
+ * Resume playback without forcing mute when the user has enabled sound.
+ * Unmute must happen in a user-gesture call stack on iOS; keep-alive only re-applies it.
+ */
+function resumePlayback(player: YtPlayer, withSound: boolean): void {
+  if (!player || typeof player !== 'object') return;
+  if (withSound) {
+    try {
+      player.unMute();
+    } catch {
+      /* ignore */
+    }
+    forcePlay(player);
+    return;
+  }
+  startMutedPlayback(player);
+}
+
+/** Unmute + play inside a user gesture (iOS requires the gesture for audio). */
+function enableSoundAndPlay(player: YtPlayer): void {
+  if (!player || typeof player !== 'object') return;
+  try {
+    player.mute();
+  } catch {
+    /* ignore */
+  }
+  forcePlay(player);
+  try {
+    player.unMute();
+  } catch {
+    /* ignore */
+  }
+  forcePlay(player);
+}
+
 /** First name / short label for tight overlay space. */
 function shortName(name: string, maxChars: number): string {
   if (typeof name !== 'string' || !name.trim()) return '—';
@@ -236,12 +271,16 @@ export const StreamOverlay: React.FC = () => {
   const [latestCompleted, setLatestCompleted] = useState<HeldResult | null>(null);
   /** Shown when autoplay is blocked (common on iOS) until the user taps. */
   const [showPlayGate, setShowPlayGate] = useState(false);
+  /** True after user enables audio via a tap (required on iOS). */
+  const [soundOn, setSoundOn] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const keepAliveRef = useRef<number | null>(null);
   const playGateTimerRef = useRef<number | null>(null);
   /** After a user gesture unlocks media, keep-alive playVideo is allowed on iOS. */
   const userUnlockedRef = useRef(false);
+  /** Prefer unmuted resume once the user has tapped for sound. */
+  const soundOnRef = useRef(false);
   const iosLikeRef = useRef(isIosLikeDevice());
 
   useEffect(() => {
@@ -291,6 +330,8 @@ export const StreamOverlay: React.FC = () => {
    */
   useEffect(() => {
     userUnlockedRef.current = !iosLikeRef.current;
+    soundOnRef.current = false;
+    setSoundOn(false);
     setPlaybackError(null);
     setShowPlayGate(iosLikeRef.current);
 
@@ -378,13 +419,21 @@ export const StreamOverlay: React.FC = () => {
               if (e.data === playingState) {
                 setShowPlayGate(false);
                 clearPlayGateTimer();
+                // Re-apply unmute if the player re-muted itself after a sound unlock.
+                if (soundOnRef.current) {
+                  try {
+                    e.target.unMute();
+                  } catch {
+                    /* ignore */
+                  }
+                }
               }
-              // Resume only after unlock on iOS; desktop can keep forcing muted play.
+              // Resume only after unlock on iOS; respect sound preference (do not re-mute).
               if (
                 (e.data === pausedState || e.data === endedState || e.data === cuedState) &&
                 userUnlockedRef.current
               ) {
-                startMutedPlayback(e.target);
+                resumePlayback(e.target, soundOnRef.current);
               }
             },
             onError: (e) => {
@@ -405,7 +454,13 @@ export const StreamOverlay: React.FC = () => {
           const state = typeof p.getPlayerState === 'function' ? p.getPlayerState() : -1;
           const buffering = window.YT?.PlayerState?.BUFFERING ?? 3;
           if (state !== playingState && state !== buffering) {
-            startMutedPlayback(p);
+            resumePlayback(p, soundOnRef.current);
+          } else if (soundOnRef.current) {
+            try {
+              p.unMute();
+            } catch {
+              /* ignore */
+            }
           }
         }, 4000);
       } catch (err) {
@@ -435,6 +490,7 @@ export const StreamOverlay: React.FC = () => {
 
   /**
    * User gesture unlock — required on iOS when muted autoplay is blocked.
+   * Unmute runs in the same gesture so audio is allowed.
    * Concurrency: single player ref; gesture runs on main thread only.
    */
   const handleUserPlay = () => {
@@ -446,13 +502,41 @@ export const StreamOverlay: React.FC = () => {
     }
     setPlaybackError(null);
     userUnlockedRef.current = true;
+    soundOnRef.current = true;
+    setSoundOn(true);
     hardenYouTubeIframe(player);
-    startMutedPlayback(player);
-    // Retry once after a short delay (iOS sometimes needs a second play after cue).
+    enableSoundAndPlay(player);
+    // Second tick still inside the gesture chain on most browsers; helps iOS cue→play.
     window.setTimeout(() => {
-      if (playerRef.current) startMutedPlayback(playerRef.current);
+      if (!playerRef.current || !soundOnRef.current) return;
+      try {
+        playerRef.current.unMute();
+      } catch {
+        /* ignore */
+      }
+      forcePlay(playerRef.current);
     }, 250);
     setShowPlayGate(false);
+  };
+
+  /** Enable / toggle sound after video is already playing (user gesture). */
+  const handleToggleSound = () => {
+    const player = playerRef.current;
+    if (!player) return;
+    userUnlockedRef.current = true;
+    if (soundOnRef.current) {
+      soundOnRef.current = false;
+      setSoundOn(false);
+      try {
+        player.mute();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    soundOnRef.current = true;
+    setSoundOn(true);
+    enableSoundAndPlay(player);
   };
 
   // Show last result only while still on the same finished fixture (0–0 after reset).
@@ -655,7 +739,7 @@ export const StreamOverlay: React.FC = () => {
           />
         )}
 
-        {/* iOS / blocked autoplay: user gesture required to start media. */}
+        {/* iOS / blocked autoplay: user gesture required to start media + unlock audio. */}
         {showPlayGate && (
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/55 px-6 text-center">
             <button
@@ -663,17 +747,35 @@ export const StreamOverlay: React.FC = () => {
               onClick={handleUserPlay}
               className="rounded-2xl bg-amber-400 px-8 py-4 text-base font-black uppercase tracking-wide text-slate-950 shadow-lg active:scale-[0.98]"
             >
-              Tap to Play Live
+              Tap to Play with Sound
             </button>
             <p className="max-w-xs text-xs text-white/80">
-              iPhone / iPad require a tap to start YouTube. Playback stays muted so it can keep
-              running.
+              iPhone / iPad need a tap to start YouTube with audio.
             </p>
             {playbackError && (
               <p className="max-w-sm text-xs text-red-300" role="alert">
                 {playbackError}
               </p>
             )}
+          </div>
+        )}
+
+        {/* Sound control — browsers (esp. iOS) only allow unmute from a tap. */}
+        {!showPlayGate && (
+          <div className="fixed z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto">
+            <button
+              type="button"
+              onClick={handleToggleSound}
+              className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
+                soundOn
+                  ? 'bg-slate-900/80 text-white border-white/20'
+                  : 'bg-amber-400 text-slate-950 border-amber-300 animate-pulse'
+              }`}
+              aria-pressed={soundOn}
+              aria-label={soundOn ? 'Mute stream' : 'Unmute stream'}
+            >
+              {soundOn ? 'Sound On · Tap to Mute' : 'Tap for Sound'}
+            </button>
           </div>
         )}
 
