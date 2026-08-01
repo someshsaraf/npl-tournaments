@@ -3,6 +3,7 @@ import { ref, onValue, remove, set, get } from 'firebase/database';
 import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
 import { INITIAL_MATCH, type CompletedMatch } from '../data/tournamentData';
 import {
+  completedMatchStorageKey,
   completedMatchesFromFirebase,
   sortCompletedMatches
 } from '../utils/completedMatches';
@@ -64,7 +65,8 @@ export default function AdminResultsPage() {
 
     setSaveError(null);
     try {
-      await remove(ref(db, `completedMatches/${id}`));
+      const storageKey = completedMatchStorageKey(id);
+      await remove(ref(db, `completedMatches/${storageKey}`));
     } catch (err) {
       console.error('Failed to delete completed match:', err);
       setSaveError('Failed to delete completed match. Check connection and try again.');

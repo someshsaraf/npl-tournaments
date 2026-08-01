@@ -693,6 +693,7 @@ export const StreamOverlay: React.FC = () => {
 
   const activeServer = display.server;
   const showServe = phase === 'live';
+  const matchEnded = phase === 'final' || phase === 'last';
   const winnerLabel =
     display.winnerSide === 1
       ? display.player1 || display.teamA
@@ -707,7 +708,7 @@ export const StreamOverlay: React.FC = () => {
 
   const scoreBug = (
     <div
-      className="pointer-events-auto font-sans"
+      className={`pointer-events-auto font-sans${matchEnded ? ' npl-live-match-end' : ''}`}
       role="status"
       aria-live="polite"
       aria-label={
@@ -717,10 +718,12 @@ export const StreamOverlay: React.FC = () => {
       }
     >
       <div
-        className={`${compactOnly} items-center gap-1 w-max max-w-[min(85vw,18rem)] landscape:max-w-[min(55vw,16rem)] rounded-lg bg-black/85 border border-white/25 px-2 py-1.5 shadow-lg ring-1 ring-black/40`}
+        className={`${compactOnly} items-center gap-1 w-max max-w-[min(85vw,18rem)] landscape:max-w-[min(55vw,16rem)] rounded-lg bg-black/85 border border-white/25 px-2 py-1.5 shadow-lg ring-1 ring-black/40${
+          matchEnded ? ' border-emerald-400/50' : ''
+        }`}
       >
-        {(phase === 'final' || phase === 'last') && (
-          <span className="text-[7px] font-black uppercase tracking-wider text-emerald-300 pr-0.5 border-r border-white/15">
+        {matchEnded && (
+          <span className="text-[7px] font-black uppercase tracking-wider text-emerald-300 pr-0.5 border-r border-white/15 npl-live-match-end-winner">
             {phase === 'final' ? 'Final' : 'Last'}
           </span>
         )}
@@ -729,7 +732,11 @@ export const StreamOverlay: React.FC = () => {
           <span className="text-[9px] landscape:text-[8px] font-semibold text-white/90 truncate max-w-[3.75rem] landscape:max-w-[2.75rem]">
             {shortName(display.player1, 8)}
           </span>
-          <span className="text-[11px] landscape:text-[10px] font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-indigo-600 min-w-[1.15rem] text-center">
+          <span
+            className={`text-[11px] landscape:text-[10px] font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-indigo-600 min-w-[1.15rem] text-center${
+              matchEnded && display.winnerSide === 1 ? ' npl-live-match-end-score ring-2 ring-emerald-300/80' : ''
+            }`}
+          >
             {display.score1}
           </span>
         </div>
@@ -737,7 +744,11 @@ export const StreamOverlay: React.FC = () => {
         <span className="text-[8px] text-white/35 font-bold leading-none">:</span>
 
         <div className="flex items-center gap-0.5 min-w-0">
-          <span className="text-[11px] landscape:text-[10px] font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-rose-600 min-w-[1.15rem] text-center">
+          <span
+            className={`text-[11px] landscape:text-[10px] font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-rose-600 min-w-[1.15rem] text-center${
+              matchEnded && display.winnerSide === 2 ? ' npl-live-match-end-score ring-2 ring-emerald-300/80' : ''
+            }`}
+          >
             {display.score2}
           </span>
           <span className="text-[9px] landscape:text-[8px] font-semibold text-white/90 truncate max-w-[3.75rem] landscape:max-w-[2.75rem]">
@@ -748,7 +759,11 @@ export const StreamOverlay: React.FC = () => {
       </div>
 
       <div className={`${fullOnly} w-[min(28vw,17.5rem)] max-w-[17.5rem]`}>
-        <div className="bg-slate-950/92 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md overflow-hidden">
+        <div
+          className={`bg-slate-950/92 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md overflow-hidden${
+            matchEnded ? ' border-emerald-400/50' : ''
+          }`}
+        >
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-slate-800/80 bg-slate-900/60">
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider truncate">
@@ -766,8 +781,8 @@ export const StreamOverlay: React.FC = () => {
                   Deuce
                 </span>
               ) : null}
-              {(phase === 'final' || phase === 'last') && (
-                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold uppercase border border-emerald-500/40">
+              {matchEnded && (
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold uppercase border border-emerald-500/40 npl-live-match-end-winner">
                   {phase === 'final' ? 'Final' : 'Last'}
                 </span>
               )}
@@ -788,7 +803,11 @@ export const StreamOverlay: React.FC = () => {
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 truncate mt-0.5">{display.player1}</p>
-              <p className="mt-1 text-3xl font-black font-mono text-indigo-300 leading-none tabular-nums">
+              <p
+                className={`mt-1 text-3xl font-black font-mono text-indigo-300 leading-none tabular-nums${
+                  matchEnded && display.winnerSide === 1 ? ' npl-live-match-end-score' : ''
+                }`}
+              >
                 {display.score1}
               </p>
             </div>
@@ -809,14 +828,18 @@ export const StreamOverlay: React.FC = () => {
                 {showServe && activeServer === 2 && <ServeRacket active size={14} title="Serving" />}
               </div>
               <p className="text-[10px] text-slate-400 truncate mt-0.5">{display.player2}</p>
-              <p className="mt-1 text-3xl font-black font-mono text-rose-300 leading-none tabular-nums">
+              <p
+                className={`mt-1 text-3xl font-black font-mono text-rose-300 leading-none tabular-nums${
+                  matchEnded && display.winnerSide === 2 ? ' npl-live-match-end-score' : ''
+                }`}
+              >
                 {display.score2}
               </p>
             </div>
           </div>
 
-          {(phase === 'final' || phase === 'last') && winnerLabel && (
-            <div className="px-2.5 py-1.5 border-t border-emerald-500/40 bg-emerald-500/15 text-center">
+          {matchEnded && winnerLabel && (
+            <div className="px-2.5 py-1.5 border-t border-emerald-500/40 bg-emerald-500/15 text-center npl-live-match-end-winner">
               <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide truncate">
                 {phase === 'last' ? 'Last match · ' : ''}Winner: {winnerLabel}
               </p>

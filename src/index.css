@@ -141,3 +141,77 @@ html.npl-live-ios-chrome-collapse body {
   color: transparent;
   animation: npl-brand-shimmer 2.8s linear infinite;
 }
+
+/* /live match-end celebrate — motion only, no layout change */
+@keyframes npl-live-end-enter {
+  from {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes npl-live-end-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(52, 211, 153, 0.35),
+      0 8px 28px rgba(16, 185, 129, 0.22);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(110, 231, 183, 0.7),
+      0 10px 36px rgba(52, 211, 153, 0.45);
+  }
+}
+
+@keyframes npl-live-end-score-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.12);
+  }
+  70% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes npl-live-end-winner-pulse {
+  0%,
+  100% {
+    opacity: 0.92;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.18);
+  }
+}
+
+.npl-live-match-end {
+  animation:
+    npl-live-end-enter 0.55s cubic-bezier(0.22, 1.2, 0.36, 1) both,
+    npl-live-end-glow 1.8s ease-in-out 0.4s infinite;
+}
+
+.npl-live-match-end-score {
+  animation: npl-live-end-score-pop 0.85s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  transform-origin: center;
+}
+
+.npl-live-match-end-winner {
+  animation: npl-live-end-winner-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .npl-live-match-end,
+  .npl-live-match-end-score,
+  .npl-live-match-end-winner {
+    animation: none !important;
+  }
+}

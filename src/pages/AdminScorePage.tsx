@@ -24,7 +24,11 @@ import {
   applySwapSides,
   isGoldenPoint
 } from '../utils/scoring';
-import { buildCompletedMatch } from '../utils/completedMatches';
+import {
+  buildCompletedMatch,
+  completedMatchStorageKey,
+  toFirebaseWritable
+} from '../utils/completedMatches';
 import { ServeRacket } from '../components/ServeRacket';
 import { ServingBadge } from '../components/ServingBadge';
 import { WinnerCelebration } from '../components/WinnerCelebration';
@@ -54,6 +58,7 @@ export const AdminScorePage: React.FC = () => {
     matchWinner: 1 | 2 | null;
   } | null>(null);
   const promptedKeyRef = useRef<string | null>(null);
+  const autoSavedKeyRef = useRef<string | null>(null);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
 
   useEffect(() => {
@@ -65,6 +70,42 @@ export const AdminScorePage: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  /**
+   * Auto-persist when the series ends — do not rely on tapping Save & Share.
+   * Concurrency: one write per match-id+score key via autoSavedKeyRef.
+   */
+  useEffect(() => {
+    if (!hasSeriesWinner(match)) return;
+    const fixtureId =
+      typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+    if (!fixtureId) return;
+
+    const key = `${fixtureId}:${match.score1}-${match.score2}:mw${match.matchWinner}:gw${match.gameWinner}:g${match.gameNumber}`;
+    if (autoSavedKeyRef.current === key) return;
+    autoSavedKeyRef.current = key;
+
+    const matchToSave = match;
+    void (async () => {
+      try {
+        const storageKey = completedMatchStorageKey(fixtureId);
+        const fixture = FIXTURES.find((f) => f.id === fixtureId);
+        const completed = buildCompletedMatch(matchToSave, fixture, new Date());
+        await set(
+          ref(db, `completedMatches/${storageKey}`),
+          toFirebaseWritable(completed)
+        );
+        setPendingSaveMatch(matchToSave);
+        setResultSaved(true);
+        setSaveMessage(`Saved ${completed.result}`);
+      } catch (err) {
+        console.error('Auto-save completed match failed:', err);
+        autoSavedKeyRef.current = null;
+        setResultSaved(false);
+        setSaveMessage('Auto-save failed — tap Save & Share to retry.');
+      }
+    })();
+  }, [match]);
+
   // Celebrate when a game ends (BO1 or each game in BO3).
   useEffect(() => {
     if (!hasGameWinner(match)) return;
@@ -74,7 +115,6 @@ export const AdminScorePage: React.FC = () => {
     const seriesOver = hasSeriesWinner(match);
     if (seriesOver) {
       setPendingSaveMatch(match);
-      setResultSaved(false);
     } else {
       setPendingSaveMatch(null);
     }
@@ -132,6 +172,7 @@ export const AdminScorePage: React.FC = () => {
 
   const handleDecrement = (side: 1 | 2) => {
     promptedKeyRef.current = null;
+    autoSavedKeyRef.current = null;
     setPendingSaveMatch(null);
     setCelebration(null);
     setResultSaved(false);
@@ -149,6 +190,7 @@ export const AdminScorePage: React.FC = () => {
 
   const handleSetMaxPoints = (points: 11 | 15 | 21) => {
     promptedKeyRef.current = null;
+    autoSavedKeyRef.current = null;
     setCelebration(null);
     setResultSaved(false);
     updateMatchState(applySetMaxPoints(match, points));
@@ -171,8 +213,8 @@ export const AdminScorePage: React.FC = () => {
   };
 
   /**
-   * Save result first, then open system share sheet (await), then return to /admin.
-   * Share must run before navigate so the user-gesture / sheet is not torn down.
+   * Ensure result is in Firebase, optionally share, then return to /admin.
+   * Auto-save usually already persisted; this retries + opens the share sheet.
    */
   const saveCompletedMatch = async (matchToSave: MatchState, share = true) => {
     if (!hasSeriesWinner(matchToSave)) {
@@ -188,41 +230,51 @@ export const AdminScorePage: React.FC = () => {
     setIsSavingResult(true);
     setSaveMessage(null);
     try {
-      let snapshotUrl: string | undefined;
-      let snapshotPath: string | undefined;
-
-      // Persist the result immediately so a share/storage failure cannot lose the score.
+      const storageKey = completedMatchStorageKey(fixtureId);
       const fixture = FIXTURES.find((f) => f.id === fixtureId);
       const completedBase = buildCompletedMatch(matchToSave, fixture, new Date());
-      await set(ref(db, `completedMatches/${fixtureId}`), completedBase);
+      await set(
+        ref(db, `completedMatches/${storageKey}`),
+        toFirebaseWritable(completedBase)
+      );
+      autoSavedKeyRef.current = `${fixtureId}:${matchToSave.score1}-${matchToSave.score2}:mw${matchToSave.matchWinner}:gw${matchToSave.gameWinner}:g${matchToSave.gameNumber}`;
       setResultSaved(true);
       setCelebration(null);
-      setSaveMessage(`Saved ${completedBase.result} — opening share…`);
+      setSaveMessage(
+        share ? `Saved ${completedBase.result} — opening share…` : `Saved ${completedBase.result}`
+      );
 
-      try {
-        const snap = await captureAndPersistScoreSnapshot(matchToSave, {
-          share,
-          upload: true
-        });
-        snapshotUrl = snap.downloadUrl || undefined;
-        snapshotPath = snap.storagePath || undefined;
-        if (snapshotUrl || snapshotPath) {
-          await set(ref(db, `completedMatches/${fixtureId}`), {
-            ...completedBase,
-            ...(snapshotUrl ? { snapshotUrl } : {}),
-            ...(snapshotPath ? { snapshotPath } : {})
+      if (share) {
+        try {
+          const snap = await captureAndPersistScoreSnapshot(matchToSave, {
+            share: true,
+            upload: true
           });
+          const snapshotUrl = snap.downloadUrl || undefined;
+          const snapshotPath = snap.storagePath || undefined;
+          if (snapshotUrl || snapshotPath) {
+            await set(
+              ref(db, `completedMatches/${storageKey}`),
+              toFirebaseWritable({
+                ...completedBase,
+                ...(snapshotUrl ? { snapshotUrl } : {}),
+                ...(snapshotPath ? { snapshotPath } : {})
+              })
+            );
+          }
+        } catch (snapErr) {
+          console.error('Score snapshot/share failed (result already saved):', snapErr);
+          setSaveMessage('Result saved; share failed — check Results list.');
         }
-      } catch (snapErr) {
-        console.error('Score snapshot/share failed (result already saved):', snapErr);
-        setSaveMessage('Result saved; share failed — try again from Results if needed.');
       }
 
-      navigate('/admin');
+      navigate('/admin/results');
       return true;
     } catch (err) {
       console.error('Failed to save completed match:', err);
-      setSaveMessage('Failed to save result.');
+      setSaveMessage(
+        err instanceof Error ? `Failed to save: ${err.message}` : 'Failed to save result.'
+      );
       return false;
     } finally {
       setIsSavingResult(false);
@@ -260,16 +312,30 @@ export const AdminScorePage: React.FC = () => {
   const name2 = match.player2 || match.teamB || 'Side B';
   const isBo3 = match.bestOf === 3;
 
+  const saveShareLabel = isSavingResult
+    ? resultSaved
+      ? 'Sharing…'
+      : 'Saving…'
+    : resultSaved
+      ? 'Share Result'
+      : 'Save & Share';
+
   const postMatchLinks = (
     <>
       <button
         type="button"
         onClick={() => void handleConfirmSave()}
-        disabled={isSavingResult || resultSaved}
+        disabled={isSavingResult}
         className="rounded-lg bg-emerald-500 text-slate-950 text-[10px] sm:text-xs font-black uppercase tracking-wide px-2.5 py-1.5 disabled:opacity-50"
       >
-        {isSavingResult ? 'Saving…' : resultSaved ? 'Saved' : 'Save & Share'}
+        {saveShareLabel}
       </button>
+      <Link
+        to="/admin/results"
+        className="rounded-lg border border-emerald-500/40 bg-emerald-400/15 text-emerald-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-emerald-400/25"
+      >
+        View Results
+      </Link>
       <Link
         to="/admin"
         className="rounded-lg border border-amber-500/40 bg-amber-400/15 text-amber-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-amber-400/25"
@@ -285,10 +351,10 @@ export const AdminScorePage: React.FC = () => {
         <button
           type="button"
           onClick={() => void handleConfirmSave()}
-          disabled={isSavingResult || resultSaved}
+          disabled={isSavingResult}
           className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-emerald-500 text-slate-950 border border-emerald-300 active:scale-95 disabled:opacity-50"
         >
-          {isSavingResult ? 'Saving…' : 'Save & Share'}
+          {saveShareLabel}
         </button>
       )}
       {!seriesOver && hasWinner && isBo3 && (
@@ -414,10 +480,10 @@ export const AdminScorePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => void handleConfirmSave()}
-                  disabled={isSavingResult || resultSaved}
+                  disabled={isSavingResult}
                   className="text-[10px] sm:text-xs font-black px-3 py-1 rounded-full bg-emerald-500 text-slate-950 active:scale-95 disabled:opacity-50"
                 >
-                  {isSavingResult ? 'Saving…' : 'Save & Share'}
+                  {saveShareLabel}
                 </button>
               )}
             </>
@@ -631,8 +697,12 @@ export const AdminScorePage: React.FC = () => {
           matchWinner={celebration.matchWinner}
           onDismiss={() => {
             setCelebration(null);
-            if (hasSeriesWinner(match) && !resultSaved) {
-              setSaveMessage('Save & Share to store the result and open WhatsApp.');
+            if (hasSeriesWinner(match)) {
+              setSaveMessage(
+                resultSaved
+                  ? 'Result saved — see Admin → Results, or tap Share Result.'
+                  : 'Saving result… if it fails, tap Save & Share to retry.'
+              );
             }
           }}
           onSave={hasSeriesWinner(match) ? handleConfirmSave : undefined}
@@ -645,7 +715,9 @@ export const AdminScorePage: React.FC = () => {
             hasSeriesWinner(match) ? (
               <>
                 <p className="w-full text-center text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1">
-                  Saves result, then opens share apps
+                  {resultSaved
+                    ? 'Saved automatically · Share optional'
+                    : 'Saving automatically · Share opens next'}
                 </p>
                 {postMatchLinks}
               </>

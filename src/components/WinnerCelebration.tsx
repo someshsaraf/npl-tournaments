@@ -114,7 +114,7 @@ export function WinnerCelebration({
       )
     : [];
   const showBo3Games = bo3Scores.length > 0;
-  const canSave = typeof onSave === 'function' && !alreadySaved;
+  const canSaveOrShare = typeof onSave === 'function';
   const canNewMatch = typeof onNewMatch === 'function';
   const canNextGame = typeof onNextGame === 'function';
   const audience = variant === 'audience';
@@ -417,18 +417,26 @@ export function WinnerCelebration({
               Next Game
             </button>
           )}
-          {canSave && (
+          {canSaveOrShare && (
             <button
               type="button"
               onClick={onSave}
               disabled={isSaving}
               className="rounded-2xl bg-emerald-500 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 active:scale-95 shadow-lg shadow-emerald-500/30 disabled:opacity-50"
             >
-              {isSaving ? 'Saving…' : 'Save & Share'}
+              {isSaving
+                ? alreadySaved
+                  ? 'Sharing…'
+                  : 'Saving…'
+                : alreadySaved
+                  ? 'Share Result'
+                  : 'Save & Share'}
             </button>
           )}
           {alreadySaved && (
-            <p className="text-sm font-bold text-emerald-300 self-center">Result saved</p>
+            <p className="text-sm font-bold text-emerald-300 self-center">
+              Result saved to Completed
+            </p>
           )}
           {canNewMatch && (
             <button

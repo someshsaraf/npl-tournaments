@@ -27,7 +27,11 @@ import {
   applySwapSides,
   isGoldenPoint
 } from '../utils/scoring';
-import { buildCompletedMatch } from '../utils/completedMatches';
+import {
+  buildCompletedMatch,
+  completedMatchStorageKey,
+  toFirebaseWritable
+} from '../utils/completedMatches';
 import { buildCustomMatchState } from '../utils/customMatch';
 import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
@@ -61,6 +65,7 @@ export const ScoreControl: React.FC = () => {
     matchWinner: 1 | 2 | null;
   } | null>(null);
   const promptedKeyRef = useRef<string | null>(null);
+  const autoSavedKeyRef = useRef<string | null>(null);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
 
   useEffect(() => {
@@ -72,6 +77,42 @@ export const ScoreControl: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  /**
+   * Auto-persist when the series ends — do not rely on a Save tap.
+   * Concurrency: one write per match-id+score key via autoSavedKeyRef.
+   */
+  useEffect(() => {
+    if (!hasSeriesWinner(match)) return;
+    const fixtureId =
+      typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+    if (!fixtureId) return;
+
+    const key = `${fixtureId}:${match.score1}-${match.score2}:mw${match.matchWinner}:gw${match.gameWinner}:g${match.gameNumber}`;
+    if (autoSavedKeyRef.current === key) return;
+    autoSavedKeyRef.current = key;
+
+    const matchToSave = match;
+    void (async () => {
+      try {
+        const storageKey = completedMatchStorageKey(fixtureId);
+        const fixture = FIXTURES.find((f) => f.id === fixtureId);
+        const completed = buildCompletedMatch(matchToSave, fixture, new Date());
+        await set(
+          ref(db, `completedMatches/${storageKey}`),
+          toFirebaseWritable(completed)
+        );
+        setPendingSaveMatch(matchToSave);
+        setResultSaved(true);
+        setSaveMessage(`Saved ${completed.result}`);
+      } catch (err) {
+        console.error('Auto-save completed match failed:', err);
+        autoSavedKeyRef.current = null;
+        setResultSaved(false);
+        setSaveMessage('Auto-save failed — tap Save Result to retry.');
+      }
+    })();
+  }, [match]);
+
   // Celebrate when a game ends (BO1 or each game in BO3).
   useEffect(() => {
     if (!hasGameWinner(match)) return;
@@ -81,7 +122,6 @@ export const ScoreControl: React.FC = () => {
     const seriesOver = hasSeriesWinner(match);
     if (seriesOver) {
       setPendingSaveMatch(match);
-      setResultSaved(false);
     } else {
       setPendingSaveMatch(null);
     }
@@ -139,6 +179,7 @@ export const ScoreControl: React.FC = () => {
 
   const handleDecrement = (side: 1 | 2) => {
     promptedKeyRef.current = null;
+    autoSavedKeyRef.current = null;
     setPendingSaveMatch(null);
     setCelebration(null);
     setResultSaved(false);
@@ -156,6 +197,7 @@ export const ScoreControl: React.FC = () => {
 
   const handleSetMaxPoints = (points: 11 | 15 | 21) => {
     promptedKeyRef.current = null;
+    autoSavedKeyRef.current = null;
     setCelebration(null);
     setResultSaved(false);
     updateMatchState(applySetMaxPoints(match, points));
@@ -175,15 +217,22 @@ export const ScoreControl: React.FC = () => {
     setIsSavingResult(true);
     setSaveMessage(null);
     try {
+      const storageKey = completedMatchStorageKey(fixtureId);
       const fixture = FIXTURES.find((f) => f.id === fixtureId);
       const completed = buildCompletedMatch(matchToSave, fixture, new Date());
-      await set(ref(db, `completedMatches/${fixtureId}`), completed);
+      await set(
+        ref(db, `completedMatches/${storageKey}`),
+        toFirebaseWritable(completed)
+      );
+      autoSavedKeyRef.current = `${fixtureId}:${matchToSave.score1}-${matchToSave.score2}:mw${matchToSave.matchWinner}:gw${matchToSave.gameWinner}:g${matchToSave.gameNumber}`;
       setSaveMessage(`Saved ${completed.result}`);
       setResultSaved(true);
       return true;
     } catch (err) {
       console.error('Failed to save completed match:', err);
-      setSaveMessage('Failed to save result.');
+      setSaveMessage(
+        err instanceof Error ? `Failed to save: ${err.message}` : 'Failed to save result.'
+      );
       return false;
     } finally {
       setIsSavingResult(false);
@@ -615,8 +664,12 @@ export const ScoreControl: React.FC = () => {
           matchWinner={celebration.matchWinner}
           onDismiss={() => {
             setCelebration(null);
-            if (hasSeriesWinner(match) && !resultSaved) {
-              setSaveMessage('Result not saved — use New Match, or save from Admin.');
+            if (hasSeriesWinner(match)) {
+              setSaveMessage(
+                resultSaved
+                  ? 'Result saved — see Results / Admin Results.'
+                  : 'Saving result… if it fails, tap Save & Share to retry.'
+              );
             }
           }}
           onSave={hasSeriesWinner(match) ? handleConfirmSave : undefined}

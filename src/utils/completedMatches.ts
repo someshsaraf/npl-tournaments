@@ -25,6 +25,26 @@ export function formatMatchTime(date: Date): string {
   return `${hh}:${mm}`;
 }
 
+/** Firebase RTDB path key — strips characters that are illegal in keys. */
+export function completedMatchStorageKey(fixtureId: unknown): string {
+  if (typeof fixtureId !== 'string' || !fixtureId.trim()) {
+    throw new Error('completedMatchStorageKey: non-empty fixtureId required');
+  }
+  return fixtureId.trim().replace(/[.#$[\]]/g, '_');
+}
+
+/**
+ * JSON-clone so Firebase never receives `undefined` (RTDB rejects it).
+ * Concurrency: pure; returns a new plain object.
+ */
+export function toFirebaseWritable<T>(value: T): T {
+  try {
+    return JSON.parse(JSON.stringify(value)) as T;
+  } catch {
+    throw new Error('toFirebaseWritable: value is not JSON-serializable');
+  }
+}
+
 /**
  * Builds a CompletedMatch record from the live match + schedule fixture.
  * For best-of-3, result includes games tally and each game score.
@@ -151,12 +171,24 @@ export function completedMatchesFromFirebase(
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!value || typeof value !== 'object') continue;
     const row = value as Partial<CompletedMatch>;
-    if (row.status !== 'completed') continue;
-    if (typeof row.fixtureId !== 'string' && typeof row.id !== 'string') continue;
-    const id = (row.fixtureId || row.id || key).trim();
+    // Accept explicit completed rows, and heal older rows that have a result but no status.
+    const looksCompleted =
+      row.status === 'completed' ||
+      (row.status == null &&
+        (typeof row.result === 'string' || typeof row.winnerName === 'string'));
+    if (!looksCompleted) continue;
+    if (typeof row.fixtureId !== 'string' && typeof row.id !== 'string' && !key) {
+      continue;
+    }
+    const id = String(row.fixtureId || row.id || key).trim();
     if (!id) continue;
 
-    const base = { ...(row as CompletedMatch), id, fixtureId: id };
+    const base = {
+      ...(row as CompletedMatch),
+      id,
+      fixtureId: id,
+      status: 'completed' as const
+    };
     // Prefer ISO completedAt as source of truth for display date/time
     const parsed = Date.parse(base.completedAt || '');
     if (Number.isFinite(parsed)) {
