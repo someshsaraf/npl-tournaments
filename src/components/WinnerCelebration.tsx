@@ -4,6 +4,10 @@ type WinnerCelebrationProps = {
   winnerName: string;
   scoreLabel: string;
   onDismiss: () => void;
+  /** Optional save action shown on the celebration screen */
+  onSave?: () => void;
+  isSaving?: boolean;
+  alreadySaved?: boolean;
 };
 
 type Particle = {
@@ -59,13 +63,17 @@ function burst(particles: Particle[], x: number, y: number, color: string): void
 export function WinnerCelebration({
   winnerName,
   scoreLabel,
-  onDismiss
+  onDismiss,
+  onSave,
+  isSaving = false,
+  alreadySaved = false
 }: WinnerCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const safeName =
     typeof winnerName === 'string' && winnerName.trim() ? winnerName.trim() : 'Winner';
   const safeScore =
     typeof scoreLabel === 'string' && scoreLabel.trim() ? scoreLabel.trim() : '—';
+  const canSave = typeof onSave === 'function' && !alreadySaved;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -230,13 +238,29 @@ export function WinnerCelebration({
         >
           {safeScore}
         </p>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="mt-6 rounded-2xl bg-emerald-500 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 active:scale-95 shadow-lg shadow-emerald-500/30"
-        >
-          Continue
-        </button>
+        <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full max-w-md">
+          {canSave && (
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={isSaving}
+              className="rounded-2xl bg-emerald-500 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 active:scale-95 shadow-lg shadow-emerald-500/30 disabled:opacity-50"
+            >
+              {isSaving ? 'Saving…' : 'Save result'}
+            </button>
+          )}
+          {alreadySaved && (
+            <p className="text-sm font-bold text-emerald-300 self-center">Result saved</p>
+          )}
+          <button
+            type="button"
+            onClick={onDismiss}
+            disabled={isSaving}
+            className="rounded-2xl bg-slate-800 text-white font-black text-sm sm:text-base px-8 py-3.5 border border-slate-600 active:scale-95 disabled:opacity-50"
+          >
+            Continue
+          </button>
+        </div>
       </div>
 
       <style>{`
