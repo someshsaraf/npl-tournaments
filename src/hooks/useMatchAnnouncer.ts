@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MatchState } from '../data/tournamentData';
-import { hasMatchWinner } from './matchState';
+import { hasMatchWinner } from '../utils/matchState';
 import {
   announceScore,
   announceScoreAndServe,
@@ -9,7 +9,7 @@ import {
   isSpeechSupported,
   stopSpeech,
   unlockSpeech
-} from './matchAnnouncer';
+} from '../utils/matchAnnouncer';
 
 type Snapshot = {
   matchId: string;
