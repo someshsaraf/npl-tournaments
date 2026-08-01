@@ -224,7 +224,7 @@ export const LiveScoreboard: React.FC = () => {
               title={
                 audioEnabled
                   ? 'Announcements on — tap to mute'
-                  : 'Tap to enable score & serve announcements'
+                  : 'Tap to enable score announcements'
               }
             >
               {audioEnabled ? 'Audio On' : 'Audio'}

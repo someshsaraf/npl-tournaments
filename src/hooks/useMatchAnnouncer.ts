@@ -1,31 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MatchState } from '../data/tournamentData';
-import { hasMatchWinner } from '../utils/matchState';
-import {
-  announceScore,
-  announceScoreAndServe,
-  announceServe,
-  announceWinner,
-  isSpeechSupported,
-  stopSpeech,
-  unlockSpeech
-} from '../utils/matchAnnouncer';
+import { announceScore, isSpeechSupported, stopSpeech, unlockSpeech } from '../utils/matchAnnouncer';
 
 type Snapshot = {
   matchId: string;
   score1: number;
   score2: number;
-  server: 1 | 2;
-  winner: 1 | 2 | null;
 };
 
 function snapshotFromMatch(match: MatchState): Snapshot {
+  const score1 = Number(match.score1);
+  const score2 = Number(match.score2);
   return {
     matchId: typeof match.currentMatchId === 'string' ? match.currentMatchId : '',
-    score1: Number.isFinite(match.score1) ? match.score1 : 0,
-    score2: Number.isFinite(match.score2) ? match.score2 : 0,
-    server: match.server === 2 ? 2 : 1,
-    winner: match.gameWinner === 1 || match.gameWinner === 2 ? match.gameWinner : null
+    score1: Number.isFinite(score1) ? score1 : 0,
+    score2: Number.isFinite(score2) ? score2 : 0
   };
 }
 
@@ -34,9 +23,15 @@ function sideName(match: MatchState, side: 1 | 2): string {
   return match.player2 || match.teamB || 'Side B';
 }
 
+/** Side whose score increased; null if neither increased (e.g. undo). */
+function sideThatIncremented(prev: Snapshot, next: Snapshot): 1 | 2 | null {
+  if (next.score1 > prev.score1) return 1;
+  if (next.score2 > prev.score2) return 2;
+  return null;
+}
+
 /**
- * Announces score and serve changes for a live MatchState.
- * Skips the first snapshot after enable (baseline). Requires unlockSpeech() on mobile.
+ * Announces only the player whose score incremented: "Name score".
  * Concurrency: React effect + refs only; no shared mutable module state beyond SpeechSynthesis.
  */
 export function useMatchAnnouncer(match: MatchState): {
@@ -84,30 +79,15 @@ export function useMatchAnnouncer(match: MatchState): {
       return;
     }
 
-    const scoreChanged = prev.score1 !== next.score1 || prev.score2 !== next.score2;
-    const serveChanged = prev.server !== next.server;
-    const winnerNow = hasMatchWinner(match) && prev.winner !== next.winner && next.winner;
-
-    if (winnerNow) {
-      const winName =
-        next.winner === 1 ? sideName(match, 1) : sideName(match, 2);
-      announceWinner(winName);
-      prevRef.current = next;
-      return;
-    }
-
-    if (scoreChanged && serveChanged) {
-      announceScoreAndServe(
+    const scorer = sideThatIncremented(prev, next);
+    if (scorer) {
+      announceScore(
         next.score1,
         next.score2,
         sideName(match, 1),
         sideName(match, 2),
-        sideName(match, next.server)
+        scorer
       );
-    } else if (scoreChanged) {
-      announceScore(next.score1, next.score2, sideName(match, 1), sideName(match, 2));
-    } else if (serveChanged) {
-      announceServe(sideName(match, next.server));
     }
 
     prevRef.current = next;

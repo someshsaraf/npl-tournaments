@@ -258,7 +258,7 @@ export const ScoreControl: React.FC = () => {
               title={
                 audioEnabled
                   ? 'Announcements on — tap to mute'
-                  : 'Tap to enable score & serve announcements'
+                  : 'Tap to enable score announcements'
               }
               className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
                 audioEnabled
