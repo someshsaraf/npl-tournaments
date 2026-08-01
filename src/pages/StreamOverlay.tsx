@@ -374,10 +374,11 @@ export const StreamOverlay: React.FC = () => {
           playerVars: {
             autoplay: 1,
             mute: 1,
-            // iOS needs native YT controls (play / volume / fullscreen).
+            // iOS: keep YT play/volume controls, but fs:0 so native video fullscreen
+            // does not cover the page (HTML score overlay cannot appear there).
             controls: iosLike ? 1 : 0,
             disablekb: iosLike ? 0 : 1,
-            fs: iosLike ? 1 : 0,
+            fs: 0,
             modestbranding: 1,
             playsinline: 1,
             rel: 0,
@@ -493,16 +494,16 @@ export const StreamOverlay: React.FC = () => {
 
   /**
    * Fullscreen: native API on desktop / Android / many iPads.
-   * iPhone: page API unsupported — no remount; page is already full-bleed + YT FS control.
+   * iPhone: stay inline (playsinline + fs:0) so the score overlay remains visible.
    */
   const enterLiveFullscreen = async (): Promise<void> => {
     const root = liveRootRef.current;
     if (!root) return;
 
-    // iPhone cannot fullscreen the page; avoid broken cinema remounts.
+    // Native YouTube fullscreen on iPhone hides our score — keep the full-bleed page instead.
     if (iphone) {
       setPlaybackError(
-        'iPhone browsers cannot fullscreen this page. Use the expand icon on the YouTube controls.'
+        'On iPhone the score stays on screen in this view. YouTube full screen would hide the score.'
       );
       return;
     }
@@ -616,7 +617,7 @@ export const StreamOverlay: React.FC = () => {
       }
     >
       <div
-        className={`${compactOnly} items-center gap-1 w-max max-w-[min(78vw,16rem)] landscape:max-w-[min(48vw,14rem)] rounded-md bg-black/75 border border-white/15 px-1.5 py-1 shadow-md`}
+        className={`${compactOnly} items-center gap-1 w-max max-w-[min(85vw,18rem)] landscape:max-w-[min(55vw,16rem)] rounded-lg bg-black/85 border border-white/25 px-2 py-1.5 shadow-lg ring-1 ring-black/40`}
       >
         {(phase === 'final' || phase === 'last') && (
           <span className="text-[7px] font-black uppercase tracking-wider text-emerald-300 pr-0.5 border-r border-white/15">
@@ -722,8 +723,9 @@ export const StreamOverlay: React.FC = () => {
     </div>
   );
 
+  // High z-index so the score stays above YouTube chrome on iOS (inline playback).
   const overlayAnchorClass =
-    'fixed z-30 pointer-events-none top-[max(0.35rem,env(safe-area-inset-top))] right-[max(0.35rem,env(safe-area-inset-right))]';
+    'fixed z-[60] pointer-events-none top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))]';
 
   if (videoId) {
     return (
@@ -757,8 +759,8 @@ export const StreamOverlay: React.FC = () => {
               Tap to Play with Sound
             </button>
             <p className="max-w-xs text-xs text-white/85">
-              Required once on iPhone / iPad. After that, use YouTube controls for volume and
-              fullscreen.
+              Required once on iPhone / iPad. Stay in this view so the live score stays visible —
+              YouTube full screen would cover the score.
             </p>
             {playbackError && (
               <p className="max-w-sm text-xs text-red-300" role="alert">
