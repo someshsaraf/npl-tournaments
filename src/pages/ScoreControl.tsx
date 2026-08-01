@@ -32,6 +32,7 @@ import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
+import { Bo3BigScores } from '../components/Bo3BigScores';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 
 /**
@@ -108,7 +109,20 @@ export const ScoreControl: React.FC = () => {
   };
 
   const handleScorePoint = (side: 1 | 2) => {
-    updateMatchState(applyScorePoint(match, side));
+    let current = match;
+    if (
+      current.bestOf === 3 &&
+      hasGameWinner(current) &&
+      !hasSeriesWinner(current)
+    ) {
+      try {
+        current = applyStartNextGame(current);
+      } catch (err) {
+        setSaveMessage(err instanceof Error ? err.message : 'Could not start next game.');
+        return;
+      }
+    }
+    updateMatchState(applyScorePoint(current, side));
   };
 
   const handleDecrement = (side: 1 | 2) => {
@@ -220,6 +234,7 @@ export const ScoreControl: React.FC = () => {
 
   const hasWinner = hasGameWinner(match);
   const seriesOver = hasSeriesWinner(match);
+  const scoreButtonsLocked = seriesOver || (hasWinner && match.bestOf !== 3);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
   const winnerName =
@@ -409,12 +424,16 @@ export const ScoreControl: React.FC = () => {
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center">
-            <span
-              className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-              style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
-            >
-              {score1}
-            </span>
+            {match.bestOf === 3 ? (
+              <Bo3BigScores match={match} side={1} variant="scorer" />
+            ) : (
+              <span
+                className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
+                style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
+              >
+                {score1}
+              </span>
+            )}
           </div>
         </section>
 
@@ -451,12 +470,16 @@ export const ScoreControl: React.FC = () => {
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center">
-            <span
-              className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-              style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
-            >
-              {score2}
-            </span>
+            {match.bestOf === 3 ? (
+              <Bo3BigScores match={match} side={2} variant="scorer" />
+            ) : (
+              <span
+                className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
+                style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
+              >
+                {score2}
+              </span>
+            )}
           </div>
         </section>
 
@@ -486,7 +509,7 @@ export const ScoreControl: React.FC = () => {
         <button
           type="button"
           onClick={() => handleScorePoint(1)}
-          disabled={hasWinner}
+          disabled={scoreButtonsLocked}
           className="rounded-xl text-white font-black active:scale-95 disabled:opacity-35"
           style={{
             backgroundColor: '#4f46e5',
@@ -507,7 +530,7 @@ export const ScoreControl: React.FC = () => {
         <button
           type="button"
           onClick={() => handleScorePoint(2)}
-          disabled={hasWinner}
+          disabled={scoreButtonsLocked}
           className="rounded-xl text-white font-black active:scale-95 disabled:opacity-35"
           style={{
             backgroundColor: '#e11d48',
