@@ -6,7 +6,7 @@ const NAV = [
   { to: '/', label: 'Home', end: true },
   { to: '/schedule', label: 'Schedule', end: false },
   { to: '/teams', label: 'Teams', end: false },
-  { to: '/score', label: 'Score', end: false },
+  { to: '/results', label: 'Results', end: false },
   { to: '/live', label: 'Live Stream', end: false },
   { to: '/rules', label: 'Rules', end: false }
 ] as const;

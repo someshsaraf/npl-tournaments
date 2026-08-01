@@ -33,7 +33,8 @@ export function formatMatchTime(date: Date): string {
 export function buildCompletedMatch(
   match: MatchState,
   fixture: Fixture | undefined,
-  completedAt: Date = new Date()
+  completedAt: Date = new Date(),
+  extras?: { snapshotUrl?: string; snapshotPath?: string }
 ): CompletedMatch {
   if (!match || typeof match !== 'object') {
     throw new Error('buildCompletedMatch: match is required');
@@ -105,7 +106,13 @@ export function buildCompletedMatch(
     bestOf,
     gamesWon1,
     gamesWon2,
-    gameScores
+    gameScores,
+    ...(typeof extras?.snapshotUrl === 'string' && extras.snapshotUrl.startsWith('https://')
+      ? { snapshotUrl: extras.snapshotUrl }
+      : {}),
+    ...(typeof extras?.snapshotPath === 'string' && extras.snapshotPath.startsWith('photos/')
+      ? { snapshotPath: extras.snapshotPath }
+      : {})
   };
 }
 

@@ -3,16 +3,18 @@ import { PublicLayout } from './components/PublicLayout';
 import HomePage from './pages/HomePage';
 import SchedulePage from './pages/SchedulePage';
 import TeamsPage from './pages/TeamsPage';
+import ResultsPage from './pages/ResultsPage';
 import RulesPage from './pages/RulesPage';
 import AdminPanel from './pages/AdminPanel';
+import AdminScorePage from './pages/AdminScorePage';
 import LiveScoreboard from './pages/LiveScoreboard';
 import StreamOverlay from './pages/StreamOverlay';
 import ScoreControl from './pages/ScoreControl';
 
 /**
  * Public portal routes sit under PublicLayout (nav visible).
- * /admin and /scorer are siblings — reachable by URL only, never linked in portal nav.
- * /score and /live stay full-bleed for display / cinema use; linked from portal nav.
+ * /admin (+ /admin/score) and /scorer are staff-only — not linked in portal nav.
+ * /live is linked from portal; /score remains available by direct URL for displays.
  */
 export default function App() {
   return (
@@ -22,15 +24,17 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/teams" element={<TeamsPage />} />
+          <Route path="/results" element={<ResultsPage />} />
           <Route path="/rules" element={<RulesPage />} />
         </Route>
 
-        {/* Immersive public displays (linked from portal; no chrome) */}
+        {/* Immersive displays (no portal chrome) */}
         <Route path="/score" element={<LiveScoreboard />} />
         <Route path="/live" element={<StreamOverlay />} />
 
         {/* Staff-only — not in public nav */}
         <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/admin/score" element={<AdminScorePage />} />
         <Route path="/scorer" element={<ScoreControl />} />
 
         {/* Legacy redirects */}

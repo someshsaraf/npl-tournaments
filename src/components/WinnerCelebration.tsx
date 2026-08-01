@@ -424,7 +424,7 @@ export function WinnerCelebration({
               disabled={isSaving}
               className="rounded-2xl bg-emerald-500 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 active:scale-95 shadow-lg shadow-emerald-500/30 disabled:opacity-50"
             >
-              {isSaving ? 'Saving…' : 'Save result'}
+              {isSaving ? 'Saving…' : 'Save & Share'}
             </button>
           )}
           {alreadySaved && (

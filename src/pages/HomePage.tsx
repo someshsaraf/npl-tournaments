@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
-import { db } from '../firebase';
+import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
 import {
   FIXTURES,
   INITIAL_MATCH,
@@ -26,6 +26,7 @@ import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
  */
 export default function HomePage() {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [fixtures, setFixtures] = useState<Fixture[]>(() =>
     mergeFixturesWithResults(FIXTURES, {})
   );
@@ -43,13 +44,20 @@ export default function HomePage() {
       setFixtures(mergeFixturesWithResults(FIXTURES, byId));
     });
 
+    const youtubeRef = ref(db, YOUTUBE_LIVE_URL_PATH);
+    const unsubYoutube = onValue(youtubeRef, (snap) => {
+      const val = snap.val();
+      setYoutubeUrl(typeof val === 'string' ? val : '');
+    });
+
     return () => {
       unsubMatch();
       unsubCompleted();
+      unsubYoutube();
     };
   }, []);
 
-  const embedUrl = toYouTubeEmbedUrl(match.youtubeLiveUrl ?? '');
+  const embedUrl = toYouTubeEmbedUrl(youtubeUrl || match.youtubeLiveUrl || '');
   const seriesOver = hasSeriesWinner(match);
   const name1 = match.player1 || match.teamA || 'Side A';
   const name2 = match.player2 || match.teamB || 'Side B';
@@ -176,10 +184,10 @@ export default function HomePage() {
 
           <div className="mt-auto flex flex-wrap gap-2 pt-1">
             <Link
-              to="/score"
+              to="/results"
               className="flex-1 min-w-[7rem] text-center rounded-lg bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wide px-3 py-2.5 hover:bg-amber-300"
             >
-              Full scoreboard
+              Results
             </Link>
             <Link
               to="/schedule"

@@ -88,6 +88,10 @@ export interface CompletedMatch {
   gamesWon1?: number;
   gamesWon2?: number;
   gameScores?: GameScore[];
+  /** Public URL of score snapshot image in Storage `photos/` (optional). */
+  snapshotUrl?: string;
+  /** Storage object path, e.g. `photos/f-12-….png` (optional). */
+  snapshotPath?: string;
 }
 
 export interface MatchState {

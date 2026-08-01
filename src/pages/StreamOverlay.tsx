@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
-import { db } from '../firebase';
+import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
 import { INITIAL_MATCH, isMaxPoints } from '../data/tournamentData';
 import type { CompletedMatch, MatchState, MaxPoints } from '../data/tournamentData';
 import { parseYouTubeVideoId } from '../utils/youtube';
@@ -259,6 +259,7 @@ function shortName(name: string, maxChars: number): string {
 
 export const StreamOverlay: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
+  const [settingsYoutubeUrl, setSettingsYoutubeUrl] = useState('');
   const [heldResult, setHeldResult] = useState<HeldResult | null>(null);
   const [latestCompleted, setLatestCompleted] = useState<HeldResult | null>(null);
   const [showPlayGate, setShowPlayGate] = useState(false);
@@ -328,6 +329,15 @@ export const StreamOverlay: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const youtubeRef = ref(db, YOUTUBE_LIVE_URL_PATH);
+    const unsubscribe = onValue(youtubeRef, (snapshot) => {
+      const val = snapshot.val();
+      setSettingsYoutubeUrl(typeof val === 'string' ? val : '');
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const completedRef = ref(db, 'completedMatches');
     const unsubscribe = onValue(completedRef, (snapshot) => {
       const rows = sortCompletedMatches(
@@ -350,7 +360,9 @@ export const StreamOverlay: React.FC = () => {
     setHeldResult((prev) => (prev && prev.fixtureId !== id ? null : prev));
   }, [match.currentMatchId]);
 
-  const videoId = parseYouTubeVideoId(match.youtubeLiveUrl ?? '');
+  const videoId = parseYouTubeVideoId(
+    settingsYoutubeUrl || match.youtubeLiveUrl || ''
+  );
 
   /** iOS + landscape + playing: hide Sound/messages for a full-bleed watch mode. */
   const iosLandscapeCinema = iosLike && isLandscape && !showPlayGate && !!videoId;
@@ -858,15 +870,18 @@ export const StreamOverlay: React.FC = () => {
           </div>
         )}
 
+        {/* Compact portal exit — corner chip, does not cover the video center */}
+        <Link
+          to="/"
+          className="absolute z-50 top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))] pointer-events-auto rounded-md bg-black/45 hover:bg-black/70 text-white/85 hover:text-white text-[10px] font-semibold uppercase tracking-wider px-2 py-1 border border-white/15 backdrop-blur-[2px]"
+          aria-label="Back to portal"
+        >
+          ← Portal
+        </Link>
+
         {/* Portrait (or non-iOS): show Sound / Full Screen. Hidden in iOS landscape cinema. */}
         {!showPlayGate && !iosLandscapeCinema && (
           <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto flex flex-wrap items-center gap-2">
-            <Link
-              to="/"
-              className="rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border bg-slate-900/80 text-white border-white/20"
-            >
-              Portal
-            </Link>
             <button
               type="button"
               onClick={handleToggleSound}
