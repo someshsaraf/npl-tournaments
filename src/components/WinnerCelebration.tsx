@@ -119,17 +119,19 @@ export function WinnerCelebration({
     ? 'clamp(1rem, 3.5vw, 2rem)'
     : 'clamp(0.85rem, 2.5vw, 1.25rem)';
   const nameSize = audience
-    ? 'clamp(2.5rem, min(12vw, 28dvh), 10rem)'
-    : 'clamp(2rem, 10vw, 5.5rem)';
+    ? 'clamp(4.5rem, min(24vw, 40dvh), 20rem)'
+    : showBo3Games
+      ? 'clamp(4rem, min(22vw, 30dvh), 14rem)'
+      : 'clamp(4.5rem, min(24vw, 36dvh), 16rem)';
   const scoreSize = audience
     ? 'clamp(5rem, min(32vw, 40dvh), 24rem)'
     : 'clamp(3rem, 14vw, 9rem)';
   const gameScoreSize = audience
-    ? 'clamp(2.5rem, min(18vw, 22dvh), 8rem)'
-    : 'clamp(2rem, min(14vw, 16dvh), 5.5rem)';
+    ? 'clamp(2rem, min(14vw, 16dvh), 6rem)'
+    : 'clamp(1.75rem, min(11vw, 12dvh), 4.5rem)';
   const gameLabelSize = audience
-    ? 'clamp(0.75rem, 2vw, 1.25rem)'
-    : 'clamp(0.7rem, 1.8vw, 1rem)';
+    ? 'clamp(0.7rem, 1.8vw, 1.1rem)'
+    : 'clamp(0.65rem, 1.5vw, 0.9rem)';
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -287,8 +289,8 @@ export function WinnerCelebration({
           id="winner-celebration-title"
           className={
             audience
-              ? 'flex min-h-0 w-full flex-[1.35] items-center justify-center font-black text-white leading-[0.9] break-words px-2'
-              : 'font-black text-white leading-[0.95] break-words max-w-[95vw]'
+              ? 'flex min-h-0 w-full flex-[2] items-center justify-center font-black text-white leading-[0.85] break-words px-2'
+              : 'font-black text-white leading-[0.85] break-words max-w-[95vw] shrink-0 py-1'
           }
           style={{
             fontSize: nameSize,
@@ -302,7 +304,7 @@ export function WinnerCelebration({
           <div
             className={
               audience
-                ? 'flex min-h-0 w-full flex-1 items-center justify-center gap-2 sm:gap-4 px-1'
+                ? 'flex min-h-0 w-full flex-[0.9] items-center justify-center gap-2 sm:gap-4 px-1'
                 : 'flex w-full max-w-[96vw] items-center justify-center gap-2 sm:gap-4'
             }
             aria-label={`Game scores ${bo3Scores.map((g, i) => `G${i + 1} ${g.score1}-${g.score2}`).join(', ')}`}
