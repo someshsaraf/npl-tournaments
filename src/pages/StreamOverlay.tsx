@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { INITIAL_MATCH, isMaxPoints } from '../data/tournamentData';
@@ -860,6 +861,12 @@ export const StreamOverlay: React.FC = () => {
         {/* Portrait (or non-iOS): show Sound / Full Screen. Hidden in iOS landscape cinema. */}
         {!showPlayGate && !iosLandscapeCinema && (
           <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto flex flex-wrap items-center gap-2">
+            <Link
+              to="/"
+              className="rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border bg-slate-900/80 text-white border-white/20"
+            >
+              Portal
+            </Link>
             <button
               type="button"
               onClick={handleToggleSound}

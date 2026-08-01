@@ -9,8 +9,16 @@
   }
 
   body {
-    @apply bg-slate-950 text-slate-100 font-sans antialiased;
+    @apply bg-slate-950 text-slate-100 antialiased;
+    font-family: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
   }
+}
+
+/* Public portal display headings */
+.npl-portal .portal-display {
+  font-family: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.04em;
 }
 
 /* /live CSS immersive / iOS cinema when native Fullscreen API is unavailable. */

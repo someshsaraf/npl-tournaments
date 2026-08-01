@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { GameScore } from '../data/tournamentData';
 
 type WinnerCelebrationProps = {
@@ -26,6 +26,8 @@ type WinnerCelebrationProps = {
   seriesLabel?: string;
   /** Match/series winner (1|2) — their games get a distinct background */
   matchWinner?: 1 | 2 | null;
+  /** Extra links/actions under the primary buttons (e.g. Schedule / Rules / Admin) */
+  extraActions?: ReactNode;
 };
 
 type Particle = {
@@ -91,7 +93,8 @@ export function WinnerCelebration({
   subtitle,
   gameScores,
   seriesLabel,
-  matchWinner
+  matchWinner,
+  extraActions
 }: WinnerCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const safeName =
@@ -450,6 +453,11 @@ export function WinnerCelebration({
             Continue
           </button>
         </div>
+        {extraActions ? (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 w-full max-w-lg px-2">
+            {extraActions}
+          </div>
+        ) : null}
       </div>
 
       <style>{`

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import {
@@ -257,6 +258,35 @@ export const ScoreControl: React.FC = () => {
   const name2 = match.player2 || match.teamB || 'Side B';
   const isBo3 = match.bestOf === 3;
 
+  const postMatchLinks = (
+    <>
+      <Link
+        to="/schedule"
+        className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 text-emerald-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-emerald-500/25"
+      >
+        Schedule &amp; Results
+      </Link>
+      <Link
+        to="/rules"
+        className="rounded-lg border border-slate-600 bg-slate-800 text-slate-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-slate-700"
+      >
+        Rules
+      </Link>
+      <Link
+        to="/admin"
+        className="rounded-lg border border-amber-500/40 bg-amber-400/15 text-amber-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-amber-400/25"
+      >
+        Admin
+      </Link>
+      <Link
+        to="/"
+        className="rounded-lg border border-slate-600 bg-slate-800 text-slate-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-slate-700"
+      >
+        Portal
+      </Link>
+    </>
+  );
+
   const scorerOptionButtons = (
     <>
       {seriesOver && !showNewMatchForm && (
@@ -277,6 +307,12 @@ export const ScoreControl: React.FC = () => {
           Next Game
         </button>
       )}
+      <Link
+        to="/admin"
+        className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-300 border border-amber-500/40 active:scale-95"
+      >
+        Admin
+      </Link>
       {speechSupported && (
         <button
           type="button"
@@ -334,13 +370,21 @@ export const ScoreControl: React.FC = () => {
     >
       {/* Brand banner — centered top */}
       <div
-        className="shrink-0 flex justify-center border-b border-slate-800/80 bg-slate-950"
+        className="shrink-0 flex flex-col items-center gap-1.5 border-b border-slate-800/80 bg-slate-950 px-3"
         style={{
           paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
           paddingBottom: '0.45rem'
         }}
       >
         <BrandBanner size="sm" />
+        {seriesOver && !showNewMatchForm ? (
+          <nav
+            className="flex flex-wrap items-center justify-center gap-1.5"
+            aria-label="After match"
+          >
+            {postMatchLinks}
+          </nav>
+        ) : null}
       </div>
 
       {/* Status + controls strip */}
@@ -582,6 +626,16 @@ export const ScoreControl: React.FC = () => {
             !hasSeriesWinner(match) && match.bestOf === 3 ? handleStartNextGame : undefined
           }
           onNewMatch={hasSeriesWinner(match) ? openNewMatchForm : undefined}
+          extraActions={
+            hasSeriesWinner(match) ? (
+              <>
+                <p className="w-full text-center text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1">
+                  After the match
+                </p>
+                {postMatchLinks}
+              </>
+            ) : undefined
+          }
         />
       )}
 

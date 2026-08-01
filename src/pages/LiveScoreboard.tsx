@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { INITIAL_MATCH } from '../data/tournamentData';
@@ -244,6 +245,12 @@ export const LiveScoreboard: React.FC = () => {
         </div>
 
         <div className="min-w-0 flex items-center justify-end gap-2">
+          <Link
+            to="/"
+            className="rounded-full px-3 py-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wide shadow border bg-slate-800 text-slate-100 border-slate-600 hover:bg-slate-700 active:scale-95"
+          >
+            Portal
+          </Link>
           <span className="hidden sm:inline text-xs sm:text-sm text-slate-500 font-mono">LIVE</span>
           {speechSupported && (
             <button

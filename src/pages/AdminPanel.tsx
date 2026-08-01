@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ref, set, onValue, remove } from 'firebase/database';
 import { db } from '../firebase';
 import {
@@ -57,6 +58,7 @@ function isCustomMatchId(id: string | null | undefined): boolean {
 }
 
 export const AdminPanel: React.FC = () => {
+  const navigate = useNavigate();
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [teams, setTeams] = useState<Team[]>(TEAMS);
   const [completedById, setCompletedById] = useState<Record<string, CompletedMatch>>({});
@@ -375,6 +377,7 @@ export const AdminPanel: React.FC = () => {
       trumpTeam: null
     };
     updateMatchState(updatedState);
+    navigate('/scorer');
   };
 
   /**
@@ -402,6 +405,7 @@ export const AdminPanel: React.FC = () => {
       );
       setSelectedMaxPoints(customMaxPoints);
       setSelectedBestOf(customBestOf);
+      navigate('/scorer');
     } catch (err) {
       setCustomMatchError(err instanceof Error ? err.message : 'Could not start custom match.');
     }
@@ -437,10 +441,43 @@ export const AdminPanel: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
 
-      <div className="flex flex-col items-center justify-center gap-1 border-b border-slate-800 pb-5 pt-1">
+      <div className="flex flex-col items-center justify-center gap-3 border-b border-slate-800 pb-5 pt-1">
         <BrandBanner size="lg" subtitle="Tournament Control" />
         <p className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">
           Admin Console
+        </p>
+        <nav
+          className="flex flex-wrap items-center justify-center gap-2"
+          aria-label="Staff navigation"
+        >
+          <Link
+            to="/scorer"
+            className="rounded-lg bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wide px-4 py-2 shadow hover:bg-amber-300"
+          >
+            Open Scorer
+          </Link>
+          <Link
+            to="/"
+            className="rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs font-bold uppercase tracking-wide px-3 py-2 hover:bg-slate-800"
+          >
+            Viewer Portal
+          </Link>
+          <Link
+            to="/schedule"
+            className="rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs font-bold uppercase tracking-wide px-3 py-2 hover:bg-slate-800"
+          >
+            Schedule &amp; Results
+          </Link>
+          <Link
+            to="/rules"
+            className="rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs font-bold uppercase tracking-wide px-3 py-2 hover:bg-slate-800"
+          >
+            Rules
+          </Link>
+        </nav>
+        <p className="text-[11px] text-slate-500 text-center max-w-lg">
+          Start a fixture or custom match to jump to the scorer. Use Admin here to edit teams,
+          YouTube link, delete results, and manage the schedule.
         </p>
       </div>
       
