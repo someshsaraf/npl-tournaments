@@ -79,22 +79,48 @@ export function Bo3BigScores({
         const value = scoreForBo3Game(match, i, side);
         const isLive = !seriesDone && value !== null && gameNum === i + 1;
         const filled = value !== null;
+        const scores = Array.isArray(match.gameScores) ? match.gameScores : [];
+        const gameRow = scores[i];
+        const sideWonGame = !!gameRow && gameRow.winner === side;
+        const matchWinner =
+          match.matchWinner === 1 || match.matchWinner === 2 ? match.matchWinner : null;
+        const wonByMatchWinner =
+          seriesDone && matchWinner !== null && !!gameRow && gameRow.winner === matchWinner;
+
+        let rowClass = 'opacity-40';
+        if (isLive) {
+          rowClass = liveRing;
+        } else if (sideWonGame && (wonByMatchWinner || !seriesDone)) {
+          // This side won the game — emphasize (stronger when they are series winner).
+          rowClass = wonByMatchWinner
+            ? 'bg-emerald-500/25 ring-2 ring-emerald-400/70 border border-emerald-400/40'
+            : 'bg-emerald-500/15 ring-1 ring-emerald-400/40';
+        } else if (filled && gameRow && gameRow.winner !== side) {
+          rowClass = 'bg-slate-900/50 opacity-55';
+        } else if (filled) {
+          rowClass = 'bg-slate-900/40';
+        }
+
         return (
           <div
             key={`bo3-s${side}-g${i + 1}`}
-            className={`flex items-center justify-center gap-2 sm:gap-3 rounded-xl px-2 py-0.5 sm:py-1 ${
-              isLive ? liveRing : filled ? 'bg-slate-900/40' : 'opacity-40'
-            }`}
+            className={`flex items-center justify-center gap-2 sm:gap-3 rounded-xl px-2 py-0.5 sm:py-1 ${rowClass}`}
           >
             <span
-              className="shrink-0 font-bold uppercase tracking-wider text-slate-500"
+              className={`shrink-0 font-bold uppercase tracking-wider ${
+                sideWonGame ? 'text-emerald-300/90' : 'text-slate-500'
+              }`}
               style={{ fontSize: labelSize }}
             >
               G{i + 1}
             </span>
             <span
               className={`font-black font-mono tabular-nums leading-none select-none ${
-                filled ? color : 'text-slate-600'
+                sideWonGame
+                  ? 'text-emerald-200'
+                  : filled
+                    ? color
+                    : 'text-slate-600'
               }`}
               style={{ fontSize: scoreSize }}
             >

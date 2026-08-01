@@ -36,6 +36,8 @@ export function SeriesScoreStrip({
   const tally = formatGamesWonLabel(match);
   const gameNum = Number.isFinite(match.gameNumber) ? match.gameNumber : 1;
   const seriesDone = hasSeriesWinner(match);
+  const matchWinner =
+    match.matchWinner === 1 || match.matchWinner === 2 ? match.matchWinner : null;
 
   const text =
     size === 'lg'
@@ -66,21 +68,35 @@ export function SeriesScoreStrip({
 
       <div className="flex items-stretch justify-center gap-1.5 sm:gap-2 flex-wrap">
         {[0, 1, 2].map((i) => {
-          const filled = !!scores[i];
+          const g = scores[i];
+          const filled = !!g;
           const isCurrent = !seriesDone && !filled && gameNum === i + 1;
+          const wonByMatchWinner =
+            seriesDone && matchWinner !== null && filled && g.winner === matchWinner;
+          const wonBySide1 = filled && g.winner === 1;
+          const wonBySide2 = filled && g.winner === 2;
+
+          let boxClass = 'bg-slate-900/60 border-slate-700 text-slate-500';
+          if (isCurrent) {
+            boxClass =
+              'bg-violet-950/50 border-violet-400/50 text-violet-200 animate-pulse';
+          } else if (wonByMatchWinner) {
+            boxClass =
+              'bg-emerald-500/30 border-emerald-400 text-emerald-100 shadow-md shadow-emerald-500/20';
+          } else if (wonBySide1) {
+            boxClass = 'bg-indigo-500/20 border-indigo-400/50 text-indigo-100';
+          } else if (wonBySide2) {
+            boxClass = 'bg-rose-500/20 border-rose-400/50 text-rose-100';
+          }
+
           return (
             <div
               key={`g${i + 1}`}
-              className={`min-w-[4.5rem] sm:min-w-[5.5rem] rounded-lg border text-center ${boxPad} ${
-                filled
-                  ? 'bg-slate-800/90 border-emerald-500/40 text-emerald-200'
-                  : isCurrent
-                    ? 'bg-violet-950/50 border-violet-400/50 text-violet-200 animate-pulse'
-                    : 'bg-slate-900/60 border-slate-700 text-slate-500'
-              }`}
+              className={`min-w-[4.5rem] sm:min-w-[5.5rem] rounded-lg border text-center ${boxPad} ${boxClass}`}
             >
               <div className="text-[9px] sm:text-[10px] uppercase tracking-wider opacity-80">
                 Game {i + 1}
+                {wonByMatchWinner ? ' · W' : ''}
               </div>
               <div className={`tabular-nums leading-tight ${boxScore}`}>
                 {slotLabel(i, scores)}

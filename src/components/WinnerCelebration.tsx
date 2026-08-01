@@ -24,6 +24,8 @@ type WinnerCelebrationProps = {
   gameScores?: GameScore[];
   /** Series games won label, e.g. "2-1" */
   seriesLabel?: string;
+  /** Match/series winner (1|2) — their games get a distinct background */
+  matchWinner?: 1 | 2 | null;
 };
 
 type Particle = {
@@ -88,7 +90,8 @@ export function WinnerCelebration({
   variant = 'default',
   subtitle,
   gameScores,
-  seriesLabel
+  seriesLabel,
+  matchWinner
 }: WinnerCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const safeName =
@@ -307,13 +310,26 @@ export function WinnerCelebration({
             {[0, 1, 2].map((i) => {
               const g = bo3Scores[i];
               const filled = !!g;
+              const winnerSide =
+                matchWinner === 1 || matchWinner === 2
+                  ? matchWinner
+                  : null;
+              const wonByMatchWinner =
+                filled && winnerSide !== null && g.winner === winnerSide;
+              const wonByOther =
+                filled && winnerSide !== null && g.winner !== winnerSide;
+
               return (
                 <div
                   key={`win-g${i + 1}`}
                   className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl border px-1 py-2 sm:px-3 sm:py-3 ${
-                    filled
-                      ? 'border-amber-400/50 bg-slate-950/50'
-                      : 'border-slate-700/40 bg-slate-950/20 opacity-35'
+                    wonByMatchWinner
+                      ? 'border-emerald-400 bg-emerald-500/30 shadow-lg shadow-emerald-500/25'
+                      : wonByOther
+                        ? 'border-slate-600/60 bg-slate-900/40 opacity-70'
+                        : filled
+                          ? 'border-amber-400/50 bg-slate-950/50'
+                          : 'border-slate-700/40 bg-slate-950/20 opacity-35'
                   }`}
                   style={{
                     animation: filled
@@ -322,19 +338,28 @@ export function WinnerCelebration({
                   }}
                 >
                   <span
-                    className="font-black uppercase tracking-[0.2em] text-slate-400"
+                    className={`font-black uppercase tracking-[0.2em] ${
+                      wonByMatchWinner ? 'text-emerald-200' : 'text-slate-400'
+                    }`}
                     style={{ fontSize: gameLabelSize }}
                   >
                     G{i + 1}
+                    {wonByMatchWinner ? ' · W' : ''}
                   </span>
                   <span
                     className={`font-black font-mono tabular-nums leading-none ${
-                      filled ? 'text-amber-300' : 'text-slate-600'
+                      wonByMatchWinner
+                        ? 'text-emerald-200'
+                        : filled
+                          ? 'text-amber-300'
+                          : 'text-slate-600'
                     }`}
                     style={{
                       fontSize: gameScoreSize,
                       textShadow: filled
-                        ? '0 0 36px rgba(251,191,36,0.45), 0 4px 16px rgba(0,0,0,0.5)'
+                        ? wonByMatchWinner
+                          ? '0 0 36px rgba(52,211,153,0.55), 0 4px 16px rgba(0,0,0,0.5)'
+                          : '0 0 36px rgba(251,191,36,0.45), 0 4px 16px rgba(0,0,0,0.5)'
                         : undefined
                     }}
                   >
