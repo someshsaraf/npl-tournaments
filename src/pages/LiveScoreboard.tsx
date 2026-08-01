@@ -4,6 +4,13 @@ import { db } from '../firebase';
 import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
+import {
+  enterNativeFullscreen,
+  exitNativeFullscreen,
+  isElementNativeFullscreen,
+  setBodyScrollLocked,
+  subscribeFullscreenChange
+} from '../utils/fullscreen';
 import { ServeRacket } from '../components/ServeRacket';
 import { BrandBanner } from '../components/BrandBanner';
 import { WinnerCelebration } from '../components/WinnerCelebration';
@@ -19,7 +26,11 @@ export const LiveScoreboard: React.FC = () => {
     winnerName: string;
     scoreLabel: string;
   } | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [cssImmersive, setCssImmersive] = useState(false);
   const promptedKeyRef = useRef<string | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const cssImmersiveRef = useRef(false);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -28,6 +39,30 @@ export const LiveScoreboard: React.FC = () => {
       if (data) setMatch(normalizeMatchState(data));
     });
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sync = () => {
+      const root = rootRef.current;
+      const native =
+        isElementNativeFullscreen(root) ||
+        isElementNativeFullscreen(document.documentElement);
+      if (native) {
+        cssImmersiveRef.current = false;
+        setCssImmersive(false);
+        setBodyScrollLocked(false);
+        setIsFullscreen(true);
+        return;
+      }
+      setIsFullscreen(cssImmersiveRef.current);
+    };
+    const unsub = subscribeFullscreenChange(sync);
+    return () => {
+      unsub();
+      cssImmersiveRef.current = false;
+      setBodyScrollLocked(false);
+      void exitNativeFullscreen();
+    };
   }, []);
 
   // Same winner fireworks as /scorer when a match finishes.
@@ -50,6 +85,49 @@ export const LiveScoreboard: React.FC = () => {
     });
   }, [match]);
 
+  /**
+   * Fullscreen the scoreboard root so scores stay visible.
+   * Native API on desktop/Android/iPad; CSS immersive fallback (incl. iPhone).
+   */
+  const enterFullscreen = async (): Promise<void> => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const mode = await enterNativeFullscreen(root);
+    if (mode === 'native') {
+      cssImmersiveRef.current = false;
+      setCssImmersive(false);
+      setBodyScrollLocked(false);
+      setIsFullscreen(true);
+      return;
+    }
+
+    cssImmersiveRef.current = true;
+    setCssImmersive(true);
+    setBodyScrollLocked(true);
+    setIsFullscreen(true);
+  };
+
+  const exitFullscreen = async (): Promise<void> => {
+    cssImmersiveRef.current = false;
+    setCssImmersive(false);
+    setBodyScrollLocked(false);
+    await exitNativeFullscreen();
+    setIsFullscreen(false);
+  };
+
+  const handleToggleFullscreen = () => {
+    if (
+      isFullscreen ||
+      cssImmersiveRef.current ||
+      isElementNativeFullscreen(rootRef.current)
+    ) {
+      void exitFullscreen();
+      return;
+    }
+    void enterFullscreen();
+  };
+
   const activeServer = match.server === 2 ? 2 : 1;
   const hasWinner = hasMatchWinner(match);
   const score1 = match.score1 ?? 0;
@@ -65,7 +143,10 @@ export const LiveScoreboard: React.FC = () => {
 
   return (
     <div
-      className="bg-slate-950 text-slate-100 font-sans overflow-hidden flex flex-col"
+      ref={rootRef}
+      className={`bg-slate-950 text-slate-100 font-sans overflow-hidden flex flex-col ${
+        cssImmersive ? 'npl-live-immersive' : ''
+      }`}
       style={{
         position: 'fixed',
         inset: 0,
@@ -122,8 +203,21 @@ export const LiveScoreboard: React.FC = () => {
           )}
         </div>
 
-        <div className="min-w-0 text-right">
-          <span className="text-xs sm:text-sm text-slate-500 font-mono">LIVE</span>
+        <div className="min-w-0 flex items-center justify-end gap-2">
+          <span className="hidden sm:inline text-xs sm:text-sm text-slate-500 font-mono">LIVE</span>
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            className={`rounded-full px-3 py-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wide shadow border active:scale-95 ${
+              isFullscreen
+                ? 'bg-indigo-500 text-white border-indigo-300'
+                : 'bg-slate-800 text-slate-100 border-slate-600 hover:bg-slate-700'
+            }`}
+            aria-pressed={isFullscreen}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+          </button>
         </div>
       </header>
 
