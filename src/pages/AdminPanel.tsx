@@ -25,6 +25,42 @@ import { applySetServer, applySwapSides } from '../utils/scoring';
 import { ServeRacket } from '../components/ServeRacket';
 import { BrandBanner } from '../components/BrandBanner';
 
+const CUSTOM_MATCH_STAGES = [
+  'Exhibition',
+  'Friendly',
+  'Custom',
+  'Group Stage',
+  'Semi Final',
+  'Final'
+] as const;
+
+function isCustomMatchId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && id.trim().startsWith('custom-');
+}
+
+/** Unique id for ad-hoc matches (not in FIXTURES). */
+function createCustomMatchId(): string {
+  const rand =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  return `custom-${Date.now()}-${rand}`;
+}
+
+function sanitizeLabel(value: unknown, field: string, maxLen = 80): string {
+  if (typeof value !== 'string') {
+    throw new Error(`${field} must be a string`);
+  }
+  const trimmed = value.trim().replace(/\s+/g, ' ');
+  if (!trimmed) {
+    throw new Error(`${field} is required`);
+  }
+  if (trimmed.length > maxLen) {
+    throw new Error(`${field} must be at most ${maxLen} characters`);
+  }
+  return trimmed;
+}
+
 export const AdminPanel: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [teams, setTeams] = useState<Team[]>(TEAMS);
@@ -38,6 +74,15 @@ export const AdminPanel: React.FC = () => {
   const [showFreshStartConfirm, setShowFreshStartConfirm] = useState(false);
   const [isResettingAll, setIsResettingAll] = useState(false);
   const [freshStartMessage, setFreshStartMessage] = useState<string | null>(null);
+
+  const fixtureCategories = Array.from(new Set(FIXTURES.map((f) => f.category)));
+  const [customSideA, setCustomSideA] = useState('');
+  const [customSideB, setCustomSideB] = useState('');
+  const [customCategory, setCustomCategory] = useState(fixtureCategories[0] ?? 'Exhibition');
+  const [customCategoryOther, setCustomCategoryOther] = useState('');
+  const [customStage, setCustomStage] = useState<string>(CUSTOM_MATCH_STAGES[0]);
+  const [customMaxPoints, setCustomMaxPoints] = useState<MaxPoints>(11);
+  const [customMatchError, setCustomMatchError] = useState<string | null>(null);
 
   // Sync state from Firebase with normalization
   useEffect(() => {
@@ -338,7 +383,52 @@ export const AdminPanel: React.FC = () => {
     updateMatchState(updatedState);
   };
 
-  const categories = ['All', ...Array.from(new Set(FIXTURES.map((f) => f.category)))];
+  /**
+   * Start an ad-hoc match that is not on the fixture schedule.
+   * Concurrency: single Firebase write via updateMatchState; no shared mutable globals.
+   * Security: labels trimmed/length-capped; ids generated locally (not user-supplied).
+   */
+  const handleStartCustomMatch = () => {
+    setCustomMatchError(null);
+    try {
+      if (!isMaxPoints(customMaxPoints)) {
+        throw new Error('Select a valid point format (11, 15, or 21).');
+      }
+      const sideA = sanitizeLabel(customSideA, 'Side A');
+      const sideB = sanitizeLabel(customSideB, 'Side B');
+      const category =
+        customCategory === '__other__'
+          ? sanitizeLabel(customCategoryOther, 'Category')
+          : sanitizeLabel(customCategory, 'Category');
+      const stage = sanitizeLabel(customStage, 'Stage');
+
+      const updatedState: MatchState = {
+        ...match,
+        currentMatchId: createCustomMatchId(),
+        category,
+        stage,
+        teamA: sideA,
+        teamB: sideB,
+        player1: sideA,
+        player2: sideB,
+        score1: 0,
+        score2: 0,
+        maxPoints: customMaxPoints,
+        server: 1,
+        servingSide: 'right',
+        deuceActive: false,
+        gameWinner: null,
+        isTrump: false,
+        trumpTeam: null
+      };
+      updateMatchState(updatedState);
+      setSelectedMaxPoints(customMaxPoints);
+    } catch (err) {
+      setCustomMatchError(err instanceof Error ? err.message : 'Could not start custom match.');
+    }
+  };
+
+  const categories = ['All', ...fixtureCategories];
   const dates = ['All', ...FIXTURE_DATES];
 
   const fixturesWithResults = mergeFixturesWithResults(FIXTURES, completedById);
@@ -357,6 +447,7 @@ export const AdminPanel: React.FC = () => {
 
   const completedRows = sortCompletedMatches(Object.values(completedById));
   const currentFixtureCompleted = completedById[match.currentMatchId];
+  const isCustomLiveMatch = isCustomMatchId(match.currentMatchId);
 
   const hasWinner = hasMatchWinner(match);
   const youtubeUrl = match.youtubeLiveUrl ?? '';
@@ -389,6 +480,11 @@ export const AdminPanel: React.FC = () => {
             <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">
               ID: {match.currentMatchId}
             </span>
+            {isCustomLiveMatch && (
+              <span className="text-xs bg-violet-500/20 text-violet-300 px-2.5 py-1 rounded-full uppercase tracking-wider font-semibold">
+                Custom (not in fixture)
+              </span>
+            )}
           </div>
         </div>
 
@@ -405,7 +501,9 @@ export const AdminPanel: React.FC = () => {
                 </span>
               ) : (
                 <span className="text-[11px] text-amber-300/90">
-                  Save result to mark this fixture completed in the schedule.
+                  {isCustomLiveMatch
+                    ? 'Save result to record this custom match in Completed Matches.'
+                    : 'Save result to mark this fixture completed in the schedule.'}
                 </span>
               )}
               {saveError && <span className="text-[11px] text-red-400 block">{saveError}</span>}
@@ -697,7 +795,134 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Tournament Fixtures & Master Schedule Browser */}
+      {/* 3. Custom match (not on fixture schedule) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div>
+            <h3 className="text-lg font-bold text-violet-300">Start Custom Match</h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Use for exhibition / friendly / unscheduled games. Does not change the fixture list.
+              Results still save to Completed Matches under a <span className="font-mono text-slate-300">custom-*</span> id.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block space-y-1.5">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Side A / Player 1
+            </span>
+            <input
+              type="text"
+              value={customSideA}
+              onChange={(e) => setCustomSideA(e.target.value)}
+              maxLength={80}
+              placeholder="e.g. Nitin Verma"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Side B / Player 2
+            </span>
+            <input
+              type="text"
+              value={customSideB}
+              onChange={(e) => setCustomSideB(e.target.value)}
+              maxLength={80}
+              placeholder="e.g. Sambit Mahapatra"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Category
+            </span>
+            <select
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            >
+              {fixtureCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+              <option value="Exhibition">Exhibition</option>
+              <option value="__other__">Other (type below)</option>
+            </select>
+            {customCategory === '__other__' && (
+              <input
+                type="text"
+                value={customCategoryOther}
+                onChange={(e) => setCustomCategoryOther(e.target.value)}
+                maxLength={80}
+                placeholder="Custom category name"
+                className="w-full mt-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+            )}
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Stage
+            </span>
+            <select
+              value={customStage}
+              onChange={(e) => setCustomStage(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            >
+              {CUSTOM_MATCH_STAGES.map((stage) => (
+                <option key={stage} value={stage}>
+                  {stage}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+          <div className="flex items-center flex-wrap gap-2">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Format
+            </span>
+            <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
+              {MAX_POINTS_OPTIONS.map((pts) => (
+                <button
+                  key={pts}
+                  type="button"
+                  onClick={() => setCustomMaxPoints(pts)}
+                  className={`text-[10px] px-2.5 py-1 rounded font-bold ${
+                    customMaxPoints === pts
+                      ? 'bg-violet-400 text-slate-950'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {pts} Points
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleStartCustomMatch}
+            className="bg-violet-500 hover:bg-violet-400 text-slate-950 font-bold text-sm px-5 py-2.5 rounded-lg transition-colors shadow"
+          >
+            Start Custom Match ({customMaxPoints}p)
+          </button>
+        </div>
+        {customMatchError && (
+          <p className="text-xs text-red-400" role="alert">
+            {customMatchError}
+          </p>
+        )}
+        {isCustomLiveMatch && (
+          <p className="text-[11px] text-violet-300/90">
+            Live now: {match.player1} vs {match.player2} · {match.category} · {match.stage}
+          </p>
+        )}
+      </div>
+
+      {/* 4. Tournament Fixtures & Master Schedule Browser */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -862,7 +1087,7 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Completed Matches Table */}
+      {/* 5. Completed Matches Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-3">
