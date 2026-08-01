@@ -176,6 +176,7 @@ export function speak(text: unknown, rate = 1): void {
 
 /**
  * Announce scores only (no names). Point-winner’s score first: "6, 4".
+ * On a tie: "2 points each" / "11 points each".
  * Input: finite non-negative scores; pointWinner 1|2.
  */
 export function announceScore(
@@ -190,6 +191,10 @@ export function announceScore(
   if (pointWinner !== 1 && pointWinner !== 2) pointWinner = 1;
   const s1 = Math.trunc(score1);
   const s2 = Math.trunc(score2);
+  if (s1 === s2) {
+    speak(`${s1} points each.`);
+    return;
+  }
   if (pointWinner === 2) {
     speak(`${s2}, ${s1}.`);
   } else {
