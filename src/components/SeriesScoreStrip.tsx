@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { GameScore, MatchState } from '../data/tournamentData';
 import {
   formatGamesWonLabel,
@@ -9,6 +10,8 @@ type SeriesScoreStripProps = {
   /** Larger type for audience scoreboard */
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  /** Optional controls rendered on the right (e.g. scorer Audio / points / Swap) */
+  trailing?: ReactNode;
 };
 
 function slotLabel(index: number, scores: GameScore[]): string {
@@ -20,14 +23,13 @@ function slotLabel(index: number, scores: GameScore[]): string {
 }
 
 /**
- * Best-of-3 series strip for /score and /scorer.
- * Always shows three game slots (G1 G2 G3); filled scores appear as games finish.
- * When the series is decided (2 wins), all played game scores remain visible.
+ * Best-of-3 series strip — single row: status + G1/G2/G3 boxes (+ optional trailing).
  */
 export function SeriesScoreStrip({
   match,
   size = 'md',
-  className = ''
+  className = '',
+  trailing
 }: SeriesScoreStripProps) {
   if (!match || typeof match !== 'object') return null;
   if (match.bestOf !== 3) return null;
@@ -38,6 +40,7 @@ export function SeriesScoreStrip({
   const seriesDone = hasSeriesWinner(match);
   const matchWinner =
     match.matchWinner === 1 || match.matchWinner === 2 ? match.matchWinner : null;
+  const maxPts = Number.isFinite(match.maxPoints) ? match.maxPoints : 11;
 
   const text =
     size === 'lg'
@@ -46,27 +49,30 @@ export function SeriesScoreStrip({
         ? 'text-[10px] sm:text-xs'
         : 'text-xs sm:text-sm';
 
-  const boxPad = size === 'lg' ? 'px-3 py-1.5' : 'px-2 py-1';
+  const boxPad = size === 'lg' ? 'px-3 py-1' : 'px-2 py-0.5';
   const boxScore =
     size === 'lg'
-      ? 'text-base sm:text-lg font-black'
+      ? 'text-sm sm:text-base font-black'
       : size === 'sm'
         ? 'text-xs font-bold'
         : 'text-sm font-bold';
 
+  const statusLine = seriesDone
+    ? `Race to ${maxPts} · BO3 · Games ${tally} · Match over`
+    : `Race to ${maxPts} · BO3 · Games ${tally} · Game ${gameNum}`;
+
   return (
     <div
-      className={`flex flex-col items-center gap-1.5 ${text} font-mono text-slate-300 ${className}`}
+      className={`flex items-center gap-2 sm:gap-3 ${text} font-mono text-slate-300 ${className}`}
       aria-label={`Best of 3 series ${tally}. Games: ${[0, 1, 2]
         .map((i) => `G${i + 1} ${slotLabel(i, scores)}`)
         .join(', ')}`}
     >
-      <span className="font-bold text-amber-300/90 tracking-wide">
-        BO3 · Games {tally}
-        {seriesDone ? ' · Match over' : ` · Game ${gameNum}`}
+      <span className="shrink-0 font-bold text-amber-300/90 tracking-wide whitespace-nowrap">
+        {statusLine}
       </span>
 
-      <div className="flex items-stretch justify-center gap-1.5 sm:gap-2 flex-wrap">
+      <div className="flex items-stretch justify-center gap-1 sm:gap-1.5 flex-wrap min-w-0">
         {[0, 1, 2].map((i) => {
           const g = scores[i];
           const filled = !!g;
@@ -92,10 +98,10 @@ export function SeriesScoreStrip({
           return (
             <div
               key={`g${i + 1}`}
-              className={`min-w-[4.5rem] sm:min-w-[5.5rem] rounded-lg border text-center ${boxPad} ${boxClass}`}
+              className={`min-w-[3.75rem] sm:min-w-[4.75rem] rounded-lg border text-center ${boxPad} ${boxClass}`}
             >
               <div className="text-[9px] sm:text-[10px] uppercase tracking-wider opacity-80">
-                Game {i + 1}
+                G{i + 1}
                 {wonByMatchWinner ? ' · W' : ''}
               </div>
               <div className={`tabular-nums leading-tight ${boxScore}`}>
@@ -105,6 +111,12 @@ export function SeriesScoreStrip({
           );
         })}
       </div>
+
+      {trailing ? (
+        <div className="ml-auto flex items-center justify-end gap-1.5 shrink-0 flex-wrap">
+          {trailing}
+        </div>
+      ) : null}
     </div>
   );
 }

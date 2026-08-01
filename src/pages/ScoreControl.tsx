@@ -391,10 +391,9 @@ export const ScoreControl: React.FC = () => {
             <span className="text-xs font-black text-red-400 bg-red-500/20 border border-red-500/50 px-3 py-1 rounded-full animate-pulse">
               DEUCE
             </span>
-          ) : (
+          ) : isBo3 ? null : (
             <span className="text-[10px] sm:text-xs font-mono text-slate-500">
-              {match.maxPoints ?? 11} PTS
-              {isBo3 ? ` · BO3 G${match.gameNumber ?? 1}` : ''} · {match.stage}
+              {match.maxPoints ?? 11} PTS · {match.stage}
             </span>
           )}
         </div>
@@ -406,10 +405,7 @@ export const ScoreControl: React.FC = () => {
 
       {isBo3 ? (
         <div className="shrink-0 flex items-center gap-2 px-2 py-1 border-b border-slate-800/80 bg-slate-950">
-          <SeriesScoreStrip match={match} size="sm" className="flex-1 min-w-0 py-0" />
-          <div className="flex items-center justify-end gap-1.5 shrink-0 flex-wrap">
-            {scorerOptionButtons}
-          </div>
+          <SeriesScoreStrip match={match} size="sm" className="flex-1 min-w-0 py-0" trailing={scorerOptionButtons} />
         </div>
       ) : null}
 

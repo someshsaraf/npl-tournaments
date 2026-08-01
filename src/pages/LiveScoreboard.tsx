@@ -231,10 +231,9 @@ export const LiveScoreboard: React.FC = () => {
             <span className="text-sm sm:text-base font-black text-red-400 bg-red-500/20 border border-red-500/50 px-4 py-1.5 rounded-full animate-pulse">
               DEUCE
             </span>
-          ) : (
+          ) : match.bestOf === 3 ? null : (
             <span className="text-sm sm:text-base font-mono text-amber-300/90 font-bold">
               Race to {match.maxPoints ?? 11}
-              {match.bestOf === 3 ? ` · BO3 G${match.gameNumber ?? 1}` : ''}
             </span>
           )}
           {match.isTrump && (
