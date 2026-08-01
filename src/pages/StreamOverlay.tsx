@@ -9,6 +9,13 @@ import {
   completedMatchesFromFirebase,
   sortCompletedMatches
 } from '../utils/completedMatches';
+import {
+  canRequestNativeFullscreen,
+  enterNativeFullscreen,
+  exitNativeFullscreen,
+  isElementNativeFullscreen,
+  subscribeFullscreenChange
+} from '../utils/fullscreen';
 import { ServeRacket } from '../components/ServeRacket';
 
 /** Snapshot shown on /live between matches. */
@@ -274,7 +281,11 @@ export const StreamOverlay: React.FC = () => {
   /** True after user enables audio via a tap (required on iOS). */
   const [soundOn, setSoundOn] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  /** Native Fullscreen API or CSS immersive fallback. */
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [cssImmersive, setCssImmersive] = useState(false);
   const playerRef = useRef<YtPlayer | null>(null);
+  const liveRootRef = useRef<HTMLDivElement | null>(null);
   const keepAliveRef = useRef<number | null>(null);
   const playGateTimerRef = useRef<number | null>(null);
   /** After a user gesture unlocks media, keep-alive playVideo is allowed on iOS. */
@@ -282,9 +293,27 @@ export const StreamOverlay: React.FC = () => {
   /** Prefer unmuted resume once the user has tapped for sound. */
   const soundOnRef = useRef(false);
   const iosLikeRef = useRef(isIosLikeDevice());
+  const cssImmersiveRef = useRef(false);
 
   useEffect(() => {
     iosLikeRef.current = isIosLikeDevice();
+  }, []);
+
+  // Keep toggle state in sync with OS / browser fullscreen (Esc, gesture exit, etc.).
+  useEffect(() => {
+    const sync = () => {
+      const root = liveRootRef.current;
+      const native = isElementNativeFullscreen(root) || isElementNativeFullscreen(document.documentElement);
+      if (native) {
+        cssImmersiveRef.current = false;
+        setCssImmersive(false);
+        setIsFullscreen(true);
+        return;
+      }
+      setIsFullscreen(cssImmersiveRef.current);
+    };
+    sync();
+    return subscribeFullscreenChange(sync);
   }, []);
 
   useEffect(() => {
@@ -506,6 +535,8 @@ export const StreamOverlay: React.FC = () => {
     setSoundOn(true);
     hardenYouTubeIframe(player);
     enableSoundAndPlay(player);
+    // Start fullscreen in the same user gesture when the OS allows it.
+    void enterLiveFullscreen();
     // Second tick still inside the gesture chain on most browsers; helps iOS cue→play.
     window.setTimeout(() => {
       if (!playerRef.current || !soundOnRef.current) return;
@@ -537,6 +568,45 @@ export const StreamOverlay: React.FC = () => {
     soundOnRef.current = true;
     setSoundOn(true);
     enableSoundAndPlay(player);
+  };
+
+  /**
+   * Enter / exit fullscreen for all OS types.
+   * Uses Fullscreen API when available; CSS immersive fallback otherwise (common on older iOS).
+   * Concurrency: UI-thread only; must run from a user gesture for native fullscreen.
+   */
+  const enterLiveFullscreen = async (): Promise<void> => {
+    const root = liveRootRef.current;
+    if (!root) return;
+
+    if (canRequestNativeFullscreen(root) || canRequestNativeFullscreen(document.documentElement)) {
+      const mode = await enterNativeFullscreen(root);
+      if (mode === 'native') {
+        cssImmersiveRef.current = false;
+        setCssImmersive(false);
+        setIsFullscreen(true);
+        return;
+      }
+    }
+
+    cssImmersiveRef.current = true;
+    setCssImmersive(true);
+    setIsFullscreen(true);
+  };
+
+  const exitLiveFullscreen = async (): Promise<void> => {
+    cssImmersiveRef.current = false;
+    setCssImmersive(false);
+    await exitNativeFullscreen();
+    setIsFullscreen(false);
+  };
+
+  const handleToggleFullscreen = () => {
+    if (isFullscreen || cssImmersiveRef.current || isElementNativeFullscreen(liveRootRef.current)) {
+      void exitLiveFullscreen();
+      return;
+    }
+    void enterLiveFullscreen();
   };
 
   // Show last result only while still on the same finished fixture (0–0 after reset).
@@ -722,9 +792,67 @@ export const StreamOverlay: React.FC = () => {
   const overlayAnchorClass =
     'fixed z-30 pointer-events-none top-[max(0.35rem,env(safe-area-inset-top))] right-[max(0.35rem,env(safe-area-inset-right))]';
 
+  const liveChrome = (
+    <>
+      {/* Sound + fullscreen — work on desktop, Android, iOS (CSS fallback when needed). */}
+      {!showPlayGate && (
+        <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleToggleSound}
+            className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
+              soundOn
+                ? 'bg-slate-900/80 text-white border-white/20'
+                : 'bg-amber-400 text-slate-950 border-amber-300 animate-pulse'
+            }`}
+            aria-pressed={soundOn}
+            aria-label={soundOn ? 'Mute stream' : 'Unmute stream'}
+          >
+            {soundOn ? 'Sound On · Mute' : 'Tap for Sound'}
+          </button>
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
+              isFullscreen
+                ? 'bg-indigo-500 text-white border-indigo-300'
+                : 'bg-slate-900/80 text-white border-white/20'
+            }`}
+            aria-pressed={isFullscreen}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+          </button>
+        </div>
+      )}
+
+      {/* Always offer fullscreen even while the play gate is up (desktop). */}
+      {showPlayGate && (
+        <div className="absolute z-50 top-[max(0.75rem,env(safe-area-inset-top))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto">
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            className="rounded-full px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide shadow-lg border bg-slate-900/80 text-white border-white/20"
+            aria-pressed={isFullscreen}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+          </button>
+        </div>
+      )}
+
+      <div className={overlayAnchorClass}>{scoreBug}</div>
+    </>
+  );
+
   if (videoId) {
     return (
-      <div className="fixed inset-0 bg-black overflow-hidden select-none">
+      <div
+        ref={liveRootRef}
+        className={`fixed inset-0 bg-black overflow-hidden select-none ${
+          cssImmersive ? 'npl-live-immersive' : ''
+        }`}
+      >
         <div
           id={PLAYER_HOST_ID}
           className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:border-0"
@@ -750,7 +878,7 @@ export const StreamOverlay: React.FC = () => {
               Tap to Play with Sound
             </button>
             <p className="max-w-xs text-xs text-white/80">
-              iPhone / iPad need a tap to start YouTube with audio.
+              Starts playback with audio and enters full screen when the device allows it.
             </p>
             {playbackError && (
               <p className="max-w-sm text-xs text-red-300" role="alert">
@@ -760,31 +888,36 @@ export const StreamOverlay: React.FC = () => {
           </div>
         )}
 
-        {/* Sound control — browsers (esp. iOS) only allow unmute from a tap. */}
-        {!showPlayGate && (
-          <div className="fixed z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto">
-            <button
-              type="button"
-              onClick={handleToggleSound}
-              className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
-                soundOn
-                  ? 'bg-slate-900/80 text-white border-white/20'
-                  : 'bg-amber-400 text-slate-950 border-amber-300 animate-pulse'
-              }`}
-              aria-pressed={soundOn}
-              aria-label={soundOn ? 'Mute stream' : 'Unmute stream'}
-            >
-              {soundOn ? 'Sound On · Tap to Mute' : 'Tap for Sound'}
-            </button>
-          </div>
-        )}
-
-        <div className={overlayAnchorClass}>{scoreBug}</div>
+        {liveChrome}
       </div>
     );
   }
 
-  return <div className={overlayAnchorClass}>{scoreBug}</div>;
+  return (
+    <div
+      ref={liveRootRef}
+      className={`fixed inset-0 bg-slate-950 overflow-hidden select-none ${
+        cssImmersive ? 'npl-live-immersive' : ''
+      }`}
+    >
+      <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto">
+        <button
+          type="button"
+          onClick={handleToggleFullscreen}
+          className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
+            isFullscreen
+              ? 'bg-indigo-500 text-white border-indigo-300'
+              : 'bg-slate-900/80 text-white border-white/20'
+          }`}
+          aria-pressed={isFullscreen}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+        </button>
+      </div>
+      <div className={overlayAnchorClass}>{scoreBug}</div>
+    </div>
+  );
 };
 
 export default StreamOverlay;

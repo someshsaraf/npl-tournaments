@@ -13,6 +13,27 @@
   }
 }
 
+/* /live CSS immersive fallback when native Fullscreen API is unavailable (e.g. older iOS). */
+.npl-live-immersive {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  z-index: 99999 !important;
+  background: #000 !important;
+  overflow: hidden !important;
+}
+
+.npl-live-immersive:fullscreen,
+.npl-live-immersive:-webkit-full-screen {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* NPL brand banner — entrance + continuous attention motion */
 @keyframes npl-brand-enter {
   from {
