@@ -255,6 +255,71 @@ export const ScoreControl: React.FC = () => {
 
   const name1 = match.player1 || match.teamA || 'Side A';
   const name2 = match.player2 || match.teamB || 'Side B';
+  const isBo3 = match.bestOf === 3;
+
+  const scorerOptionButtons = (
+    <>
+      {seriesOver && !showNewMatchForm && (
+        <button
+          type="button"
+          onClick={openNewMatchForm}
+          className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-violet-500 text-slate-950 border border-violet-300 active:scale-95"
+        >
+          New Match
+        </button>
+      )}
+      {!seriesOver && hasWinner && isBo3 && !showNewMatchForm && (
+        <button
+          type="button"
+          onClick={handleStartNextGame}
+          className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-amber-400 text-slate-950 border border-amber-300 active:scale-95"
+        >
+          Next Game
+        </button>
+      )}
+      {speechSupported && (
+        <button
+          type="button"
+          onClick={() => (audioEnabled ? disableAudio() : enableAudio())}
+          title={
+            audioEnabled
+              ? 'Announcements on — tap to mute'
+              : 'Tap to enable score announcements'
+          }
+          className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
+            audioEnabled
+              ? 'bg-amber-400 text-slate-950 border-amber-300'
+              : 'bg-slate-800 text-slate-300 border-slate-700'
+          }`}
+          aria-pressed={audioEnabled}
+        >
+          {audioEnabled ? 'Audio On' : 'Audio'}
+        </button>
+      )}
+      {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
+        <button
+          key={pts}
+          type="button"
+          onClick={() => handleSetMaxPoints(pts)}
+          title={`Race to ${pts}`}
+          className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
+            (match.maxPoints ?? 11) === pts
+              ? 'bg-amber-400 text-slate-950 border-amber-300'
+              : 'bg-slate-800 text-slate-300 border-slate-700'
+          }`}
+        >
+          {pts}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={handleSwapSides}
+        className="text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-lg bg-indigo-600/50 text-indigo-50 border border-indigo-400/40 active:scale-95"
+      >
+        ↔ Swap
+      </button>
+    </>
+  );
 
   return (
     <div
@@ -299,7 +364,7 @@ export const ScoreControl: React.FC = () => {
               <span className="text-xs sm:text-sm font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1 rounded-full whitespace-nowrap">
                 {seriesOver ? 'MATCH' : 'GAME'} WIN {winnerName} · {score1}-{score2}
               </span>
-              {!celebration && !showNewMatchForm && !seriesOver && match.bestOf === 3 && (
+              {!celebration && !showNewMatchForm && !seriesOver && isBo3 && (
                 <button
                   type="button"
                   onClick={handleStartNextGame}
@@ -329,75 +394,24 @@ export const ScoreControl: React.FC = () => {
           ) : (
             <span className="text-[10px] sm:text-xs font-mono text-slate-500">
               {match.maxPoints ?? 11} PTS
-              {match.bestOf === 3 ? ` · BO3 G${match.gameNumber ?? 1}` : ''} · {match.stage}
+              {isBo3 ? ` · BO3 G${match.gameNumber ?? 1}` : ''} · {match.stage}
             </span>
           )}
         </div>
 
         <div className="flex items-center justify-end gap-1.5">
-          {seriesOver && !showNewMatchForm && (
-            <button
-              type="button"
-              onClick={openNewMatchForm}
-              className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-violet-500 text-slate-950 border border-violet-300 active:scale-95"
-            >
-              New Match
-            </button>
-          )}
-          {!seriesOver && hasWinner && match.bestOf === 3 && !showNewMatchForm && (
-            <button
-              type="button"
-              onClick={handleStartNextGame}
-              className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-amber-400 text-slate-950 border border-amber-300 active:scale-95"
-            >
-              Next Game
-            </button>
-          )}
-          {speechSupported && (
-            <button
-              type="button"
-              onClick={() => (audioEnabled ? disableAudio() : enableAudio())}
-              title={
-                audioEnabled
-                  ? 'Announcements on — tap to mute'
-                  : 'Tap to enable score announcements'
-              }
-              className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
-                audioEnabled
-                  ? 'bg-amber-400 text-slate-950 border-amber-300'
-                  : 'bg-slate-800 text-slate-300 border-slate-700'
-              }`}
-              aria-pressed={audioEnabled}
-            >
-              {audioEnabled ? 'Audio On' : 'Audio'}
-            </button>
-          )}
-          {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
-            <button
-              key={pts}
-              type="button"
-              onClick={() => handleSetMaxPoints(pts)}
-              title={`Race to ${pts}`}
-              className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
-                (match.maxPoints ?? 11) === pts
-                  ? 'bg-amber-400 text-slate-950 border-amber-300'
-                  : 'bg-slate-800 text-slate-300 border-slate-700'
-              }`}
-            >
-              {pts}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={handleSwapSides}
-            className="text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-lg bg-indigo-600/50 text-indigo-50 border border-indigo-400/40 active:scale-95"
-          >
-            ↔ Swap
-          </button>
+          {!isBo3 ? scorerOptionButtons : null}
         </div>
       </header>
 
-      <SeriesScoreStrip match={match} size="sm" className="shrink-0 py-1 px-2 border-b border-slate-800/80" />
+      {isBo3 ? (
+        <div className="shrink-0 flex items-center gap-2 px-2 py-1 border-b border-slate-800/80 bg-slate-950">
+          <SeriesScoreStrip match={match} size="sm" className="flex-1 min-w-0 py-0" />
+          <div className="flex items-center justify-end gap-1.5 shrink-0 flex-wrap">
+            {scorerOptionButtons}
+          </div>
+        </div>
+      ) : null}
 
       {/* Score stage — fills all remaining viewport */}
       <main className="flex-1 min-h-0 grid grid-cols-2 relative">
