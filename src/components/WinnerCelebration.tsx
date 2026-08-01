@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { GameScore } from '../data/tournamentData';
 
 type WinnerCelebrationProps = {
   winnerName: string;
@@ -16,6 +17,13 @@ type WinnerCelebrationProps = {
   variant?: 'default' | 'audience';
   /** Optional subtitle (e.g. series status) */
   subtitle?: string;
+  /**
+   * Best-of-3 finished game scores — when provided (1–3 entries), shown as
+   * large G1/G2/G3 instead of a single last-game score.
+   */
+  gameScores?: GameScore[];
+  /** Series games won label, e.g. "2-1" */
+  seriesLabel?: string;
 };
 
 type Particle = {
@@ -78,7 +86,9 @@ export function WinnerCelebration({
   onNewMatch,
   onNextGame,
   variant = 'default',
-  subtitle
+  subtitle,
+  gameScores,
+  seriesLabel
 }: WinnerCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const safeName =
@@ -87,6 +97,17 @@ export function WinnerCelebration({
     typeof scoreLabel === 'string' && scoreLabel.trim() ? scoreLabel.trim() : '—';
   const safeSubtitle =
     typeof subtitle === 'string' && subtitle.trim() ? subtitle.trim() : '';
+  const safeSeries =
+    typeof seriesLabel === 'string' && seriesLabel.trim() ? seriesLabel.trim() : '';
+  const bo3Scores = Array.isArray(gameScores)
+    ? gameScores.filter(
+        (g) =>
+          g &&
+          Number.isFinite(g.score1) &&
+          Number.isFinite(g.score2)
+      )
+    : [];
+  const showBo3Games = bo3Scores.length > 0;
   const canSave = typeof onSave === 'function' && !alreadySaved;
   const canNewMatch = typeof onNewMatch === 'function';
   const canNextGame = typeof onNextGame === 'function';
@@ -95,11 +116,17 @@ export function WinnerCelebration({
     ? 'clamp(1rem, 3.5vw, 2rem)'
     : 'clamp(0.85rem, 2.5vw, 1.25rem)';
   const nameSize = audience
-    ? 'clamp(3.5rem, min(18vw, 42dvh), 22rem)'
-    : 'clamp(2.75rem, 12vw, 8rem)';
+    ? 'clamp(2.5rem, min(12vw, 28dvh), 10rem)'
+    : 'clamp(2rem, 10vw, 5.5rem)';
   const scoreSize = audience
     ? 'clamp(5rem, min(32vw, 40dvh), 24rem)'
     : 'clamp(3rem, 14vw, 9rem)';
+  const gameScoreSize = audience
+    ? 'clamp(2.5rem, min(18vw, 22dvh), 8rem)'
+    : 'clamp(2rem, min(14vw, 16dvh), 5.5rem)';
+  const gameLabelSize = audience
+    ? 'clamp(0.75rem, 2vw, 1.25rem)'
+    : 'clamp(0.7rem, 1.8vw, 1rem)';
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -268,21 +295,77 @@ export function WinnerCelebration({
         >
           {safeName}
         </h1>
-        <p
-          className={
-            audience
-              ? 'flex min-h-0 w-full flex-1 items-center justify-center font-black font-mono tabular-nums text-amber-300 leading-none'
-              : 'font-black font-mono tabular-nums text-amber-300 leading-none'
-          }
-          style={{
-            fontSize: scoreSize,
-            textShadow: '0 0 40px rgba(251,191,36,0.5), 0 4px 20px rgba(0,0,0,0.5)',
-            animation: 'winner-pop 0.7s 0.12s cubic-bezier(0.22, 1.2, 0.36, 1) both'
-          }}
-        >
-          {safeScore}
-        </p>
-        {safeSubtitle ? (
+        {showBo3Games ? (
+          <div
+            className={
+              audience
+                ? 'flex min-h-0 w-full flex-1 items-center justify-center gap-2 sm:gap-4 px-1'
+                : 'flex w-full max-w-[96vw] items-center justify-center gap-2 sm:gap-4'
+            }
+            aria-label={`Game scores ${bo3Scores.map((g, i) => `G${i + 1} ${g.score1}-${g.score2}`).join(', ')}`}
+          >
+            {[0, 1, 2].map((i) => {
+              const g = bo3Scores[i];
+              const filled = !!g;
+              return (
+                <div
+                  key={`win-g${i + 1}`}
+                  className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl border px-1 py-2 sm:px-3 sm:py-3 ${
+                    filled
+                      ? 'border-amber-400/50 bg-slate-950/50'
+                      : 'border-slate-700/40 bg-slate-950/20 opacity-35'
+                  }`}
+                  style={{
+                    animation: filled
+                      ? `winner-pop 0.7s ${0.08 + i * 0.1}s cubic-bezier(0.22, 1.2, 0.36, 1) both`
+                      : undefined
+                  }}
+                >
+                  <span
+                    className="font-black uppercase tracking-[0.2em] text-slate-400"
+                    style={{ fontSize: gameLabelSize }}
+                  >
+                    G{i + 1}
+                  </span>
+                  <span
+                    className={`font-black font-mono tabular-nums leading-none ${
+                      filled ? 'text-amber-300' : 'text-slate-600'
+                    }`}
+                    style={{
+                      fontSize: gameScoreSize,
+                      textShadow: filled
+                        ? '0 0 36px rgba(251,191,36,0.45), 0 4px 16px rgba(0,0,0,0.5)'
+                        : undefined
+                    }}
+                  >
+                    {filled ? `${g.score1}-${g.score2}` : '—'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p
+            className={
+              audience
+                ? 'flex min-h-0 w-full flex-1 items-center justify-center font-black font-mono tabular-nums text-amber-300 leading-none'
+                : 'font-black font-mono tabular-nums text-amber-300 leading-none'
+            }
+            style={{
+              fontSize: scoreSize,
+              textShadow: '0 0 40px rgba(251,191,36,0.5), 0 4px 20px rgba(0,0,0,0.5)',
+              animation: 'winner-pop 0.7s 0.12s cubic-bezier(0.22, 1.2, 0.36, 1) both'
+            }}
+          >
+            {safeScore}
+          </p>
+        )}
+        {safeSeries ? (
+          <p className="text-sm sm:text-base font-black text-emerald-300 tracking-wide">
+            Games {safeSeries}
+          </p>
+        ) : null}
+        {safeSubtitle && !showBo3Games ? (
           <p className="text-xs sm:text-sm font-bold text-slate-300 max-w-[92vw] text-center px-2">
             {safeSubtitle}
           </p>

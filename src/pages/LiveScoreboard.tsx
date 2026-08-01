@@ -36,6 +36,8 @@ export const LiveScoreboard: React.FC = () => {
     winnerName: string;
     scoreLabel: string;
     subtitle: string;
+    gameScores: { score1: number; score2: number; winner: 1 | 2 }[];
+    seriesLabel: string;
   } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cssImmersive, setCssImmersive] = useState(false);
@@ -99,10 +101,13 @@ export const LiveScoreboard: React.FC = () => {
           ? `Match ${formatGamesWonLabel(match)}${gamesLine ? ` · ${gamesLine}` : ''}`
           : `Game won · Series ${formatGamesWonLabel(match)}${gamesLine ? ` · ${gamesLine}` : ''}`
         : '';
+    const rawScores = Array.isArray(match.gameScores) ? match.gameScores : [];
     setCelebration({
       winnerName: winName,
       scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`,
-      subtitle
+      subtitle,
+      gameScores: match.bestOf === 3 ? rawScores : [],
+      seriesLabel: match.bestOf === 3 ? formatGamesWonLabel(match) : ''
     });
   }, [match]);
 
@@ -378,6 +383,8 @@ export const LiveScoreboard: React.FC = () => {
           winnerName={celebration.winnerName}
           scoreLabel={celebration.scoreLabel}
           subtitle={celebration.subtitle}
+          gameScores={celebration.gameScores}
+          seriesLabel={celebration.seriesLabel}
           onDismiss={() => setCelebration(null)}
           variant="audience"
         />

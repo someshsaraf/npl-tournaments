@@ -56,6 +56,8 @@ export const ScoreControl: React.FC = () => {
     scoreLabel: string;
     subtitle: string;
     seriesOver: boolean;
+    gameScores: { score1: number; score2: number; winner: 1 | 2 }[];
+    seriesLabel: string;
   } | null>(null);
   const promptedKeyRef = useRef<string | null>(null);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
@@ -93,11 +95,14 @@ export const ScoreControl: React.FC = () => {
           ? `Match ${formatGamesWonLabel(match)}${gamesLine ? ` · ${gamesLine}` : ''}`
           : `Game won · Series ${formatGamesWonLabel(match)}${gamesLine ? ` · ${gamesLine}` : ''}`
         : '';
+    const rawScores = Array.isArray(match.gameScores) ? match.gameScores : [];
     setCelebration({
       winnerName: winName,
       scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`,
       subtitle,
-      seriesOver
+      seriesOver,
+      gameScores: match.bestOf === 3 ? rawScores : [],
+      seriesLabel: match.bestOf === 3 ? formatGamesWonLabel(match) : ''
     });
   }, [match]);
 
@@ -553,6 +558,8 @@ export const ScoreControl: React.FC = () => {
           winnerName={celebration.winnerName}
           scoreLabel={celebration.scoreLabel}
           subtitle={celebration.subtitle}
+          gameScores={celebration.gameScores}
+          seriesLabel={celebration.seriesLabel}
           onDismiss={() => {
             setCelebration(null);
             if (hasSeriesWinner(match) && !resultSaved) {
