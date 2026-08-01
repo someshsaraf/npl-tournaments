@@ -263,7 +263,8 @@ export const StreamOverlay: React.FC = () => {
   const [heldResult, setHeldResult] = useState<HeldResult | null>(null);
   const [latestCompleted, setLatestCompleted] = useState<HeldResult | null>(null);
   const [showPlayGate, setShowPlayGate] = useState(false);
-  const [soundOn, setSoundOn] = useState(false);
+  /** Prefer audio on; browsers may still require one tap (esp. iOS). */
+  const [soundOn, setSoundOn] = useState(true);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cssImmersive, setCssImmersive] = useState(false);
@@ -277,7 +278,7 @@ export const StreamOverlay: React.FC = () => {
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
   const keepAliveRef = useRef<number | null>(null);
-  const soundOnRef = useRef(false);
+  const soundOnRef = useRef(true);
   const userStartedRef = useRef(false);
   const cssImmersiveRef = useRef(false);
   const iosLike = isIosLikeDevice();
@@ -412,9 +413,10 @@ export const StreamOverlay: React.FC = () => {
    * Desktop: controls off + light keep-alive for overlay use.
    */
   useEffect(() => {
-    soundOnRef.current = false;
+    // Default audio ON for live stream; iOS still needs a one-tap unlock.
+    soundOnRef.current = true;
     userStartedRef.current = !iosLike;
-    setSoundOn(false);
+    setSoundOn(true);
     setPlaybackError(null);
     setShowPlayGate(Boolean(videoId) && iosLike);
     cssImmersiveRef.current = false;
@@ -465,7 +467,8 @@ export const StreamOverlay: React.FC = () => {
           videoId,
           playerVars: {
             autoplay: 1,
-            mute: 1,
+            // Prefer unmuted; if the browser blocks it, onReady falls back to muted start.
+            mute: iosLike ? 1 : 0,
             // iOS: keep YT play/volume controls, but fs:0 so native video fullscreen
             // does not cover the page (HTML score overlay cannot appear there).
             controls: iosLike ? 1 : 0,
@@ -480,13 +483,20 @@ export const StreamOverlay: React.FC = () => {
           events: {
             onReady: (e) => {
               hardenYouTubeIframe(e.target);
-              playMuted(e.target);
+              if (soundOnRef.current && !iosLike) {
+                playWithSound(e.target);
+              } else if (soundOnRef.current && iosLike) {
+                // Start muted for autoplay policy; gate unlocks sound with one tap.
+                playMuted(e.target);
+              } else {
+                playMuted(e.target);
+              }
             },
             onStateChange: (e) => {
               if (e.data === playingState) {
                 setShowPlayGate(false);
               }
-              // Desktop overlay only: nudge muted playback if the stream stalls.
+              // Desktop overlay only: nudge playback if the stream stalls.
               // Never do this on iOS — it fights user pause / native controls.
               if (iosLike || !userStartedRef.current) return;
               if (e.data === pausedState || e.data === endedState || e.data === cuedState) {
