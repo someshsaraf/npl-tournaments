@@ -101,12 +101,13 @@ async function tryEnterOn(node: HTMLElement): Promise<boolean> {
 }
 
 /**
- * Enter native fullscreen on container and/or iframe.
- * On iPhone, returns 'ios-cinema' so the UI can enable YouTube's own FS controls.
+ * Enter native fullscreen on the page container (video + score overlay).
+ * Never fullscreens the YouTube iframe alone — that hides the score bug.
+ * On iPhone, returns 'ios-cinema' (page Fullscreen API unsupported).
  */
 export async function enterNativeFullscreen(
   el: HTMLElement,
-  iframe?: HTMLIFrameElement | null
+  _iframe?: HTMLIFrameElement | null
 ): Promise<FullscreenEnterResult> {
   if (!(el instanceof HTMLElement)) {
     throw new Error('enterNativeFullscreen: el must be an HTMLElement');
@@ -116,19 +117,7 @@ export async function enterNativeFullscreen(
     return 'ios-cinema';
   }
 
-  if (iframe instanceof HTMLIFrameElement) {
-    iframe.setAttribute('allowfullscreen', 'true');
-    iframe.setAttribute('webkitallowfullscreen', 'true');
-    const allow = iframe.getAttribute('allow') || '';
-    if (!/\bfullscreen\b/i.test(allow)) {
-      iframe.setAttribute(
-        'allow',
-        `${allow}${allow ? '; ' : ''}fullscreen; autoplay; encrypted-media; picture-in-picture`
-      );
-    }
-    if (await tryEnterOn(iframe)) return 'native';
-  }
-
+  // Host container first so overlays stay inside the fullscreen element.
   if (await tryEnterOn(el)) return 'native';
   if (el !== document.documentElement && (await tryEnterOn(document.documentElement))) {
     return 'native';

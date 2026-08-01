@@ -578,12 +578,8 @@ export const StreamOverlay: React.FC = () => {
       return;
     }
 
-    const iframe =
-      playerRef.current && typeof playerRef.current.getIframe === 'function'
-        ? playerRef.current.getIframe()
-        : null;
-
-    const mode = await enterNativeFullscreen(root, iframe);
+    // Fullscreen the /live root (not the YouTube iframe) so the score stays visible.
+    const mode = await enterNativeFullscreen(root);
     if (mode === 'native') {
       cssImmersiveRef.current = false;
       setCssImmersive(false);
@@ -793,10 +789,10 @@ export const StreamOverlay: React.FC = () => {
     </div>
   );
 
-  // High z-index so the score stays above YouTube chrome on iOS (inline playback).
+  // absolute (not fixed) so the score stays inside the fullscreen root on laptop/desktop.
   const overlayAnchorClass = iosLandscapeCinema
-    ? 'fixed z-[60] pointer-events-none top-[max(0.25rem,env(safe-area-inset-top))] right-[max(0.25rem,env(safe-area-inset-right))]'
-    : 'fixed z-[60] pointer-events-none top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))]';
+    ? 'absolute z-[60] pointer-events-none top-[max(0.25rem,env(safe-area-inset-top))] right-[max(0.25rem,env(safe-area-inset-right))]'
+    : 'absolute z-[60] pointer-events-none top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))]';
 
   if (videoId) {
     return (
