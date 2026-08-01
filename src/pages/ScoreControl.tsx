@@ -32,7 +32,6 @@ import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
-import { Bo3BigScores } from '../components/Bo3BigScores';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 
 /**
@@ -436,16 +435,12 @@ export const ScoreControl: React.FC = () => {
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center">
-            {match.bestOf === 3 ? (
-              <Bo3BigScores match={match} side={1} variant="scorer" />
-            ) : (
-              <span
-                className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-                style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
-              >
-                {score1}
-              </span>
-            )}
+            <span
+              className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
+              style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
+            >
+              {score1}
+            </span>
           </div>
         </section>
 
@@ -482,16 +477,12 @@ export const ScoreControl: React.FC = () => {
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center">
-            {match.bestOf === 3 ? (
-              <Bo3BigScores match={match} side={2} variant="scorer" />
-            ) : (
-              <span
-                className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-                style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
-              >
-                {score2}
-              </span>
-            )}
+            <span
+              className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
+              style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
+            >
+              {score2}
+            </span>
           </div>
         </section>
 

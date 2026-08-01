@@ -260,6 +260,36 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  /**
+   * Delete one completed-match record from Firebase.
+   * Concurrency: single remove write; list re-syncs via onValue.
+   * Security: id must be a non-empty string key already known from completedById.
+   */
+  const handleDeleteCompletedMatch = async (fixtureId: unknown) => {
+    if (typeof fixtureId !== 'string' || !fixtureId.trim()) {
+      setSaveError('Cannot delete: missing match id.');
+      return;
+    }
+    const id = fixtureId.trim();
+    if (!completedById[id]) {
+      setSaveError('That completed match is no longer in the list.');
+      return;
+    }
+
+    const row = completedById[id];
+    const label = row?.details || row?.result || id;
+    const ok = window.confirm(`Delete completed match?\n\n${label}\n\nThis cannot be undone.`);
+    if (!ok) return;
+
+    setSaveError(null);
+    try {
+      await remove(ref(db, `completedMatches/${id}`));
+    } catch (err) {
+      console.error('Failed to delete completed match:', err);
+      setSaveError('Failed to delete completed match. Check connection and try again.');
+    }
+  };
+
   // Team roster editing handlers
   const handleTeamNameChange = (teamId: string, newName: string) => {
     const updated = teams.map((t) => (t.id === teamId ? { ...t, name: newName } : t));
@@ -1140,6 +1170,7 @@ export const AdminPanel: React.FC = () => {
                   <th className="px-3 py-2.5 font-semibold">Match</th>
                   <th className="px-3 py-2.5 font-semibold">Result</th>
                   <th className="px-3 py-2.5 font-semibold">Winner</th>
+                  <th className="px-3 py-2.5 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1161,6 +1192,16 @@ export const AdminPanel: React.FC = () => {
                     <td className="px-3 py-2.5 text-emerald-400 text-xs font-semibold">
                       {row.winnerName}
                       {row.isTrump ? <span className="ml-1 text-amber-400">★</span> : null}
+                    </td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCompletedMatch(row.fixtureId)}
+                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-red-950/50 text-red-300 border border-red-500/40 hover:bg-red-900/70 hover:text-white transition-colors"
+                        title="Delete this completed match"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
