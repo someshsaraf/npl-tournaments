@@ -184,8 +184,11 @@ export const LiveScoreboard: React.FC = () => {
 
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
           {hasWinner ? (
-            <span className="text-sm sm:text-base md:text-xl font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-4 py-1.5 rounded-full whitespace-nowrap">
-              WIN {winnerLabel} · {score1}-{score2}
+            <span
+              className="font-black text-emerald-300 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-6 py-2 rounded-2xl text-center leading-tight max-w-[min(92vw,48rem)]"
+              style={{ fontSize: 'clamp(1.25rem, 4vw, 3rem)' }}
+            >
+              WIN · {winnerLabel} · {score1}-{score2}
             </span>
           ) : match.deuceActive ? (
             <span className="text-sm sm:text-base font-black text-red-400 bg-red-500/20 border border-red-500/50 px-4 py-1.5 rounded-full animate-pulse">
@@ -318,6 +321,7 @@ export const LiveScoreboard: React.FC = () => {
           winnerName={celebration.winnerName}
           scoreLabel={celebration.scoreLabel}
           onDismiss={() => setCelebration(null)}
+          variant="audience"
         />
       )}
     </div>

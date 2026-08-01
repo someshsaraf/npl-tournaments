@@ -10,6 +10,8 @@ type WinnerCelebrationProps = {
   alreadySaved?: boolean;
   /** Open the new-match form after a finished game */
   onNewMatch?: () => void;
+  /** Larger type for audience /score displays */
+  variant?: 'default' | 'audience';
 };
 
 type Particle = {
@@ -69,7 +71,8 @@ export function WinnerCelebration({
   onSave,
   isSaving = false,
   alreadySaved = false,
-  onNewMatch
+  onNewMatch,
+  variant = 'default'
 }: WinnerCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const safeName =
@@ -78,6 +81,16 @@ export function WinnerCelebration({
     typeof scoreLabel === 'string' && scoreLabel.trim() ? scoreLabel.trim() : '—';
   const canSave = typeof onSave === 'function' && !alreadySaved;
   const canNewMatch = typeof onNewMatch === 'function';
+  const audience = variant === 'audience';
+  const titleSize = audience
+    ? 'clamp(1rem, 3.5vw, 2rem)'
+    : 'clamp(0.85rem, 2.5vw, 1.25rem)';
+  const nameSize = audience
+    ? 'clamp(3.5rem, min(18vw, 42dvh), 22rem)'
+    : 'clamp(2.75rem, 12vw, 8rem)';
+  const scoreSize = audience
+    ? 'clamp(5rem, min(32vw, 40dvh), 24rem)'
+    : 'clamp(3rem, 14vw, 9rem)';
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -196,7 +209,11 @@ export function WinnerCelebration({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden"
+      className={
+        audience
+          ? 'fixed inset-0 z-[60] flex flex-col overflow-hidden'
+          : 'fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden'
+      }
       style={{
         background:
           'radial-gradient(ellipse at center, rgba(15,23,42,0.72) 0%, rgba(2,6,23,0.94) 70%)'
@@ -211,11 +228,17 @@ export function WinnerCelebration({
         aria-hidden="true"
       />
 
-      <div className="relative z-10 flex flex-col items-center justify-center gap-4 px-4 text-center max-w-[96vw]">
+      <div
+        className={
+          audience
+            ? 'relative z-10 flex h-full w-full max-w-none flex-col items-center justify-between px-3 py-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] text-center'
+            : 'relative z-10 flex flex-col items-center justify-center gap-4 sm:gap-6 px-4 text-center max-w-[96vw]'
+        }
+      >
         <p
-          className="font-black uppercase tracking-[0.35em] text-amber-300"
+          className={`font-black uppercase tracking-[0.35em] text-amber-300 ${audience ? 'shrink-0' : ''}`}
           style={{
-            fontSize: 'clamp(0.85rem, 2.5vw, 1.25rem)',
+            fontSize: titleSize,
             animation: 'winner-pulse 1.4s ease-in-out infinite'
           }}
         >
@@ -223,26 +246,40 @@ export function WinnerCelebration({
         </p>
         <h1
           id="winner-celebration-title"
-          className="font-black text-white leading-none break-words"
+          className={
+            audience
+              ? 'flex min-h-0 w-full flex-[1.35] items-center justify-center font-black text-white leading-[0.9] break-words px-2'
+              : 'font-black text-white leading-[0.95] break-words max-w-[95vw]'
+          }
           style={{
-            fontSize: 'clamp(2.75rem, 12vw, 8rem)',
-            textShadow: '0 0 40px rgba(52,211,153,0.45), 0 4px 24px rgba(0,0,0,0.6)',
+            fontSize: nameSize,
+            textShadow: '0 0 48px rgba(52,211,153,0.55), 0 6px 28px rgba(0,0,0,0.65)',
             animation: 'winner-pop 0.7s cubic-bezier(0.22, 1.2, 0.36, 1) both'
           }}
         >
           {safeName}
         </h1>
         <p
-          className="font-black font-mono tabular-nums text-amber-300 leading-none"
+          className={
+            audience
+              ? 'flex min-h-0 w-full flex-1 items-center justify-center font-black font-mono tabular-nums text-amber-300 leading-none'
+              : 'font-black font-mono tabular-nums text-amber-300 leading-none'
+          }
           style={{
-            fontSize: 'clamp(3rem, 14vw, 9rem)',
-            textShadow: '0 0 30px rgba(251,191,36,0.4)',
+            fontSize: scoreSize,
+            textShadow: '0 0 40px rgba(251,191,36,0.5), 0 4px 20px rgba(0,0,0,0.5)',
             animation: 'winner-pop 0.7s 0.12s cubic-bezier(0.22, 1.2, 0.36, 1) both'
           }}
         >
           {safeScore}
         </p>
-        <div className="mt-6 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 w-full max-w-lg">
+        <div
+          className={
+            audience
+              ? 'mt-2 flex shrink-0 flex-wrap items-center justify-center gap-3'
+              : 'mt-6 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 w-full max-w-lg'
+          }
+        >
           {canSave && (
             <button
               type="button"
@@ -270,7 +307,11 @@ export function WinnerCelebration({
             type="button"
             onClick={onDismiss}
             disabled={isSaving}
-            className="rounded-2xl bg-slate-800 text-white font-black text-sm sm:text-base px-8 py-3.5 border border-slate-600 active:scale-95 disabled:opacity-50"
+            className={
+              audience
+                ? 'rounded-xl bg-slate-800/90 text-white font-bold text-xs sm:text-sm px-5 py-2.5 border border-slate-600 active:scale-95 disabled:opacity-50'
+                : 'rounded-2xl bg-slate-800 text-white font-black text-sm sm:text-base px-8 py-3.5 border border-slate-600 active:scale-95 disabled:opacity-50'
+            }
           >
             Continue
           </button>
