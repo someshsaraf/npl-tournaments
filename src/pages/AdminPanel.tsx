@@ -132,9 +132,24 @@ export const AdminPanel: React.FC = () => {
   };
 
   // Rally scoring: point winner serves next. Court side (L/R) only changes on service over.
+  // Best-of-3: if the previous game just ended and the series is not over, start the next
+  // game automatically so the same match continues until one side wins 2 games.
   const handleScorePoint = (scoringTeam: 1 | 2) => {
     if (scoringTeam !== 1 && scoringTeam !== 2) return;
-    updateMatchState(applyScorePoint(match, scoringTeam));
+    let current = match;
+    if (
+      current.bestOf === 3 &&
+      hasGameWinner(current) &&
+      !hasSeriesWinner(current)
+    ) {
+      try {
+        current = applyStartNextGame(current);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : 'Could not start next game.');
+        return;
+      }
+    }
+    updateMatchState(applyScorePoint(current, scoringTeam));
   };
 
   // Decrement score handler (-1) — does not flip L/R court; use Set Serve to correct side.
@@ -462,7 +477,7 @@ export const AdminPanel: React.FC = () => {
                 </span>
               ) : (
                 <span className="text-[11px] text-amber-300/90">
-                  Best of 3 in progress — save when one side wins 2 games.
+                  Best of 3 in progress — keep scoring (or tap Next Game). Same match continues until one side wins 2 games.
                 </span>
               )}
               {saveError && <span className="text-[11px] text-red-400 block">{saveError}</span>}
@@ -491,8 +506,9 @@ export const AdminPanel: React.FC = () => {
               <button
                 onClick={handleResetMatch}
                 className="bg-slate-800 text-slate-200 font-bold text-xs px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700"
+                title="Clears all games in this series and point scores"
               >
-                Reset / Next Game
+                Reset Series
               </button>
             </div>
           </div>
@@ -670,8 +686,9 @@ export const AdminPanel: React.FC = () => {
               type="button"
               onClick={handleResetMatch}
               className="text-xs text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg transition-colors"
+              title="Clears all games in this series and point scores"
             >
-              Reset Scores
+              Reset Series
             </button>
             <button
               type="button"
