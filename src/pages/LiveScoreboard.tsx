@@ -221,10 +221,10 @@ export const LiveScoreboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Giant score stage — fills remaining viewport for far viewing */}
+      {/* Giant score stage — names overlay top so scores can use almost full height */}
       <main className="flex-1 min-h-0 grid grid-cols-2 relative">
         <section
-          className="flex flex-col min-h-0 min-w-0"
+          className="relative flex flex-col min-h-0 min-w-0"
           style={{
             background:
               activeServer === 1
@@ -233,34 +233,32 @@ export const LiveScoreboard: React.FC = () => {
             borderRight: '1px solid rgba(51,65,85,0.6)'
           }}
         >
-          <div className="shrink-0 px-3 sm:px-4 pt-1.5 sm:pt-2 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              {team1 && team1 !== name1 && (
-                <p className="text-xs sm:text-sm font-bold text-indigo-300/80 uppercase tracking-wide truncate">
-                  {team1}
-                </p>
-              )}
-              <p
-                className="font-black text-white leading-tight truncate"
-                style={{ fontSize: 'clamp(0.95rem, 2.8vw, 2rem)' }}
-              >
-                {name1}
-              </p>
-            </div>
+          <div className="absolute inset-x-0 top-0 z-10 px-3 sm:px-5 pt-2 sm:pt-3 text-center pointer-events-none">
             {activeServer === 1 && (
               <span
-                className="shrink-0 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
+                className="pointer-events-auto absolute right-3 top-2 sm:right-4 sm:top-3 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
               >
                 <ServeRacket active size={36} title="Serving" />
               </span>
             )}
+            {team1 && team1 !== name1 && (
+              <p className="text-sm sm:text-base md:text-lg font-bold text-indigo-300/90 uppercase tracking-wide truncate px-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                {team1}
+              </p>
+            )}
+            <p
+              className="font-black text-white leading-tight truncate px-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]"
+              style={{ fontSize: 'clamp(1.5rem, 5vw, 3.75rem)' }}
+            >
+              {name1}
+            </p>
           </div>
 
-          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-10 sm:pt-12">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-              style={{ fontSize: 'clamp(8rem, min(48vw, 78dvh), 40rem)' }}
+              style={{ fontSize: 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
             >
               {score1}
             </span>
@@ -268,7 +266,7 @@ export const LiveScoreboard: React.FC = () => {
         </section>
 
         <section
-          className="flex flex-col min-h-0 min-w-0"
+          className="relative flex flex-col min-h-0 min-w-0"
           style={{
             background:
               activeServer === 2
@@ -276,34 +274,32 @@ export const LiveScoreboard: React.FC = () => {
                 : 'rgba(2,6,23,1)'
           }}
         >
-          <div className="shrink-0 px-3 sm:px-4 pt-1.5 sm:pt-2 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              {team2 && team2 !== name2 && (
-                <p className="text-xs sm:text-sm font-bold text-rose-300/80 uppercase tracking-wide truncate">
-                  {team2}
-                </p>
-              )}
-              <p
-                className="font-black text-white leading-tight truncate"
-                style={{ fontSize: 'clamp(0.95rem, 2.8vw, 2rem)' }}
-              >
-                {name2}
-              </p>
-            </div>
+          <div className="absolute inset-x-0 top-0 z-10 px-3 sm:px-5 pt-2 sm:pt-3 text-center pointer-events-none">
             {activeServer === 2 && (
               <span
-                className="shrink-0 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
+                className="pointer-events-auto absolute right-3 top-2 sm:right-4 sm:top-3 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
               >
                 <ServeRacket active size={36} title="Serving" />
               </span>
             )}
+            {team2 && team2 !== name2 && (
+              <p className="text-sm sm:text-base md:text-lg font-bold text-rose-300/90 uppercase tracking-wide truncate px-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                {team2}
+              </p>
+            )}
+            <p
+              className="font-black text-white leading-tight truncate px-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]"
+              style={{ fontSize: 'clamp(1.5rem, 5vw, 3.75rem)' }}
+            >
+              {name2}
+            </p>
           </div>
 
-          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-10 sm:pt-12">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-              style={{ fontSize: 'clamp(8rem, min(48vw, 78dvh), 40rem)' }}
+              style={{ fontSize: 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
             >
               {score2}
             </span>
