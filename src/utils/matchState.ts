@@ -35,14 +35,19 @@ export function normalizeMatchState(data: unknown): MatchState {
     gameWinnerRaw === 1 || gameWinnerRaw === 2 ? gameWinnerRaw : null;
 
   const matchWinnerRaw = raw.matchWinner;
-  const matchWinner =
+  let matchWinner: 1 | 2 | null =
     matchWinnerRaw === 1 || matchWinnerRaw === 2 ? matchWinnerRaw : null;
+
+  const bestOf = isBestOf(raw.bestOf) ? raw.bestOf : 1;
+  // Heal legacy BO1 rows that only have gameWinner.
+  if (!matchWinner && bestOf === 1 && (gameWinner === 1 || gameWinner === 2)) {
+    matchWinner = gameWinner;
+  }
 
   const serverRaw = raw.server;
   const server = serverRaw === 2 ? 2 : 1;
   const servingSide = raw.servingSide === 'left' ? 'left' : 'right';
   const maxPoints = isMaxPoints(raw.maxPoints) ? raw.maxPoints : INITIAL_MATCH.maxPoints;
-  const bestOf = isBestOf(raw.bestOf) ? raw.bestOf : 1;
 
   const gameNumberRaw = Number(raw.gameNumber);
   const gameNumber =
@@ -81,7 +86,14 @@ export function hasGameWinner(match: MatchState | null | undefined): boolean {
 
 /** Best-of series is decided (BO1 game win or BO3 first to 2). */
 export function hasSeriesWinner(match: MatchState | null | undefined): boolean {
-  return !!match && (match.matchWinner === 1 || match.matchWinner === 2);
+  if (!match) return false;
+  if (match.matchWinner === 1 || match.matchWinner === 2) return true;
+  // Best of 1 (and legacy payloads without matchWinner): game win ends the match.
+  const bestOf = match.bestOf === 3 ? 3 : 1;
+  if (bestOf === 1 && (match.gameWinner === 1 || match.gameWinner === 2)) {
+    return true;
+  }
+  return false;
 }
 
 /**

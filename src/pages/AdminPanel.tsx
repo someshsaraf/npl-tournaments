@@ -31,6 +31,8 @@ import {
 import {
   applyDecrementScore,
   applyScorePoint,
+  applySetBestOf,
+  applySetMaxPoints,
   applySetServer,
   applyStartNextGame,
   applySwapSides,
@@ -501,12 +503,12 @@ export const AdminPanel: React.FC = () => {
         {/* Options, Swap Sides, and Court Indicator Toolbar */}
         <div className="mb-6 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center flex-wrap gap-2">
-            <span className="text-xs font-semibold text-slate-300">Format:</span>
+            <span className="text-xs font-semibold text-slate-300">Points:</span>
             {MAX_POINTS_OPTIONS.map((pts) => (
               <button
                 key={pts}
                 type="button"
-                onClick={() => updateMatchState({ ...match, maxPoints: pts, gameWinner: null })}
+                onClick={() => updateMatchState(applySetMaxPoints(match, pts))}
                 className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
                   (match.maxPoints ?? 11) === pts
                     ? 'bg-amber-400 text-slate-950 shadow'
@@ -514,7 +516,23 @@ export const AdminPanel: React.FC = () => {
                 }`}
                 title={`Race to ${pts}`}
               >
-                {pts} Points
+                {pts}
+              </button>
+            ))}
+            <span className="text-xs font-semibold text-slate-300 ml-1">Match:</span>
+            {BEST_OF_OPTIONS.map((bo) => (
+              <button
+                key={bo}
+                type="button"
+                onClick={() => updateMatchState(applySetBestOf(match, bo))}
+                className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
+                  (match.bestOf ?? 1) === bo
+                    ? 'bg-violet-400 text-slate-950 shadow'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+                title={bo === 1 ? 'Best of 1 — single game' : 'Best of 3 — first to 2 games'}
+              >
+                Best of {bo}
               </button>
             ))}
           </div>

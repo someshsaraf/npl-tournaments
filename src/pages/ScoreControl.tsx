@@ -273,7 +273,7 @@ export const ScoreControl: React.FC = () => {
               <span className="text-xs sm:text-sm font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1 rounded-full whitespace-nowrap">
                 {seriesOver ? 'MATCH' : 'GAME'} WIN {winnerName} · {score1}-{score2}
               </span>
-              {!celebration && !showNewMatchForm && hasWinner && !seriesOver && match.bestOf === 3 && (
+              {!celebration && !showNewMatchForm && !seriesOver && match.bestOf === 3 && (
                 <button
                   type="button"
                   onClick={handleStartNextGame}
@@ -309,6 +309,24 @@ export const ScoreControl: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-end gap-1.5">
+          {seriesOver && !showNewMatchForm && (
+            <button
+              type="button"
+              onClick={openNewMatchForm}
+              className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-violet-500 text-slate-950 border border-violet-300 active:scale-95"
+            >
+              New Match
+            </button>
+          )}
+          {!seriesOver && hasWinner && match.bestOf === 3 && !showNewMatchForm && (
+            <button
+              type="button"
+              onClick={handleStartNextGame}
+              className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-amber-400 text-slate-950 border border-amber-300 active:scale-95"
+            >
+              Next Game
+            </button>
+          )}
           {speechSupported && (
             <button
               type="button"
@@ -514,17 +532,17 @@ export const ScoreControl: React.FC = () => {
           subtitle={celebration.subtitle}
           onDismiss={() => {
             setCelebration(null);
-            if (celebration.seriesOver && !resultSaved) {
-              setSaveMessage('Result not saved — use −1 then +1 again to reopen, or save from Admin.');
+            if (hasSeriesWinner(match) && !resultSaved) {
+              setSaveMessage('Result not saved — use New Match, or save from Admin.');
             }
           }}
-          onSave={celebration.seriesOver ? handleConfirmSave : undefined}
+          onSave={hasSeriesWinner(match) ? handleConfirmSave : undefined}
           isSaving={isSavingResult}
           alreadySaved={resultSaved}
           onNextGame={
-            !celebration.seriesOver && match.bestOf === 3 ? handleStartNextGame : undefined
+            !hasSeriesWinner(match) && match.bestOf === 3 ? handleStartNextGame : undefined
           }
-          onNewMatch={celebration.seriesOver ? openNewMatchForm : undefined}
+          onNewMatch={hasSeriesWinner(match) ? openNewMatchForm : undefined}
         />
       )}
 

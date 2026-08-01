@@ -242,6 +242,42 @@ export function applySetMaxPoints(match: MatchState, maxPoints: MaxPoints): Matc
   };
 }
 
+/**
+ * Change best-of format (1 or 3). Recomputes matchWinner from games already won.
+ * Does not reset the current point score.
+ */
+export function applySetBestOf(match: MatchState, bestOf: BestOf): MatchState {
+  if (!match || typeof match !== 'object') {
+    throw new Error('applySetBestOf: match is required');
+  }
+  if (!isBestOf(bestOf)) {
+    throw new Error('applySetBestOf: bestOf must be 1 or 3');
+  }
+
+  const gamesWon1 = Number.isFinite(match.gamesWon1) ? match.gamesWon1 : 0;
+  const gamesWon2 = Number.isFinite(match.gamesWon2) ? match.gamesWon2 : 0;
+  const needed = gamesNeededToWin(bestOf);
+
+  let matchWinner: 1 | 2 | null = null;
+  if (gamesWon1 >= needed) matchWinner = 1;
+  else if (gamesWon2 >= needed) matchWinner = 2;
+  else if (
+    bestOf === 1 &&
+    (match.gameWinner === 1 || match.gameWinner === 2) &&
+    gamesWon1 === 0 &&
+    gamesWon2 === 0
+  ) {
+    // Current game already finished on a fresh BO1 switch.
+    matchWinner = match.gameWinner;
+  }
+
+  return {
+    ...match,
+    bestOf,
+    matchWinner
+  };
+}
+
 export function applySetServer(match: MatchState, targetServer: 1 | 2): MatchState {
   if (!match || typeof match !== 'object') {
     throw new Error('applySetServer: match is required');
