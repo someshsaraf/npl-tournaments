@@ -31,7 +31,7 @@ export default function RulesPage() {
         </h2>
         <ul className="list-disc list-inside space-y-2 text-slate-300 text-sm md:text-base">
           <li>5 Teams, 5 players each. Each tie has 5 matches (1 Singles, 4 Ranked Doubles).</li>
-          <li>Group Stage matches are a race to 15 points (no deuce at 14-14).</li>
+          <li>Group Stage matches are a race to 15 points. From 14-14, win by 2; at 21-21 the next point wins (golden point).</li>
           <li><strong className="text-amber-400">Trump Game:</strong> Winning a Trump game gives <strong>+2 points</strong>; losing gives <strong>-1 point</strong>.</li>
           <li>Each team must specify exactly 1 Trump Game per match tie.</li>
         </ul>
@@ -45,11 +45,11 @@ export default function RulesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
             <h3 className="font-semibold text-sky-400">Kids & Women's Categories</h3>
-            <p className="text-slate-400 mt-1">Race to 15 points. Deuce rules apply (lead by 2 points up to max 20).</p>
+            <p className="text-slate-400 mt-1">Race to 15 points. Deuce from 14-14 (win by 2); at 21-21 the next point wins (golden point).</p>
           </div>
           <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
             <h3 className="font-semibold text-sky-400">Men's Categories</h3>
-            <p className="text-slate-400 mt-1">Race to 21 points. Deuce rules apply (lead by 2 points up to max 30).</p>
+            <p className="text-slate-400 mt-1">Race to 21 points. Deuce from 20-20 (win by 2); at 30-30 the next point wins (golden point).</p>
           </div>
         </div>
       </section>

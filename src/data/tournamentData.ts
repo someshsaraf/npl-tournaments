@@ -6,15 +6,31 @@ export const MAX_POINTS_OPTIONS: readonly MaxPoints[] = [11, 15, 21] as const;
 /** Scorer quick picks. */
 export const SCORER_MAX_POINTS_OPTIONS: readonly MaxPoints[] = [11, 15, 21] as const;
 
+/** Number of games in a match (best of 1 or best of 3). */
+export type BestOf = 1 | 3;
+
+export const BEST_OF_OPTIONS: readonly BestOf[] = [1, 3] as const;
+
 export function isMaxPoints(value: unknown): value is MaxPoints {
   return value === 11 || value === 15 || value === 21;
 }
 
-/** Hard cap when deuce continues (win by 2 until this score). */
+export function isBestOf(value: unknown): value is BestOf {
+  return value === 1 || value === 3;
+}
+
+/** Hard cap when deuce continues: win by 2 until both reach this score, then golden point. */
 export function deuceCapForMaxPoints(max: MaxPoints): number {
   if (max === 11) return 15;
   if (max === 15) return 21;
   return 30;
+}
+
+/** One finished game within a best-of series. */
+export interface GameScore {
+  score1: number;
+  score2: number;
+  winner: 1 | 2;
 }
 
 export interface Team {
@@ -67,6 +83,11 @@ export interface CompletedMatch {
   completedDate: string;
   completedTime: string;
   isTrump: boolean;
+  /** Best of 1 or 3 (defaults to 1 when missing). */
+  bestOf?: BestOf;
+  gamesWon1?: number;
+  gamesWon2?: number;
+  gameScores?: GameScore[];
 }
 
 export interface MatchState {
@@ -83,7 +104,18 @@ export interface MatchState {
   server: 1 | 2; // 1 = Team A serving, 2 = Team B serving
   servingSide: 'right' | 'left'; // Service court; updates on service over (even=right, odd=left)
   deuceActive: boolean;
+  /** Winner of the current game (points race). */
   gameWinner: 1 | 2 | null;
+  /** Best of 1 or best of 3 games. */
+  bestOf: BestOf;
+  /** 1-based index of the game currently being played. */
+  gameNumber: number;
+  /** Completed games in this series (final scores). */
+  gameScores: GameScore[];
+  gamesWon1: number;
+  gamesWon2: number;
+  /** Winner of the match/series (BO1: same as game; BO3: first to 2 games). */
+  matchWinner: 1 | 2 | null;
   isTrump: boolean;
   trumpTeam: 1 | 2 | null;
   /** YouTube live (or VOD) URL consumed by the /live page */
@@ -342,6 +374,12 @@ export const INITIAL_MATCH: MatchState = {
   servingSide: 'right',
   deuceActive: false,
   gameWinner: null,
+  bestOf: 1,
+  gameNumber: 1,
+  gameScores: [],
+  gamesWon1: 0,
+  gamesWon2: 0,
+  matchWinner: null,
   isTrump: false,
   trumpTeam: null,
   youtubeLiveUrl: ''

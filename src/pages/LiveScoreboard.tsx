@@ -3,7 +3,13 @@ import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { INITIAL_MATCH } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
-import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
+import {
+  formatGameScoresLine,
+  formatGamesWonLabel,
+  hasGameWinner,
+  hasSeriesWinner,
+  normalizeMatchState
+} from '../utils/matchState';
 import {
   enterNativeFullscreen,
   exitNativeFullscreen,
@@ -14,7 +20,9 @@ import {
 import { ServeRacket } from '../components/ServeRacket';
 import { BrandBanner } from '../components/BrandBanner';
 import { WinnerCelebration } from '../components/WinnerCelebration';
+import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
+import { isGoldenPoint } from '../utils/scoring';
 
 /**
  * Full-viewport audience scoreboard (/score).
@@ -26,6 +34,7 @@ export const LiveScoreboard: React.FC = () => {
   const [celebration, setCelebration] = useState<{
     winnerName: string;
     scoreLabel: string;
+    subtitle: string;
   } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cssImmersive, setCssImmersive] = useState(false);
@@ -67,23 +76,32 @@ export const LiveScoreboard: React.FC = () => {
     };
   }, []);
 
-  // Same winner fireworks as /scorer when a match finishes.
+  // Fireworks when a game ends (each game in BO3, or the match in BO1).
   useEffect(() => {
-    if (!hasMatchWinner(match)) {
+    if (!hasGameWinner(match)) {
       promptedKeyRef.current = null;
       setCelebration(null);
       return;
     }
-    const key = `${match.currentMatchId}:${match.score1}-${match.score2}:w${match.gameWinner}`;
+    const key = `${match.currentMatchId}:g${match.gameNumber}:${match.score1}-${match.score2}:w${match.gameWinner}`;
     if (promptedKeyRef.current === key) return;
     promptedKeyRef.current = key;
     const winName =
       match.gameWinner === 1
         ? match.player1 || match.teamA || 'Winner'
         : match.player2 || match.teamB || 'Winner';
+    const seriesOver = hasSeriesWinner(match);
+    const gamesLine = formatGameScoresLine(match);
+    const subtitle =
+      match.bestOf === 3
+        ? seriesOver
+          ? `Match ${formatGamesWonLabel(match)}${gamesLine ? ` · ${gamesLine}` : ''}`
+          : `Game won · Series ${formatGamesWonLabel(match)}${gamesLine ? ` · ${gamesLine}` : ''}`
+        : '';
     setCelebration({
       winnerName: winName,
-      scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`
+      scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`,
+      subtitle
     });
   }, [match]);
 
@@ -131,7 +149,8 @@ export const LiveScoreboard: React.FC = () => {
   };
 
   const activeServer = match.server === 2 ? 2 : 1;
-  const hasWinner = hasMatchWinner(match);
+  const hasWinner = hasGameWinner(match);
+  const seriesOver = hasSeriesWinner(match);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
   const name1 = match.player1 || match.teamA || 'Side A';
@@ -190,7 +209,11 @@ export const LiveScoreboard: React.FC = () => {
               className="font-black text-emerald-300 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-6 py-2 rounded-2xl text-center leading-tight max-w-[min(92vw,48rem)]"
               style={{ fontSize: 'clamp(1.25rem, 4vw, 3rem)' }}
             >
-              WIN · {winnerLabel} · {score1}-{score2}
+              {seriesOver ? 'MATCH' : 'GAME'} WIN · {winnerLabel} · {score1}-{score2}
+            </span>
+          ) : isGoldenPoint(match) ? (
+            <span className="text-sm sm:text-base font-black text-amber-300 bg-amber-500/20 border border-amber-400/50 px-4 py-1.5 rounded-full animate-pulse">
+              GOLDEN POINT
             </span>
           ) : match.deuceActive ? (
             <span className="text-sm sm:text-base font-black text-red-400 bg-red-500/20 border border-red-500/50 px-4 py-1.5 rounded-full animate-pulse">
@@ -199,6 +222,7 @@ export const LiveScoreboard: React.FC = () => {
           ) : (
             <span className="text-sm sm:text-base font-mono text-amber-300/90 font-bold">
               Race to {match.maxPoints ?? 11}
+              {match.bestOf === 3 ? ` · BO3 G${match.gameNumber ?? 1}` : ''}
             </span>
           )}
           {match.isTrump && (
@@ -245,6 +269,8 @@ export const LiveScoreboard: React.FC = () => {
           </button>
         </div>
       </header>
+
+      <SeriesScoreStrip match={match} size="lg" className="shrink-0 py-1.5 px-3 border-b border-slate-800/80 bg-slate-950" />
 
       {/* Giant score stage — names overlay top so scores can use almost full height */}
       <main className="flex-1 min-h-0 grid grid-cols-2 relative">
@@ -342,6 +368,7 @@ export const LiveScoreboard: React.FC = () => {
         <WinnerCelebration
           winnerName={celebration.winnerName}
           scoreLabel={celebration.scoreLabel}
+          subtitle={celebration.subtitle}
           onDismiss={() => setCelebration(null)}
           variant="audience"
         />

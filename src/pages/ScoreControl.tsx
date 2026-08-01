@@ -4,23 +4,34 @@ import { db } from '../firebase';
 import {
   FIXTURES,
   INITIAL_MATCH,
+  BEST_OF_OPTIONS,
   SCORER_MAX_POINTS_OPTIONS,
+  isBestOf,
   isMaxPoints
 } from '../data/tournamentData';
-import type { MatchState, MaxPoints } from '../data/tournamentData';
-import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
+import type { BestOf, MatchState, MaxPoints } from '../data/tournamentData';
+import {
+  formatGameScoresLine,
+  formatGamesWonLabel,
+  hasGameWinner,
+  hasSeriesWinner,
+  normalizeMatchState
+} from '../utils/matchState';
 import {
   applyDecrementScore,
   applyScorePoint,
   applySetMaxPoints,
   applySetServer,
-  applySwapSides
+  applyStartNextGame,
+  applySwapSides,
+  isGoldenPoint
 } from '../utils/scoring';
 import { buildCompletedMatch } from '../utils/completedMatches';
 import { buildCustomMatchState } from '../utils/customMatch';
 import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { BrandBanner } from '../components/BrandBanner';
+import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 
 /**
@@ -32,16 +43,19 @@ export const ScoreControl: React.FC = () => {
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [pendingSaveMatch, setPendingSaveMatch] = useState<MatchState | null>(null);
-  const [celebration, setCelebration] = useState<{
-    winnerName: string;
-    scoreLabel: string;
-  } | null>(null);
   const [resultSaved, setResultSaved] = useState(false);
   const [showNewMatchForm, setShowNewMatchForm] = useState(false);
   const [newPlayer1, setNewPlayer1] = useState('');
   const [newPlayer2, setNewPlayer2] = useState('');
   const [newMaxPoints, setNewMaxPoints] = useState<MaxPoints>(11);
+  const [newBestOf, setNewBestOf] = useState<BestOf>(1);
   const [newMatchError, setNewMatchError] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<{
+    winnerName: string;
+    scoreLabel: string;
+    subtitle: string;
+    seriesOver: boolean;
+  } | null>(null);
   const promptedKeyRef = useRef<string | null>(null);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
 
@@ -54,21 +68,35 @@ export const ScoreControl: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Celebrate as soon as a winner is on currentMatch (local score or Firebase sync).
+  // Celebrate when a game ends (BO1 or each game in BO3).
   useEffect(() => {
-    if (!hasMatchWinner(match)) return;
-    const key = `${match.currentMatchId}:${match.score1}-${match.score2}:w${match.gameWinner}`;
+    if (!hasGameWinner(match)) return;
+    const key = `${match.currentMatchId}:g${match.gameNumber}:${match.score1}-${match.score2}:w${match.gameWinner}`;
     if (promptedKeyRef.current === key) return;
     promptedKeyRef.current = key;
-    setPendingSaveMatch(match);
-    setResultSaved(false);
+    const seriesOver = hasSeriesWinner(match);
+    if (seriesOver) {
+      setPendingSaveMatch(match);
+      setResultSaved(false);
+    } else {
+      setPendingSaveMatch(null);
+    }
     const winName =
       match.gameWinner === 1
         ? match.player1 || match.teamA || 'Winner'
         : match.player2 || match.teamB || 'Winner';
+    const gamesLine = formatGameScoresLine(match);
+    const subtitle =
+      match.bestOf === 3
+        ? seriesOver
+          ? `Match ${formatGamesWonLabel(match)}${gamesLine ? ` · ${gamesLine}` : ''}`
+          : `Game won · Series ${formatGamesWonLabel(match)}${gamesLine ? ` · ${gamesLine}` : ''}`
+        : '';
     setCelebration({
       winnerName: winName,
-      scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`
+      scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`,
+      subtitle,
+      seriesOver
     });
   }, [match]);
 
@@ -108,8 +136,8 @@ export const ScoreControl: React.FC = () => {
   };
 
   const saveCompletedMatch = async (matchToSave: MatchState) => {
-    if (matchToSave.gameWinner !== 1 && matchToSave.gameWinner !== 2) {
-      setSaveMessage('Finish the game before saving.');
+    if (!hasSeriesWinner(matchToSave)) {
+      setSaveMessage('Finish the match (series) before saving.');
       return false;
     }
     const fixtureId = matchToSave.currentMatchId?.trim();
@@ -145,8 +173,22 @@ export const ScoreControl: React.FC = () => {
     setNewPlayer1('');
     setNewPlayer2('');
     setNewMaxPoints(isMaxPoints(match.maxPoints) ? match.maxPoints : 11);
+    setNewBestOf(isBestOf(match.bestOf) ? match.bestOf : 1);
     setShowNewMatchForm(true);
     setCelebration(null);
+  };
+
+  const handleStartNextGame = () => {
+    try {
+      const next = applyStartNextGame(match);
+      promptedKeyRef.current = null;
+      setCelebration(null);
+      setPendingSaveMatch(null);
+      setSaveMessage(null);
+      updateMatchState(next);
+    } catch (err) {
+      setSaveMessage(err instanceof Error ? err.message : 'Could not start next game.');
+    }
   };
 
   /**
@@ -160,6 +202,7 @@ export const ScoreControl: React.FC = () => {
         sideA: newPlayer1,
         sideB: newPlayer2,
         maxPoints: newMaxPoints,
+        bestOf: newBestOf,
         category: match.category?.trim() || 'Exhibition',
         stage: 'Custom'
       });
@@ -175,7 +218,8 @@ export const ScoreControl: React.FC = () => {
     }
   };
 
-  const hasWinner = hasMatchWinner(match);
+  const hasWinner = hasGameWinner(match);
+  const seriesOver = hasSeriesWinner(match);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
   const winnerName =
@@ -227,9 +271,18 @@ export const ScoreControl: React.FC = () => {
           {hasWinner ? (
             <>
               <span className="text-xs sm:text-sm font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1 rounded-full whitespace-nowrap">
-                WIN {winnerName} · {score1}-{score2}
+                {seriesOver ? 'MATCH' : 'GAME'} WIN {winnerName} · {score1}-{score2}
               </span>
-              {!celebration && !showNewMatchForm && (
+              {!celebration && !showNewMatchForm && hasWinner && !seriesOver && match.bestOf === 3 && (
+                <button
+                  type="button"
+                  onClick={handleStartNextGame}
+                  className="text-[10px] sm:text-xs font-black px-3 py-1 rounded-full bg-amber-400 text-slate-950 active:scale-95"
+                >
+                  Next Game
+                </button>
+              )}
+              {!celebration && !showNewMatchForm && seriesOver && (
                 <button
                   type="button"
                   onClick={openNewMatchForm}
@@ -239,13 +292,18 @@ export const ScoreControl: React.FC = () => {
                 </button>
               )}
             </>
+          ) : isGoldenPoint(match) ? (
+            <span className="text-xs font-black text-amber-300 bg-amber-500/20 border border-amber-400/50 px-3 py-1 rounded-full animate-pulse">
+              GOLDEN POINT
+            </span>
           ) : match.deuceActive ? (
             <span className="text-xs font-black text-red-400 bg-red-500/20 border border-red-500/50 px-3 py-1 rounded-full animate-pulse">
               DEUCE
             </span>
           ) : (
             <span className="text-[10px] sm:text-xs font-mono text-slate-500">
-              {match.maxPoints ?? 11} PTS · {match.stage}
+              {match.maxPoints ?? 11} PTS
+              {match.bestOf === 3 ? ` · BO3 G${match.gameNumber ?? 1}` : ''} · {match.stage}
             </span>
           )}
         </div>
@@ -294,6 +352,8 @@ export const ScoreControl: React.FC = () => {
           </button>
         </div>
       </header>
+
+      <SeriesScoreStrip match={match} size="sm" className="shrink-0 py-1 px-2 border-b border-slate-800/80" />
 
       {/* Score stage — fills all remaining viewport */}
       <main className="flex-1 min-h-0 grid grid-cols-2 relative">
@@ -451,16 +511,20 @@ export const ScoreControl: React.FC = () => {
         <WinnerCelebration
           winnerName={celebration.winnerName}
           scoreLabel={celebration.scoreLabel}
+          subtitle={celebration.subtitle}
           onDismiss={() => {
             setCelebration(null);
-            if (!resultSaved) {
+            if (celebration.seriesOver && !resultSaved) {
               setSaveMessage('Result not saved — use −1 then +1 again to reopen, or save from Admin.');
             }
           }}
-          onSave={handleConfirmSave}
+          onSave={celebration.seriesOver ? handleConfirmSave : undefined}
           isSaving={isSavingResult}
           alreadySaved={resultSaved}
-          onNewMatch={openNewMatchForm}
+          onNextGame={
+            !celebration.seriesOver && match.bestOf === 3 ? handleStartNextGame : undefined
+          }
+          onNewMatch={celebration.seriesOver ? openNewMatchForm : undefined}
         />
       )}
 
@@ -476,7 +540,7 @@ export const ScoreControl: React.FC = () => {
               <h2 id="new-match-title" className="text-xl font-black text-violet-300">
                 Start New Match
               </h2>
-              <p className="text-xs text-slate-400">Enter players and point format</p>
+              <p className="text-xs text-slate-400">Enter players, points, and best-of format</p>
             </div>
 
             <label className="block space-y-1.5">
@@ -525,6 +589,28 @@ export const ScoreControl: React.FC = () => {
                     }`}
                   >
                     {pts}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Match length
+              </span>
+              <div className="flex items-center gap-2">
+                {BEST_OF_OPTIONS.map((bo) => (
+                  <button
+                    key={bo}
+                    type="button"
+                    onClick={() => setNewBestOf(bo)}
+                    className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
+                      newBestOf === bo
+                        ? 'bg-violet-400 text-slate-950 border-violet-300'
+                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    Best of {bo}
                   </button>
                 ))}
               </div>

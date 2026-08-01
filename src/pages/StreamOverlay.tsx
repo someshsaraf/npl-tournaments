@@ -4,11 +4,12 @@ import { db } from '../firebase';
 import { INITIAL_MATCH, isMaxPoints } from '../data/tournamentData';
 import type { CompletedMatch, MatchState, MaxPoints } from '../data/tournamentData';
 import { parseYouTubeVideoId } from '../utils/youtube';
-import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
+import { hasGameWinner, hasSeriesWinner, normalizeMatchState } from '../utils/matchState';
 import {
   completedMatchesFromFirebase,
   sortCompletedMatches
 } from '../utils/completedMatches';
+import { isGoldenPoint } from '../utils/scoring';
 import {
   enterNativeFullscreen,
   exitNativeFullscreen,
@@ -40,9 +41,10 @@ type HeldResult = {
 type OverlayPhase = 'live' | 'final' | 'last';
 
 function heldFromMatch(match: MatchState): HeldResult | null {
-  if (!hasMatchWinner(match) || (match.gameWinner !== 1 && match.gameWinner !== 2)) {
+  if (!hasSeriesWinner(match)) {
     return null;
   }
+  const winnerSide = match.matchWinner === 2 ? 2 : 1;
   return {
     fixtureId: match.currentMatchId || '',
     category: match.category || '',
@@ -54,7 +56,7 @@ function heldFromMatch(match: MatchState): HeldResult | null {
     score1: match.score1 ?? 0,
     score2: match.score2 ?? 0,
     maxPoints: isMaxPoints(match.maxPoints) ? match.maxPoints : 11,
-    winnerSide: match.gameWinner
+    winnerSide
   };
 }
 
@@ -75,7 +77,14 @@ function heldFromCompleted(row: CompletedMatch): HeldResult {
 }
 
 function isMatchInProgress(match: MatchState): boolean {
-  return (match.score1 ?? 0) > 0 || (match.score2 ?? 0) > 0 || !!match.deuceActive;
+  return (
+    (match.score1 ?? 0) > 0 ||
+    (match.score2 ?? 0) > 0 ||
+    !!match.deuceActive ||
+    (match.gamesWon1 ?? 0) > 0 ||
+    (match.gamesWon2 ?? 0) > 0 ||
+    hasGameWinner(match)
+  );
 }
 
 /** Minimal YouTube IFrame API surface used by /live. */
@@ -624,17 +633,18 @@ export const StreamOverlay: React.FC = () => {
     maxPoints: match.maxPoints ?? 11,
     server: (match.server === 2 ? 2 : 1) as 1 | 2,
     winnerSide: null as 1 | 2 | null,
-    deuceActive: !!match.deuceActive
+    deuceActive: !!match.deuceActive,
+    goldenPoint: isGoldenPoint(match)
   };
 
   const currentFixtureId =
     typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
 
-  if (hasMatchWinner(match)) {
+  if (hasSeriesWinner(match)) {
     phase = 'final';
     display = {
       ...display,
-      winnerSide: match.gameWinner === 2 ? 2 : 1
+      winnerSide: match.matchWinner === 2 ? 2 : 1
     };
   } else if (!isMatchInProgress(match) && currentFixtureId) {
     const sticky = heldResult || latestCompleted;
@@ -652,7 +662,8 @@ export const StreamOverlay: React.FC = () => {
         maxPoints: sticky.maxPoints,
         server: sticky.winnerSide,
         winnerSide: sticky.winnerSide,
-        deuceActive: false
+        deuceActive: false,
+        goldenPoint: false
       };
     }
   }
@@ -723,11 +734,15 @@ export const StreamOverlay: React.FC = () => {
               <p className="text-[10px] text-slate-400 truncate">{display.stage}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              {phase === 'live' && display.deuceActive && (
+              {phase === 'live' && display.goldenPoint ? (
+                <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold uppercase animate-pulse border border-amber-400/40">
+                  Golden
+                </span>
+              ) : phase === 'live' && display.deuceActive ? (
                 <span className="text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold uppercase animate-pulse border border-red-500/30">
                   Deuce
                 </span>
-              )}
+              ) : null}
               {(phase === 'final' || phase === 'last') && (
                 <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold uppercase border border-emerald-500/40">
                   {phase === 'final' ? 'Final' : 'Last'}

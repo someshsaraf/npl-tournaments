@@ -10,8 +10,12 @@ type WinnerCelebrationProps = {
   alreadySaved?: boolean;
   /** Open the new-match form after a finished game */
   onNewMatch?: () => void;
+  /** Continue to next game in a best-of-3 series */
+  onNextGame?: () => void;
   /** Larger type for audience /score displays */
   variant?: 'default' | 'audience';
+  /** Optional subtitle (e.g. series status) */
+  subtitle?: string;
 };
 
 type Particle = {
@@ -72,15 +76,20 @@ export function WinnerCelebration({
   isSaving = false,
   alreadySaved = false,
   onNewMatch,
-  variant = 'default'
+  onNextGame,
+  variant = 'default',
+  subtitle
 }: WinnerCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const safeName =
     typeof winnerName === 'string' && winnerName.trim() ? winnerName.trim() : 'Winner';
   const safeScore =
     typeof scoreLabel === 'string' && scoreLabel.trim() ? scoreLabel.trim() : '—';
+  const safeSubtitle =
+    typeof subtitle === 'string' && subtitle.trim() ? subtitle.trim() : '';
   const canSave = typeof onSave === 'function' && !alreadySaved;
   const canNewMatch = typeof onNewMatch === 'function';
+  const canNextGame = typeof onNextGame === 'function';
   const audience = variant === 'audience';
   const titleSize = audience
     ? 'clamp(1rem, 3.5vw, 2rem)'
@@ -273,6 +282,11 @@ export function WinnerCelebration({
         >
           {safeScore}
         </p>
+        {safeSubtitle ? (
+          <p className="text-xs sm:text-sm font-bold text-slate-300 max-w-[92vw] text-center px-2">
+            {safeSubtitle}
+          </p>
+        ) : null}
         <div
           className={
             audience
@@ -280,6 +294,16 @@ export function WinnerCelebration({
               : 'mt-6 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 w-full max-w-lg'
           }
         >
+          {canNextGame && (
+            <button
+              type="button"
+              onClick={onNextGame}
+              disabled={isSaving}
+              className="rounded-2xl bg-amber-400 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 active:scale-95 shadow-lg shadow-amber-400/30 disabled:opacity-50"
+            >
+              Next Game
+            </button>
+          )}
           {canSave && (
             <button
               type="button"

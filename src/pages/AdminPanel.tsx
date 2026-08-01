@@ -7,10 +7,11 @@ import {
   FIXTURE_DATES,
   INITIAL_MATCH,
   MAX_POINTS_OPTIONS,
-  deuceCapForMaxPoints,
+  BEST_OF_OPTIONS,
+  isBestOf,
   isMaxPoints
 } from '../data/tournamentData';
-import type { MatchState, Fixture, Team, CompletedMatch, MaxPoints } from '../data/tournamentData';
+import type { BestOf, MatchState, Fixture, Team, CompletedMatch, MaxPoints } from '../data/tournamentData';
 import { isValidYouTubeLiveUrl, parseYouTubeVideoId } from '../utils/youtube';
 import {
   buildCompletedMatch,
@@ -20,10 +21,24 @@ import {
 } from '../utils/completedMatches';
 import { exportScores } from '../utils/exportScores';
 import type { ScoreExportFormat } from '../utils/exportScores';
-import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
-import { applySetServer, applySwapSides } from '../utils/scoring';
+import {
+  formatGameScoresLine,
+  formatGamesWonLabel,
+  hasGameWinner,
+  hasSeriesWinner,
+  normalizeMatchState
+} from '../utils/matchState';
+import {
+  applyDecrementScore,
+  applyScorePoint,
+  applySetServer,
+  applyStartNextGame,
+  applySwapSides,
+  isGoldenPoint
+} from '../utils/scoring';
 import { ServeRacket } from '../components/ServeRacket';
 import { BrandBanner } from '../components/BrandBanner';
+import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { buildCustomMatchState, sanitizeLabel } from '../utils/customMatch';
 
 const CUSTOM_MATCH_STAGES = [
@@ -46,6 +61,7 @@ export const AdminPanel: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDate, setSelectedDate] = useState<string>(FIXTURE_DATES[0] ?? 'All');
   const [selectedMaxPoints, setSelectedMaxPoints] = useState<MaxPoints>(11);
+  const [selectedBestOf, setSelectedBestOf] = useState<BestOf>(1);
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -60,6 +76,7 @@ export const AdminPanel: React.FC = () => {
   const [customCategoryOther, setCustomCategoryOther] = useState('');
   const [customStage, setCustomStage] = useState<string>(CUSTOM_MATCH_STAGES[0]);
   const [customMaxPoints, setCustomMaxPoints] = useState<MaxPoints>(11);
+  const [customBestOf, setCustomBestOf] = useState<BestOf>(1);
   const [customMatchError, setCustomMatchError] = useState<string | null>(null);
 
   // Sync state from Firebase with normalization
@@ -106,13 +123,6 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Helper: court side from server's score when service changes hands
-  // Even Score = RIGHT court | Odd Score = LEFT court
-  const getServeSide = (score: number): 'right' | 'left' => {
-    if (!Number.isFinite(score) || score < 0) return 'right';
-    return score % 2 === 0 ? 'right' : 'left';
-  };
-
   // Manual server assignment (racket tap)
   const handleSetServer = (targetServer: 1 | 2) => {
     if (targetServer !== 1 && targetServer !== 2) return;
@@ -122,78 +132,13 @@ export const AdminPanel: React.FC = () => {
   // Rally scoring: point winner serves next. Court side (L/R) only changes on service over.
   const handleScorePoint = (scoringTeam: 1 | 2) => {
     if (scoringTeam !== 1 && scoringTeam !== 2) return;
-    if (match.gameWinner === 1 || match.gameWinner === 2) return;
-
-    const max: MaxPoints = isMaxPoints(match.maxPoints) ? match.maxPoints : 11;
-    const cap = deuceCapForMaxPoints(max);
-    const deuceThreshold = max - 1;
-
-    let s1 = match.score1 ?? 0;
-    let s2 = match.score2 ?? 0;
-
-    if (scoringTeam === 1) {
-      s1 += 1;
-    } else {
-      s2 += 1;
-    }
-
-    const previousServer = match.server === 2 ? 2 : 1;
-    const newServer: 1 | 2 = scoringTeam;
-    const serviceOver = newServer !== previousServer;
-
-    // Same server keeps the point: keep current L/R court (do not toggle).
-    // Service over: new server's court from their score (even = right, odd = left).
-    const newServingSide = serviceOver
-      ? getServeSide(newServer === 1 ? s1 : s2)
-      : (match.servingSide === 'left' ? 'left' : 'right');
-
-    // Deuce & Game Winner Logic
-    let isDeuce = match.deuceActive;
-    let winner: 1 | 2 | null = null;
-    const winningScore = scoringTeam === 1 ? s1 : s2;
-
-    if (s1 >= deuceThreshold && s2 >= deuceThreshold) {
-      if (s1 === s2) {
-        isDeuce = true;
-      } else if (Math.abs(s1 - s2) >= 2 || winningScore === cap) {
-        winner = scoringTeam;
-      } else {
-        isDeuce = true;
-      }
-    } else if (winningScore >= max) {
-      winner = scoringTeam;
-    }
-
-    updateMatchState({
-      ...match,
-      score1: s1,
-      score2: s2,
-      server: newServer,
-      servingSide: newServingSide,
-      deuceActive: isDeuce,
-      gameWinner: winner
-    });
+    updateMatchState(applyScorePoint(match, scoringTeam));
   };
 
   // Decrement score handler (-1) — does not flip L/R court; use Set Serve to correct side.
   const handleDecrementScore = (side: 1 | 2) => {
     if (side !== 1 && side !== 2) return;
-
-    let s1 = match.score1 ?? 0;
-    let s2 = match.score2 ?? 0;
-
-    if (side === 1) s1 = Math.max(0, s1 - 1);
-    else s2 = Math.max(0, s2 - 1);
-
-    const maxPoints = match.maxPoints ?? 11;
-
-    updateMatchState({
-      ...match,
-      score1: s1,
-      score2: s2,
-      gameWinner: null,
-      deuceActive: s1 >= (maxPoints - 1) && s2 >= (maxPoints - 1) && s1 === s2
-    });
+    updateMatchState(applyDecrementScore(match, side));
   };
 
   // Swap Court / Player Sides — flips stored court L ↔ R with the end-change
@@ -209,8 +154,21 @@ export const AdminPanel: React.FC = () => {
       server: 1,
       servingSide: 'right',
       deuceActive: false,
-      gameWinner: null
+      gameWinner: null,
+      gameNumber: 1,
+      gameScores: [],
+      gamesWon1: 0,
+      gamesWon2: 0,
+      matchWinner: null
     });
+  };
+
+  const handleStartNextGame = () => {
+    try {
+      updateMatchState(applyStartNextGame(match));
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Could not start next game.');
+    }
   };
 
   /**
@@ -242,8 +200,12 @@ export const AdminPanel: React.FC = () => {
    * with result + actual completion date/time.
    */
   const handleCompleteMatch = async () => {
-    if (match.gameWinner !== 1 && match.gameWinner !== 2) {
-      setSaveError('No winner to save — finish the game first.');
+    if (!hasSeriesWinner(match)) {
+      setSaveError(
+        match.bestOf === 3 && hasGameWinner(match)
+          ? 'Series not finished — play until one side wins 2 games, then save.'
+          : 'No winner to save — finish the match first.'
+      );
       return;
     }
     const fixtureId = match.currentMatchId?.trim();
@@ -329,8 +291,9 @@ export const AdminPanel: React.FC = () => {
     updateMatchState({ ...match, youtubeLiveUrl: '' });
   };
 
-  const handleStartFixture = (fixture: Fixture, pointsLimit: MaxPoints) => {
+  const handleStartFixture = (fixture: Fixture, pointsLimit: MaxPoints, bestOf: BestOf = selectedBestOf) => {
     if (!fixture || !isMaxPoints(pointsLimit)) return;
+    if (!isBestOf(bestOf)) return;
 
     const sides = fixture.details.split(/\s+vs\s+/i);
     const stripMatch = (value: string) =>
@@ -351,6 +314,12 @@ export const AdminPanel: React.FC = () => {
       score1: 0,
       score2: 0,
       maxPoints: pointsLimit,
+      bestOf,
+      gameNumber: 1,
+      gameScores: [],
+      gamesWon1: 0,
+      gamesWon2: 0,
+      matchWinner: null,
       server: 1,
       servingSide: 'right',
       deuceActive: false,
@@ -379,11 +348,13 @@ export const AdminPanel: React.FC = () => {
           sideA: customSideA,
           sideB: customSideB,
           maxPoints: customMaxPoints,
+          bestOf: customBestOf,
           category,
           stage
         })
       );
       setSelectedMaxPoints(customMaxPoints);
+      setSelectedBestOf(customBestOf);
     } catch (err) {
       setCustomMatchError(err instanceof Error ? err.message : 'Could not start custom match.');
     }
@@ -410,7 +381,8 @@ export const AdminPanel: React.FC = () => {
   const currentFixtureCompleted = completedById[match.currentMatchId];
   const isCustomLiveMatch = isCustomMatchId(match.currentMatchId);
 
-  const hasWinner = hasMatchWinner(match);
+  const hasWinner = hasGameWinner(match);
+  const seriesOver = hasSeriesWinner(match);
   const youtubeUrl = match.youtubeLiveUrl ?? '';
   const youtubeUrlValid = isValidYouTubeLiveUrl(youtubeUrl);
   const youtubeConfigured = !!parseYouTubeVideoId(youtubeUrl);
@@ -430,9 +402,19 @@ export const AdminPanel: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
           <h2 className="text-xl font-bold text-amber-400">Active Match Control</h2>
           <div className="flex items-center space-x-2">
-            {match.deuceActive && (
+            {isGoldenPoint(match) ? (
+              <span className="text-xs bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full font-bold animate-pulse border border-amber-400/40">
+                GOLDEN POINT
+              </span>
+            ) : match.deuceActive ? (
               <span className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded-full font-bold animate-pulse">
                 DEUCE (Win by 2)
+              </span>
+            ) : null}
+            {match.bestOf === 3 && (
+              <span className="text-xs bg-violet-500/20 text-violet-300 px-3 py-1 rounded-full font-bold border border-violet-400/30">
+                BO3 · {formatGamesWonLabel(match)}
+                {!seriesOver ? ` · G${match.gameNumber ?? 1}` : ''}
               </span>
             )}
             <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700">
@@ -449,30 +431,53 @@ export const AdminPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Game Winner Alert Banner */}
+        {/* Game / Match Winner Alert Banner */}
         {hasWinner && (
           <div className="mb-6 bg-emerald-500/10 border border-emerald-500/50 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="space-y-1">
               <span className="text-emerald-400 font-bold text-base block">
-                🎉 Game Won by {match.gameWinner === 1 ? match.player1 || match.teamA : match.player2 || match.teamB}! ({match.score1} - {match.score2})
+                🎉 {seriesOver ? 'Match' : 'Game'} Won by{' '}
+                {match.gameWinner === 1 ? match.player1 || match.teamA : match.player2 || match.teamB}! (
+                {match.score1} - {match.score2})
               </span>
+              {match.bestOf === 3 && (
+                <span className="text-[11px] text-violet-300 block">
+                  Series {formatGamesWonLabel(match)}
+                  {formatGameScoresLine(match) ? ` · ${formatGameScoresLine(match)}` : ''}
+                  {!seriesOver ? ' — start next game to continue' : ' — series complete'}
+                </span>
+              )}
               {currentFixtureCompleted ? (
                 <span className="text-[11px] text-emerald-300/90">
-                  Saved: {currentFixtureCompleted.result} on {currentFixtureCompleted.completedDate} {currentFixtureCompleted.completedTime}
+                  Saved: {currentFixtureCompleted.result} on {currentFixtureCompleted.completedDate}{' '}
+                  {currentFixtureCompleted.completedTime}
                 </span>
-              ) : (
+              ) : seriesOver ? (
                 <span className="text-[11px] text-amber-300/90">
                   {isCustomLiveMatch
                     ? 'Save result to record this custom match in Completed Matches.'
                     : 'Save result to mark this fixture completed in the schedule.'}
                 </span>
+              ) : (
+                <span className="text-[11px] text-amber-300/90">
+                  Best of 3 in progress — save when one side wins 2 games.
+                </span>
               )}
               {saveError && <span className="text-[11px] text-red-400 block">{saveError}</span>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {!seriesOver && match.bestOf === 3 && (
+                <button
+                  type="button"
+                  onClick={handleStartNextGame}
+                  className="bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+                >
+                  Next Game
+                </button>
+              )}
               <button
                 onClick={handleCompleteMatch}
-                disabled={isSavingResult}
+                disabled={isSavingResult || !seriesOver}
                 className="bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg hover:bg-emerald-400 transition-colors disabled:opacity-50"
               >
                 {isSavingResult
@@ -490,6 +495,8 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         )}
+
+        <SeriesScoreStrip match={match} size="sm" className="mb-4" />
 
         {/* Options, Swap Sides, and Court Indicator Toolbar */}
         <div className="mb-6 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -812,13 +819,29 @@ export const AdminPanel: React.FC = () => {
                 </button>
               ))}
             </div>
+            <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
+              {BEST_OF_OPTIONS.map((bo) => (
+                <button
+                  key={bo}
+                  type="button"
+                  onClick={() => setCustomBestOf(bo)}
+                  className={`text-[10px] px-2.5 py-1 rounded font-bold ${
+                    customBestOf === bo
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Best of {bo}
+                </button>
+              ))}
+            </div>
           </div>
           <button
             type="button"
             onClick={handleStartCustomMatch}
             className="bg-violet-500 hover:bg-violet-400 text-slate-950 font-bold text-sm px-5 py-2.5 rounded-lg transition-colors shadow"
           >
-            Start Custom Match ({customMaxPoints}p)
+            Start Custom Match ({customMaxPoints}p · BO{customBestOf})
           </button>
         </div>
         {customMatchError && (
@@ -859,6 +882,21 @@ export const AdminPanel: React.FC = () => {
                       title={`Default fixture start format: ${pts} points`}
                     >
                       {pts} Points
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
+                  {BEST_OF_OPTIONS.map((bo) => (
+                    <button
+                      key={bo}
+                      type="button"
+                      onClick={() => setSelectedBestOf(bo)}
+                      className={`text-[10px] px-2.5 py-1 rounded font-bold ${
+                        selectedBestOf === bo ? 'bg-violet-400 text-slate-950' : 'text-slate-400 hover:text-white'
+                      }`}
+                      title={`Best of ${bo} games`}
+                    >
+                      BO{bo}
                     </button>
                   ))}
                 </div>
@@ -958,33 +996,39 @@ export const AdminPanel: React.FC = () => {
                         <div className="flex items-center flex-wrap justify-end gap-1 shrink-0">
                           <button
                             type="button"
-                            onClick={() => handleStartFixture(fixture, selectedMaxPoints)}
+                            onClick={() => handleStartFixture(fixture, selectedMaxPoints, selectedBestOf)}
                             className={`text-[11px] px-2.5 py-1 rounded font-bold transition-all ${
-                              isLive && match.maxPoints === selectedMaxPoints
+                              isLive &&
+                              match.maxPoints === selectedMaxPoints &&
+                              (match.bestOf ?? 1) === selectedBestOf
                                 ? 'bg-emerald-500 text-slate-950 shadow'
                                 : 'bg-amber-500 text-slate-950 hover:bg-amber-400'
                             }`}
-                            title={`Start as ${selectedMaxPoints} point match`}
+                            title={`Start as ${selectedMaxPoints} point · best of ${selectedBestOf}`}
                           >
-                            {isLive && match.maxPoints === selectedMaxPoints
-                              ? `Live (${selectedMaxPoints}p)`
+                            {isLive &&
+                            match.maxPoints === selectedMaxPoints &&
+                            (match.bestOf ?? 1) === selectedBestOf
+                              ? `Live (${selectedMaxPoints}p BO${selectedBestOf})`
                               : isCompleted
-                                ? `Replay ${selectedMaxPoints}p`
-                                : `Start ${selectedMaxPoints}p`}
+                                ? `Replay ${selectedMaxPoints}p BO${selectedBestOf}`
+                                : `Start ${selectedMaxPoints}p BO${selectedBestOf}`}
                           </button>
                           {MAX_POINTS_OPTIONS.filter((pts) => pts !== selectedMaxPoints).map((pts) => (
                             <button
                               key={pts}
                               type="button"
-                              onClick={() => handleStartFixture(fixture, pts)}
+                              onClick={() => handleStartFixture(fixture, pts, selectedBestOf)}
                               className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${
-                                isLive && match.maxPoints === pts
+                                isLive && match.maxPoints === pts && (match.bestOf ?? 1) === selectedBestOf
                                   ? 'bg-emerald-500 text-slate-950 shadow'
                                   : 'bg-indigo-600 text-white hover:bg-indigo-500'
                               }`}
-                              title={`Start as ${pts} point match`}
+                              title={`Start as ${pts} point · best of ${selectedBestOf}`}
                             >
-                              {isLive && match.maxPoints === pts ? `Live ${pts}p` : `${pts}p`}
+                              {isLive && match.maxPoints === pts && (match.bestOf ?? 1) === selectedBestOf
+                                ? `Live ${pts}p`
+                                : `${pts}p`}
                             </button>
                           ))}
                         </div>

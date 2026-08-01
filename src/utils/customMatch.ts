@@ -1,5 +1,5 @@
-import type { MatchState, MaxPoints } from '../data/tournamentData';
-import { isMaxPoints } from '../data/tournamentData';
+import type { BestOf, MatchState, MaxPoints } from '../data/tournamentData';
+import { isBestOf, isMaxPoints } from '../data/tournamentData';
 
 /** Unique id for ad-hoc matches (not in FIXTURES). */
 export function createCustomMatchId(): string {
@@ -28,6 +28,7 @@ export type CustomMatchInput = {
   sideA: string;
   sideB: string;
   maxPoints: MaxPoints;
+  bestOf?: BestOf;
   category?: string;
   stage?: string;
 };
@@ -50,6 +51,7 @@ export function buildCustomMatchState(
   if (!isMaxPoints(input.maxPoints)) {
     throw new Error('Select a valid point format (11, 15, or 21).');
   }
+  const bestOf: BestOf = isBestOf(input.bestOf) ? input.bestOf : 1;
 
   const sideA = sanitizeLabel(input.sideA, 'Player 1');
   const sideB = sanitizeLabel(input.sideB, 'Player 2');
@@ -68,6 +70,12 @@ export function buildCustomMatchState(
     score1: 0,
     score2: 0,
     maxPoints: input.maxPoints,
+    bestOf,
+    gameNumber: 1,
+    gameScores: [],
+    gamesWon1: 0,
+    gamesWon2: 0,
+    matchWinner: null,
     server: 1,
     servingSide: 'right',
     deuceActive: false,

@@ -1,5 +1,6 @@
 import type { CompletedMatch, Fixture, MatchState } from '../data/tournamentData';
-import { isMaxPoints } from '../data/tournamentData';
+import { isBestOf, isMaxPoints } from '../data/tournamentData';
+import { formatGameScoresLine, hasSeriesWinner } from './matchState';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
@@ -26,6 +27,7 @@ export function formatMatchTime(date: Date): string {
 
 /**
  * Builds a CompletedMatch record from the live match + schedule fixture.
+ * For best-of-3, result includes games tally and each game score.
  * Concurrency: pure/stateless — caller writes to Firebase.
  */
 export function buildCompletedMatch(
@@ -36,8 +38,8 @@ export function buildCompletedMatch(
   if (!match || typeof match !== 'object') {
     throw new Error('buildCompletedMatch: match is required');
   }
-  if (match.gameWinner !== 1 && match.gameWinner !== 2) {
-    throw new Error('buildCompletedMatch: match has no winner');
+  if (!hasSeriesWinner(match)) {
+    throw new Error('buildCompletedMatch: series has no winner yet');
   }
   if (!(completedAt instanceof Date) || Number.isNaN(completedAt.getTime())) {
     throw new Error('buildCompletedMatch: completedAt must be a valid Date');
@@ -48,13 +50,34 @@ export function buildCompletedMatch(
       ? match.currentMatchId.trim()
       : `unknown-${completedAt.getTime()}`;
 
+  const bestOf = isBestOf(match.bestOf) ? match.bestOf : 1;
+  const gameScores = Array.isArray(match.gameScores) ? match.gameScores : [];
+  const gamesWon1 = Number.isFinite(match.gamesWon1) ? match.gamesWon1 : 0;
+  const gamesWon2 = Number.isFinite(match.gamesWon2) ? match.gamesWon2 : 0;
+
+  const winnerSide =
+    match.matchWinner === 1 || match.matchWinner === 2
+      ? match.matchWinner
+      : match.gameWinner === 1 || match.gameWinner === 2
+        ? match.gameWinner
+        : 1;
+
   const score1 = Number.isFinite(match.score1) ? match.score1 : 0;
   const score2 = Number.isFinite(match.score2) ? match.score2 : 0;
-  const winnerSide = match.gameWinner;
   const winnerName =
     winnerSide === 1
-      ? (match.player1 || match.teamA || 'Side A')
-      : (match.player2 || match.teamB || 'Side B');
+      ? match.player1 || match.teamA || 'Side A'
+      : match.player2 || match.teamB || 'Side B';
+
+  const gamesLine = formatGameScoresLine(match);
+  let result: string;
+  if (bestOf === 3) {
+    result = gamesLine
+      ? `${gamesWon1}-${gamesWon2} (${gamesLine.replace(/G\d+\s/g, '')})`
+      : `${gamesWon1}-${gamesWon2}`;
+  } else {
+    result = `${score1}-${score2}`;
+  }
 
   return {
     id: fixtureId,
@@ -73,12 +96,16 @@ export function buildCompletedMatch(
     maxPoints: isMaxPoints(match.maxPoints) ? match.maxPoints : 11,
     winnerSide,
     winnerName,
-    result: `${score1}-${score2}`,
+    result,
     status: 'completed',
     completedAt: completedAt.toISOString(),
     completedDate: formatMatchDate(completedAt),
     completedTime: formatMatchTime(completedAt),
-    isTrump: !!match.isTrump
+    isTrump: !!match.isTrump,
+    bestOf,
+    gamesWon1,
+    gamesWon2,
+    gameScores
   };
 }
 
