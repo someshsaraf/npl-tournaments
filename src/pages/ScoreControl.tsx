@@ -21,6 +21,7 @@ import { buildCustomMatchState } from '../utils/customMatch';
 import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { BrandBanner } from '../components/BrandBanner';
+import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 
 /**
  * Full-viewport scoreboard for court / audience.
@@ -42,6 +43,7 @@ export const ScoreControl: React.FC = () => {
   const [newMaxPoints, setNewMaxPoints] = useState<MaxPoints>(11);
   const [newMatchError, setNewMatchError] = useState<string | null>(null);
   const promptedKeyRef = useRef<string | null>(null);
+  const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -249,6 +251,25 @@ export const ScoreControl: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-end gap-1.5">
+          {speechSupported && (
+            <button
+              type="button"
+              onClick={() => (audioEnabled ? disableAudio() : enableAudio())}
+              title={
+                audioEnabled
+                  ? 'Announcements on — tap to mute'
+                  : 'Tap to enable score & serve announcements'
+              }
+              className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
+                audioEnabled
+                  ? 'bg-amber-400 text-slate-950 border-amber-300'
+                  : 'bg-slate-800 text-slate-300 border-slate-700'
+              }`}
+              aria-pressed={audioEnabled}
+            >
+              {audioEnabled ? 'Audio On' : 'Audio'}
+            </button>
+          )}
           {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
             <button
               key={pts}

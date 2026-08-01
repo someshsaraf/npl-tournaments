@@ -14,6 +14,7 @@ import {
 import { ServeRacket } from '../components/ServeRacket';
 import { BrandBanner } from '../components/BrandBanner';
 import { WinnerCelebration } from '../components/WinnerCelebration';
+import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 
 /**
  * Full-viewport audience scoreboard (/score).
@@ -31,6 +32,7 @@ export const LiveScoreboard: React.FC = () => {
   const promptedKeyRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cssImmersiveRef = useRef(false);
+  const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -208,6 +210,26 @@ export const LiveScoreboard: React.FC = () => {
 
         <div className="min-w-0 flex items-center justify-end gap-2">
           <span className="hidden sm:inline text-xs sm:text-sm text-slate-500 font-mono">LIVE</span>
+          {speechSupported && (
+            <button
+              type="button"
+              onClick={() => (audioEnabled ? disableAudio() : enableAudio())}
+              className={`rounded-full px-3 py-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wide shadow border active:scale-95 ${
+                audioEnabled
+                  ? 'bg-amber-400 text-slate-950 border-amber-300'
+                  : 'bg-slate-800 text-slate-100 border-slate-600 hover:bg-slate-700'
+              }`}
+              aria-pressed={audioEnabled}
+              aria-label={audioEnabled ? 'Disable score announcements' : 'Enable score announcements'}
+              title={
+                audioEnabled
+                  ? 'Announcements on — tap to mute'
+                  : 'Tap to enable score & serve announcements'
+              }
+            >
+              {audioEnabled ? 'Audio On' : 'Audio'}
+            </button>
+          )}
           <button
             type="button"
             onClick={handleToggleFullscreen}
