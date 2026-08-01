@@ -199,6 +199,13 @@ export const StreamOverlay: React.FC = () => {
     if (snap) setHeldResult(snap);
   }, [match]);
 
+  // New fixture selected → clear sticky last-result so overlay shows the new match.
+  useEffect(() => {
+    const id = typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+    if (!id) return;
+    setHeldResult((prev) => (prev && prev.fixtureId !== id ? null : prev));
+  }, [match.currentMatchId]);
+
   const videoId = parseYouTubeVideoId(match.youtubeLiveUrl ?? '');
 
   // Auto-start on load; resume if paused. Click shield blocks user pause UI.
@@ -307,7 +314,8 @@ export const StreamOverlay: React.FC = () => {
     };
   }, [videoId]);
 
-  // Show final / last result until the next match scores its first point.
+  // Show last result only while still on the same finished fixture (0–0 after reset).
+  // Selecting a different fixture updates the score bug immediately.
   let phase: OverlayPhase = 'live';
   let display = {
     category: match.category || 'Match',
@@ -324,15 +332,18 @@ export const StreamOverlay: React.FC = () => {
     deuceActive: !!match.deuceActive
   };
 
+  const currentFixtureId =
+    typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+
   if (hasMatchWinner(match)) {
     phase = 'final';
     display = {
       ...display,
       winnerSide: match.gameWinner === 2 ? 2 : 1
     };
-  } else if (!isMatchInProgress(match)) {
+  } else if (!isMatchInProgress(match) && currentFixtureId) {
     const sticky = heldResult || latestCompleted;
-    if (sticky) {
+    if (sticky && sticky.fixtureId === currentFixtureId) {
       phase = 'last';
       display = {
         category: sticky.category || 'Match',

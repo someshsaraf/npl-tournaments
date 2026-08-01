@@ -441,13 +441,14 @@ export const AdminPanel: React.FC = () => {
                 key={pts}
                 type="button"
                 onClick={() => updateMatchState({ ...match, maxPoints: pts, gameWinner: null })}
-                className={`text-xs px-3 py-1 rounded-lg font-bold transition-all ${
+                className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
                   (match.maxPoints ?? 11) === pts
-                    ? 'bg-amber-400 text-slate-950'
+                    ? 'bg-amber-400 text-slate-950 shadow'
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
+                title={`Race to ${pts}`}
               >
-                {pts} Pts
+                {pts} Points
               </button>
             ))}
           </div>
@@ -706,19 +707,25 @@ export const AdminPanel: React.FC = () => {
                 {filteredFixtures.length} / {FIXTURES.length} matches
                 {completedRows.length > 0 ? ` · ${completedRows.length} completed` : ''}
               </span>
-              <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
-                {MAX_POINTS_OPTIONS.map((pts) => (
-                  <button
-                    key={pts}
-                    type="button"
-                    onClick={() => setSelectedMaxPoints(pts)}
-                    className={`text-[10px] px-2 py-1 rounded font-bold ${
-                      selectedMaxPoints === pts ? 'bg-amber-400 text-slate-950' : 'text-slate-400'
-                    }`}
-                  >
-                    {pts} Pts
-                  </button>
-                ))}
+              <div className="flex items-center flex-wrap gap-1">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mr-1">
+                  Start as
+                </span>
+                <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
+                  {MAX_POINTS_OPTIONS.map((pts) => (
+                    <button
+                      key={pts}
+                      type="button"
+                      onClick={() => setSelectedMaxPoints(pts)}
+                      className={`text-[10px] px-2.5 py-1 rounded font-bold ${
+                        selectedMaxPoints === pts ? 'bg-amber-400 text-slate-950' : 'text-slate-400 hover:text-white'
+                      }`}
+                      title={`Default fixture start format: ${pts} points`}
+                    >
+                      {pts} Points
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -813,23 +820,35 @@ export const AdminPanel: React.FC = () => {
                           {isCompleted ? 'Completed' : fixture.stage}
                         </span>
                         <div className="flex items-center flex-wrap justify-end gap-1 shrink-0">
-                          {MAX_POINTS_OPTIONS.map((pts) => (
+                          <button
+                            type="button"
+                            onClick={() => handleStartFixture(fixture, selectedMaxPoints)}
+                            className={`text-[11px] px-2.5 py-1 rounded font-bold transition-all ${
+                              isLive && match.maxPoints === selectedMaxPoints
+                                ? 'bg-emerald-500 text-slate-950 shadow'
+                                : 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                            }`}
+                            title={`Start as ${selectedMaxPoints} point match`}
+                          >
+                            {isLive && match.maxPoints === selectedMaxPoints
+                              ? `Live (${selectedMaxPoints}p)`
+                              : isCompleted
+                                ? `Replay ${selectedMaxPoints}p`
+                                : `Start ${selectedMaxPoints}p`}
+                          </button>
+                          {MAX_POINTS_OPTIONS.filter((pts) => pts !== selectedMaxPoints).map((pts) => (
                             <button
                               key={pts}
                               type="button"
                               onClick={() => handleStartFixture(fixture, pts)}
-                              className={`text-[10px] px-1.5 py-1 rounded font-bold transition-all ${
+                              className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${
                                 isLive && match.maxPoints === pts
                                   ? 'bg-emerald-500 text-slate-950 shadow'
                                   : 'bg-indigo-600 text-white hover:bg-indigo-500'
                               }`}
                               title={`Start as ${pts} point match`}
                             >
-                              {isLive && match.maxPoints === pts
-                                ? `Live ${pts}`
-                                : isCompleted
-                                  ? `${pts}p`
-                                  : `${pts}p`}
+                              {isLive && match.maxPoints === pts ? `Live ${pts}p` : `${pts}p`}
                             </button>
                           ))}
                         </div>
