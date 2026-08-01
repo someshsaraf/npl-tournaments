@@ -21,7 +21,6 @@ import { ServeRacket } from '../components/ServeRacket';
 import { BrandBanner } from '../components/BrandBanner';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
-import { Bo3BigScores } from '../components/Bo3BigScores';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 import { isGoldenPoint } from '../utils/scoring';
 
@@ -320,16 +319,12 @@ export const LiveScoreboard: React.FC = () => {
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-10 sm:pt-12">
-            {match.bestOf === 3 ? (
-              <Bo3BigScores match={match} side={1} variant="audience" />
-            ) : (
-              <span
-                className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-                style={{ fontSize: 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
-              >
-                {score1}
-              </span>
-            )}
+            <span
+              className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
+              style={{ fontSize: 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
+            >
+              {score1}
+            </span>
           </div>
         </section>
 
@@ -365,16 +360,12 @@ export const LiveScoreboard: React.FC = () => {
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-10 sm:pt-12">
-            {match.bestOf === 3 ? (
-              <Bo3BigScores match={match} side={2} variant="audience" />
-            ) : (
-              <span
-                className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-                style={{ fontSize: 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
-              >
-                {score2}
-              </span>
-            )}
+            <span
+              className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
+              style={{ fontSize: 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
+            >
+              {score2}
+            </span>
           </div>
         </section>
 
