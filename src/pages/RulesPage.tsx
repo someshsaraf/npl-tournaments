@@ -32,8 +32,8 @@ export default function RulesPage() {
         <ul className="list-disc list-inside space-y-2 text-slate-300 text-sm md:text-base">
           <li>5 Teams, 5 players each. Each tie has 5 matches (1 Singles, 4 Ranked Doubles).</li>
           <li>
-            Group Stage matches are a race to 15 points. From 14-14, win by 2; at 21-21 the next
-            point wins (golden point).
+            Group Stage matches are a race to 15 points. From 14-14, win by 2; at{' '}
+            <strong className="text-amber-400">15-15</strong> the next point wins (golden point).
           </li>
           <li>
             <strong className="text-amber-400">Trump Game:</strong> Winning a Trump game gives{' '}

@@ -26,6 +26,7 @@ import {
 } from '../utils/scoring';
 import { buildCompletedMatch } from '../utils/completedMatches';
 import { ServeRacket } from '../components/ServeRacket';
+import { ServingBadge } from '../components/ServingBadge';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
@@ -170,7 +171,8 @@ export const AdminScorePage: React.FC = () => {
   };
 
   /**
-   * Save result + score snapshot (Storage photos/ + local download) + WhatsApp share, then /admin.
+   * Save result first, then open system share sheet (await), then return to /admin.
+   * Share must run before navigate so the user-gesture / sheet is not torn down.
    */
   const saveCompletedMatch = async (matchToSave: MatchState, share = true) => {
     if (!hasSeriesWinner(matchToSave)) {
@@ -188,24 +190,34 @@ export const AdminScorePage: React.FC = () => {
     try {
       let snapshotUrl: string | undefined;
       let snapshotPath: string | undefined;
-      try {
-        const snap = await captureAndPersistScoreSnapshot(matchToSave, { share });
-        snapshotUrl = snap.downloadUrl;
-        snapshotPath = snap.storagePath;
-      } catch (snapErr) {
-        console.error('Score snapshot failed (result still saved):', snapErr);
-        setSaveMessage('Result saved; snapshot/share failed — check Storage rules.');
-      }
 
+      // Persist the result immediately so a share/storage failure cannot lose the score.
       const fixture = FIXTURES.find((f) => f.id === fixtureId);
-      const completed = buildCompletedMatch(matchToSave, fixture, new Date(), {
-        snapshotUrl,
-        snapshotPath
-      });
-      await set(ref(db, `completedMatches/${fixtureId}`), completed);
+      const completedBase = buildCompletedMatch(matchToSave, fixture, new Date());
+      await set(ref(db, `completedMatches/${fixtureId}`), completedBase);
       setResultSaved(true);
       setCelebration(null);
-      setSaveMessage(`Saved ${completed.result}`);
+      setSaveMessage(`Saved ${completedBase.result} — opening share…`);
+
+      try {
+        const snap = await captureAndPersistScoreSnapshot(matchToSave, {
+          share,
+          upload: true
+        });
+        snapshotUrl = snap.downloadUrl || undefined;
+        snapshotPath = snap.storagePath || undefined;
+        if (snapshotUrl || snapshotPath) {
+          await set(ref(db, `completedMatches/${fixtureId}`), {
+            ...completedBase,
+            ...(snapshotUrl ? { snapshotUrl } : {}),
+            ...(snapshotPath ? { snapshotPath } : {})
+          });
+        }
+      } catch (snapErr) {
+        console.error('Score snapshot/share failed (result already saved):', snapErr);
+        setSaveMessage('Result saved; share failed — try again from Results if needed.');
+      }
+
       navigate('/admin');
       return true;
     } catch (err) {
@@ -447,36 +459,38 @@ export const AdminScorePage: React.FC = () => {
             borderRight: '1px solid rgba(51,65,85,0.6)'
           }}
         >
-          <div className="shrink-0 px-3 pt-3 flex items-center justify-between gap-2">
-            <label className="min-w-0 flex-1">
-              <span className="sr-only">Player 1 name</span>
-              <input
-                type="text"
-                value={match.player1 ?? ''}
-                onChange={(e) => handlePlayerNameChange(1, e.target.value)}
-                maxLength={80}
-                placeholder={name1}
-                className="w-full min-w-0 bg-transparent text-sm sm:text-xl md:text-2xl font-black text-white truncate leading-none border border-transparent hover:border-slate-600 focus:border-indigo-400 focus:bg-slate-900/60 rounded-lg px-1.5 py-1 outline-none"
-                aria-label="Edit player 1 name"
-              />
-            </label>
+          <div className="shrink-0 px-3 pt-2 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="min-w-0 flex-1">
+                <span className="sr-only">Player 1 name</span>
+                <input
+                  type="text"
+                  value={match.player1 ?? ''}
+                  onChange={(e) => handlePlayerNameChange(1, e.target.value)}
+                  maxLength={80}
+                  placeholder={name1}
+                  className="w-full min-w-0 bg-transparent text-sm sm:text-xl md:text-2xl font-black text-white truncate leading-none border border-transparent hover:border-slate-600 focus:border-indigo-400 focus:bg-slate-900/60 rounded-lg px-1.5 py-1 outline-none"
+                  aria-label="Edit player 1 name"
+                />
+              </label>
+              {match.server === 1 ? (
+                <span className="shrink-0" title="Serving">
+                  <ServeRacket active size={28} title="Serving" />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSetServer(1)}
+                  title="Set this side as server"
+                  className="shrink-0 text-[9px] sm:text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 active:scale-95"
+                >
+                  SET SERVE
+                </button>
+              )}
+            </div>
             {match.server === 1 ? (
-              <span
-                className="shrink-0 p-1 rounded-lg bg-emerald-500/25 ring-2 ring-emerald-400/70"
-                title="Serving"
-              >
-                <ServeRacket active size={28} title="Serving" />
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleSetServer(1)}
-                title="Set this side as server"
-                className="shrink-0 text-[9px] sm:text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 active:scale-95"
-              >
-                SET SERVE
-              </button>
-            )}
+              <ServingBadge size="md" className="self-start" />
+            ) : null}
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center">
@@ -498,36 +512,38 @@ export const AdminScorePage: React.FC = () => {
               : 'rgba(2,6,23,1)'
           }}
         >
-          <div className="shrink-0 px-3 pt-3 flex items-center justify-between gap-2">
-            <label className="min-w-0 flex-1">
-              <span className="sr-only">Player 2 name</span>
-              <input
-                type="text"
-                value={match.player2 ?? ''}
-                onChange={(e) => handlePlayerNameChange(2, e.target.value)}
-                maxLength={80}
-                placeholder={name2}
-                className="w-full min-w-0 bg-transparent text-sm sm:text-xl md:text-2xl font-black text-white truncate leading-none border border-transparent hover:border-slate-600 focus:border-rose-400 focus:bg-slate-900/60 rounded-lg px-1.5 py-1 outline-none"
-                aria-label="Edit player 2 name"
-              />
-            </label>
+          <div className="shrink-0 px-3 pt-2 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="min-w-0 flex-1">
+                <span className="sr-only">Player 2 name</span>
+                <input
+                  type="text"
+                  value={match.player2 ?? ''}
+                  onChange={(e) => handlePlayerNameChange(2, e.target.value)}
+                  maxLength={80}
+                  placeholder={name2}
+                  className="w-full min-w-0 bg-transparent text-sm sm:text-xl md:text-2xl font-black text-white truncate leading-none border border-transparent hover:border-slate-600 focus:border-rose-400 focus:bg-slate-900/60 rounded-lg px-1.5 py-1 outline-none"
+                  aria-label="Edit player 2 name"
+                />
+              </label>
+              {match.server === 2 ? (
+                <span className="shrink-0" title="Serving">
+                  <ServeRacket active size={28} title="Serving" />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSetServer(2)}
+                  title="Set this side as server"
+                  className="shrink-0 text-[9px] sm:text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 active:scale-95"
+                >
+                  SET SERVE
+                </button>
+              )}
+            </div>
             {match.server === 2 ? (
-              <span
-                className="shrink-0 p-1 rounded-lg bg-emerald-500/25 ring-2 ring-emerald-400/70"
-                title="Serving"
-              >
-                <ServeRacket active size={28} title="Serving" />
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleSetServer(2)}
-                title="Set this side as server"
-                className="shrink-0 text-[9px] sm:text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 active:scale-95"
-              >
-                SET SERVE
-              </button>
-            )}
+              <ServingBadge size="md" className="self-start" />
+            ) : null}
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center">
@@ -629,7 +645,7 @@ export const AdminScorePage: React.FC = () => {
             hasSeriesWinner(match) ? (
               <>
                 <p className="w-full text-center text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1">
-                  Saves result, photo snapshot, and opens share
+                  Saves result, then opens share apps
                 </p>
                 {postMatchLinks}
               </>

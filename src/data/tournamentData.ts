@@ -26,6 +26,27 @@ export function deuceCapForMaxPoints(max: MaxPoints): number {
   return 30;
 }
 
+/** Team Championship uses golden point at race-to score (e.g. 15-15), not the extended cap. */
+export function isTeamChampionshipCategory(category: unknown): boolean {
+  if (typeof category !== 'string') return false;
+  return category.trim().toLowerCase() === 'team championship';
+}
+
+/**
+ * Deuce/golden cap for this match.
+ * Team Championship: golden at max-max (15-15 for race-to-15).
+ * Others: extended cap via deuceCapForMaxPoints.
+ */
+export function deuceCapForMatch(category: unknown, maxPoints: MaxPoints): number {
+  if (!isMaxPoints(maxPoints)) {
+    throw new Error('deuceCapForMatch: maxPoints must be 11, 15, or 21');
+  }
+  if (isTeamChampionshipCategory(category)) {
+    return maxPoints;
+  }
+  return deuceCapForMaxPoints(maxPoints);
+}
+
 /** One finished game within a best-of series. */
 export interface GameScore {
   score1: number;

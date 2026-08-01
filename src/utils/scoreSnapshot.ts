@@ -212,15 +212,15 @@ export function downloadSnapshotBlob(blob: Blob, fileName: string): void {
 }
 
 /**
- * Share via Web Share API (image + text) when available; otherwise open WhatsApp text share
- * and return false so caller can still offer the downloaded image.
+ * Share via Web Share API (system app chooser). Prefers sharing the PNG file.
+ * Falls back to text+URL share, then WhatsApp text link only if share API is unavailable.
  */
 export async function shareScoreSnapshot(options: {
   blob: Blob;
   fileName: string;
   text: string;
   downloadUrl?: string;
-}): Promise<'shared' | 'whatsapp-text' | 'none'> {
+}): Promise<'shared' | 'whatsapp-text' | 'downloaded' | 'none'> {
   const { blob, fileName, text, downloadUrl } = options;
   if (!(blob instanceof Blob)) throw new Error('shareScoreSnapshot: blob required');
   const shareText =
@@ -228,67 +228,104 @@ export async function shareScoreSnapshot(options: {
       ? text.trim().slice(0, 1000)
       : 'NPL 2026 match result';
 
-  const file = new File([blob], fileName || 'npl-score.png', { type: 'image/png' });
+  const safeName =
+    typeof fileName === 'string' && fileName.trim().endsWith('.png')
+      ? fileName.trim()
+      : 'npl-score.png';
+  const file = new File([blob], safeName, { type: 'image/png' });
   const nav = typeof navigator !== 'undefined' ? navigator : null;
-
-  if (nav && typeof nav.share === 'function') {
-    const canFiles =
-      typeof nav.canShare !== 'function' || nav.canShare({ files: [file] });
-    try {
-      if (canFiles) {
-        await nav.share({ files: [file], title: 'NPL 2026 Result', text: shareText });
-        return 'shared';
-      }
-      await nav.share({ title: 'NPL 2026 Result', text: shareText });
-      return 'shared';
-    } catch (err) {
-      // User cancel is fine
-      if (err instanceof DOMException && err.name === 'AbortError') return 'none';
-    }
-  }
-
   const withLink =
     typeof downloadUrl === 'string' && downloadUrl.startsWith('https://')
       ? `${shareText}\n${downloadUrl}`
       : shareText;
-  const wa = `https://wa.me/?text=${encodeURIComponent(withLink)}`;
-  window.open(wa, '_blank', 'noopener,noreferrer');
-  return 'whatsapp-text';
+
+  if (nav && typeof nav.share === 'function') {
+    // Prefer file share so the OS app picker can upload the image.
+    try {
+      const filePayload = { files: [file], title: 'NPL 2026 Result', text: shareText };
+      const canFiles =
+        typeof nav.canShare !== 'function' || nav.canShare(filePayload);
+      if (canFiles) {
+        await nav.share(filePayload);
+        return 'shared';
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return 'none';
+      // Fall through to text share
+    }
+
+    try {
+      await nav.share({ title: 'NPL 2026 Result', text: withLink });
+      return 'shared';
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return 'none';
+    }
+  }
+
+  // No Web Share API — still download the image for manual upload.
+  downloadSnapshotBlob(blob, safeName);
+  try {
+    const wa = `https://wa.me/?text=${encodeURIComponent(withLink)}`;
+    window.open(wa, '_blank', 'noopener,noreferrer');
+    return 'whatsapp-text';
+  } catch {
+    return 'downloaded';
+  }
 }
 
 /**
- * Full save pipeline: render → upload `photos/` → download locally → optional share.
+ * Build PNG, optionally upload to Storage `photos/`, then open the system share sheet.
+ * Upload failure does not block local share.
  */
 export async function captureAndPersistScoreSnapshot(
   match: MatchState,
-  opts?: { share?: boolean }
+  opts?: { share?: boolean; upload?: boolean }
 ): Promise<ScoreSnapshotResult> {
+  if (!match || typeof match !== 'object') {
+    throw new Error('captureAndPersistScoreSnapshot: match is required');
+  }
+
   const canvas = renderScoreSnapshotCanvas(match);
   const blob = await canvasToPngBlob(canvas);
-  const uploaded = await saveScoreSnapshotToPhotos(match, blob);
-  downloadSnapshotBlob(blob, uploaded.fileName);
+
+  let storagePath = '';
+  let downloadUrl = '';
+  let fileName = `npl-${safeFilePart(match.currentMatchId || 'match', 'match')}.png`;
+
+  const shouldUpload = opts?.upload !== false;
+  if (shouldUpload) {
+    try {
+      const uploaded = await saveScoreSnapshotToPhotos(match, blob);
+      storagePath = uploaded.storagePath;
+      downloadUrl = uploaded.downloadUrl;
+      fileName = uploaded.fileName;
+    } catch (err) {
+      console.error('Firebase Storage upload failed (continuing with local share):', err);
+    }
+  }
 
   if (opts?.share) {
     const name1 = match.player1 || match.teamA || 'Side A';
     const name2 = match.player2 || match.teamB || 'Side B';
-    const winner =
-      match.matchWinner === 2 ? name2 : name1;
+    const winner = match.matchWinner === 2 ? name2 : name1;
     const result =
       match.bestOf === 3
         ? `Games ${formatGamesWonLabel(match)}`
         : `${match.score1}-${match.score2}`;
     await shareScoreSnapshot({
       blob,
-      fileName: uploaded.fileName,
-      downloadUrl: uploaded.downloadUrl,
+      fileName,
+      downloadUrl: downloadUrl || undefined,
       text: `NPL 2026 — ${match.category}\n${name1} vs ${name2}\n${result}\nWinner: ${winner}`
     });
+  } else if (!downloadUrl) {
+    downloadSnapshotBlob(blob, fileName);
   }
 
   return {
     blob,
-    fileName: uploaded.fileName,
-    storagePath: uploaded.storagePath,
-    downloadUrl: uploaded.downloadUrl
+    fileName,
+    storagePath,
+    downloadUrl
   };
 }

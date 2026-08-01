@@ -19,6 +19,7 @@ import {
   subscribeFullscreenChange
 } from '../utils/fullscreen';
 import { ServeRacket } from '../components/ServeRacket';
+import { ServingBadge } from '../components/ServingBadge';
 import { BrandBanner } from '../components/BrandBanner';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
@@ -304,6 +305,11 @@ export const LiveScoreboard: React.FC = () => {
         >
           <div className="absolute inset-x-0 top-0 z-10 px-3 sm:px-5 pt-2 sm:pt-3 text-center pointer-events-none">
             {activeServer === 1 && (
+              <div className="mb-2 flex justify-center">
+                <ServingBadge size="lg" />
+              </div>
+            )}
+            {activeServer === 1 && (
               <span
                 className="pointer-events-auto absolute right-3 top-2 sm:right-4 sm:top-3 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
@@ -344,6 +350,11 @@ export const LiveScoreboard: React.FC = () => {
           }}
         >
           <div className="absolute inset-x-0 top-0 z-10 px-3 sm:px-5 pt-2 sm:pt-3 text-center pointer-events-none">
+            {activeServer === 2 && (
+              <div className="mb-2 flex justify-center">
+                <ServingBadge size="lg" />
+              </div>
+            )}
             {activeServer === 2 && (
               <span
                 className="pointer-events-auto absolute right-3 top-2 sm:right-4 sm:top-3 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"

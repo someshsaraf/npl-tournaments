@@ -1,5 +1,5 @@
 import type { BestOf, GameScore, MatchState, MaxPoints } from '../data/tournamentData';
-import { deuceCapForMaxPoints, isBestOf, isMaxPoints } from '../data/tournamentData';
+import { deuceCapForMatch, isBestOf, isMaxPoints } from '../data/tournamentData';
 import { gamesNeededToWin } from './matchState';
 
 export function getServeSide(score: number): 'right' | 'left' {
@@ -60,14 +60,14 @@ function withSeriesProgress(match: MatchState): MatchState {
 }
 
 /**
- * True at the golden-point tie (both sides at the deuce cap, e.g. 21-21 in a 15-pt game).
- * Input: match-like object; invalid scores treated as 0.
+ * True at the golden-point tie (both sides at the deuce cap).
+ * Team Championship race-to-15 → golden at 15-15; other 15-pt games → 21-21.
  */
 export function isGoldenPoint(match: MatchState | null | undefined): boolean {
   if (!match || typeof match !== 'object') return false;
   if (match.gameWinner === 1 || match.gameWinner === 2) return false;
   const max = resolveMaxPoints(match);
-  const cap = deuceCapForMaxPoints(max);
+  const cap = deuceCapForMatch(match.category, max);
   const s1 = Number(match.score1);
   const s2 = Number(match.score2);
   const a = Number.isFinite(s1) ? s1 : 0;
@@ -95,7 +95,7 @@ export function applyScorePoint(match: MatchState, scoringTeam: 1 | 2): MatchSta
   }
 
   const max = resolveMaxPoints(match);
-  const cap = deuceCapForMaxPoints(max);
+  const cap = deuceCapForMatch(match.category, max);
   const deuceThreshold = max - 1;
 
   let s1 = match.score1 ?? 0;
