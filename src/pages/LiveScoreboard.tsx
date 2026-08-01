@@ -155,24 +155,24 @@ export const LiveScoreboard: React.FC = () => {
         maxHeight: '100dvh'
       }}
     >
-      {/* Brand — top center */}
+      {/* Brand — compact so scores dominate */}
       <div
         className="shrink-0 flex justify-center border-b border-slate-800/80 bg-slate-950"
         style={{
-          paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
-          paddingBottom: '0.5rem'
+          paddingTop: 'max(0.25rem, env(safe-area-inset-top))',
+          paddingBottom: '0.25rem'
         }}
       >
-        <BrandBanner size="lg" />
+        <BrandBanner size="sm" />
       </div>
 
       {/* Match meta strip */}
       <header
-        className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 border-b border-slate-800 bg-slate-950"
+        className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 border-b border-slate-800 bg-slate-950"
         style={{
-          paddingTop: '0.5rem',
-          paddingBottom: '0.5rem',
-          minHeight: '3rem'
+          paddingTop: '0.25rem',
+          paddingBottom: '0.25rem',
+          minHeight: '2.25rem'
         }}
       >
         <div className="min-w-0 overflow-hidden text-left">
@@ -233,34 +233,34 @@ export const LiveScoreboard: React.FC = () => {
             borderRight: '1px solid rgba(51,65,85,0.6)'
           }}
         >
-          <div className="shrink-0 px-4 sm:px-6 pt-3 sm:pt-4 flex items-start justify-between gap-3">
+          <div className="shrink-0 px-3 sm:px-4 pt-1.5 sm:pt-2 flex items-start justify-between gap-2">
             <div className="min-w-0">
               {team1 && team1 !== name1 && (
-                <p className="text-sm sm:text-lg md:text-xl font-bold text-indigo-300/80 uppercase tracking-wide truncate">
+                <p className="text-xs sm:text-sm font-bold text-indigo-300/80 uppercase tracking-wide truncate">
                   {team1}
                 </p>
               )}
               <p
                 className="font-black text-white leading-tight truncate"
-                style={{ fontSize: 'clamp(1.1rem, 3.5vw, 2.5rem)' }}
+                style={{ fontSize: 'clamp(0.95rem, 2.8vw, 2rem)' }}
               >
                 {name1}
               </p>
             </div>
             {activeServer === 1 && (
               <span
-                className="shrink-0 p-2 rounded-2xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
+                className="shrink-0 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
               >
-                <ServeRacket active size={48} title="Serving" />
+                <ServeRacket active size={36} title="Serving" />
               </span>
             )}
           </div>
 
-          <div className="flex-1 min-h-0 flex items-center justify-center px-1">
+          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-              style={{ fontSize: 'clamp(7rem, min(42vw, 62dvh), 28rem)' }}
+              style={{ fontSize: 'clamp(8rem, min(48vw, 78dvh), 40rem)' }}
             >
               {score1}
             </span>
@@ -276,34 +276,34 @@ export const LiveScoreboard: React.FC = () => {
                 : 'rgba(2,6,23,1)'
           }}
         >
-          <div className="shrink-0 px-4 sm:px-6 pt-3 sm:pt-4 flex items-start justify-between gap-3">
+          <div className="shrink-0 px-3 sm:px-4 pt-1.5 sm:pt-2 flex items-start justify-between gap-2">
             <div className="min-w-0">
               {team2 && team2 !== name2 && (
-                <p className="text-sm sm:text-lg md:text-xl font-bold text-rose-300/80 uppercase tracking-wide truncate">
+                <p className="text-xs sm:text-sm font-bold text-rose-300/80 uppercase tracking-wide truncate">
                   {team2}
                 </p>
               )}
               <p
                 className="font-black text-white leading-tight truncate"
-                style={{ fontSize: 'clamp(1.1rem, 3.5vw, 2.5rem)' }}
+                style={{ fontSize: 'clamp(0.95rem, 2.8vw, 2rem)' }}
               >
                 {name2}
               </p>
             </div>
             {activeServer === 2 && (
               <span
-                className="shrink-0 p-2 rounded-2xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
+                className="shrink-0 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
               >
-                <ServeRacket active size={48} title="Serving" />
+                <ServeRacket active size={36} title="Serving" />
               </span>
             )}
           </div>
 
-          <div className="flex-1 min-h-0 flex items-center justify-center px-1">
+          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-              style={{ fontSize: 'clamp(7rem, min(42vw, 62dvh), 28rem)' }}
+              style={{ fontSize: 'clamp(8rem, min(48vw, 78dvh), 40rem)' }}
             >
               {score2}
             </span>
