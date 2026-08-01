@@ -154,6 +154,22 @@ export const AdminScorePage: React.FC = () => {
   };
 
   /**
+   * Edit on-court display names. Caps length; syncs player + team labels.
+   * Concurrency: single Firebase write via updateMatchState.
+   */
+  const handlePlayerNameChange = (side: 1 | 2, raw: unknown) => {
+    if (side !== 1 && side !== 2) return;
+    if (typeof raw !== 'string') return;
+    const next = raw.replace(/\s+/g, ' ').slice(0, 80);
+    const label = next.trim() || (side === 1 ? 'Side A' : 'Side B');
+    if (side === 1) {
+      updateMatchState({ ...match, player1: next, teamA: label });
+    } else {
+      updateMatchState({ ...match, player2: next, teamB: label });
+    }
+  };
+
+  /**
    * Save result + score snapshot (Storage photos/ + local download) + WhatsApp share, then /admin.
    */
   const saveCompletedMatch = async (matchToSave: MatchState, share = true) => {
@@ -432,9 +448,18 @@ export const AdminScorePage: React.FC = () => {
           }}
         >
           <div className="shrink-0 px-3 pt-3 flex items-center justify-between gap-2">
-            <p className="text-sm sm:text-xl md:text-2xl font-black text-white truncate leading-none">
-              {name1}
-            </p>
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Player 1 name</span>
+              <input
+                type="text"
+                value={match.player1 ?? ''}
+                onChange={(e) => handlePlayerNameChange(1, e.target.value)}
+                maxLength={80}
+                placeholder={name1}
+                className="w-full min-w-0 bg-transparent text-sm sm:text-xl md:text-2xl font-black text-white truncate leading-none border border-transparent hover:border-slate-600 focus:border-indigo-400 focus:bg-slate-900/60 rounded-lg px-1.5 py-1 outline-none"
+                aria-label="Edit player 1 name"
+              />
+            </label>
             {match.server === 1 ? (
               <span
                 className="shrink-0 p-1 rounded-lg bg-emerald-500/25 ring-2 ring-emerald-400/70"
@@ -474,9 +499,18 @@ export const AdminScorePage: React.FC = () => {
           }}
         >
           <div className="shrink-0 px-3 pt-3 flex items-center justify-between gap-2">
-            <p className="text-sm sm:text-xl md:text-2xl font-black text-white truncate leading-none">
-              {name2}
-            </p>
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Player 2 name</span>
+              <input
+                type="text"
+                value={match.player2 ?? ''}
+                onChange={(e) => handlePlayerNameChange(2, e.target.value)}
+                maxLength={80}
+                placeholder={name2}
+                className="w-full min-w-0 bg-transparent text-sm sm:text-xl md:text-2xl font-black text-white truncate leading-none border border-transparent hover:border-slate-600 focus:border-rose-400 focus:bg-slate-900/60 rounded-lg px-1.5 py-1 outline-none"
+                aria-label="Edit player 2 name"
+              />
+            </label>
             {match.server === 2 ? (
               <span
                 className="shrink-0 p-1 rounded-lg bg-emerald-500/25 ring-2 ring-emerald-400/70"
