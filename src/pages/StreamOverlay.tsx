@@ -870,13 +870,13 @@ export const StreamOverlay: React.FC = () => {
           </div>
         )}
 
-        {/* Compact portal exit — corner chip, does not cover the video center */}
+        {/* Portal exit — bottom-right so it is not covered by the score (top-right) */}
         <Link
           to="/"
-          className="absolute z-50 top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))] pointer-events-auto rounded-md bg-black/45 hover:bg-black/70 text-white/85 hover:text-white text-[10px] font-semibold uppercase tracking-wider px-2 py-1 border border-white/15 backdrop-blur-[2px]"
+          className="absolute z-[70] bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] pointer-events-auto rounded-full bg-slate-900/85 hover:bg-emerald-500 text-white hover:text-slate-950 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 border border-white/25 shadow-lg"
           aria-label="Back to portal"
         >
-          ← Portal
+          Portal
         </Link>
 
         {/* Portrait (or non-iOS): show Sound / Full Screen. Hidden in iOS landscape cinema. */}
@@ -977,6 +977,13 @@ export const StreamOverlay: React.FC = () => {
           </button>
         </div>
       )}
+      <Link
+        to="/"
+        className="absolute z-[70] bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] pointer-events-auto rounded-full bg-slate-900/85 hover:bg-emerald-500 text-white hover:text-slate-950 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 border border-white/25 shadow-lg"
+        aria-label="Back to portal"
+      >
+        Portal
+      </Link>
       <div className={overlayAnchorClass}>{scoreBug}</div>
     </div>
   );
