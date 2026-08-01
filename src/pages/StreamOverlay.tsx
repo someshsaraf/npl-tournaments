@@ -81,9 +81,7 @@ type YtPlayer = {
   playVideo: () => void;
   mute: () => void;
   unMute: () => void;
-  isMuted?: () => boolean;
   getPlayerState?: () => number;
-  setSize?: (width: number, height: number) => void;
   destroy: () => void;
   getIframe?: () => HTMLIFrameElement;
 };
@@ -124,7 +122,6 @@ const YT_API_SRC = 'https://www.youtube.com/iframe_api';
 const PLAYER_HOST_ID = 'npl-live-yt-host';
 const PLAYER_ELEMENT_ID = 'npl-live-yt-player';
 
-/** Shared loader promise — one script tag for the page lifetime. */
 let youtubeApiPromise: Promise<void> | null = null;
 
 function loadYouTubeApi(): Promise<void> {
@@ -144,7 +141,6 @@ function loadYouTubeApi(): Promise<void> {
       }
     };
 
-    // Script already present (API may have fired before our handler was set).
     if (document.querySelector(`script[src="${YT_API_SRC}"]`)) {
       const started = Date.now();
       const poll = window.setInterval(() => {
@@ -184,15 +180,6 @@ function ensurePlayerMountNode(): HTMLElement | null {
   return el;
 }
 
-function forcePlay(player: YtPlayer): void {
-  try {
-    player.playVideo();
-  } catch (err) {
-    console.error('Failed to force YouTube playback:', err);
-  }
-}
-
-/** iOS needs playsinline + fullscreen allow on the iframe YouTube injects. */
 function hardenYouTubeIframe(player: YtPlayer): void {
   try {
     const iframe =
@@ -208,69 +195,49 @@ function hardenYouTubeIframe(player: YtPlayer): void {
     iframe.setAttribute('webkitallowfullscreen', 'true');
     iframe.setAttribute('playsinline', '1');
     iframe.setAttribute('webkit-playsinline', 'true');
-    iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
   } catch (err) {
-    console.error('Failed to harden YouTube iframe for iOS:', err);
+    console.error('Failed to harden YouTube iframe:', err);
   }
 }
 
-function fitPlayerToViewport(player: YtPlayer | null): void {
-  if (!player || typeof player.setSize !== 'function') return;
-  const w = Math.max(1, Math.round(window.innerWidth || document.documentElement.clientWidth || 1));
-  const h = Math.max(1, Math.round(window.innerHeight || document.documentElement.clientHeight || 1));
-  try {
-    player.setSize(w, h);
-  } catch (err) {
-    console.warn('YouTube setSize failed:', err);
-  }
-}
-
-/** Start muted playback (required for iOS autoplay / gesture unlock). */
-function startMutedPlayback(player: YtPlayer): void {
+function playMuted(player: YtPlayer): void {
   try {
     player.mute();
   } catch {
     /* ignore */
   }
-  forcePlay(player);
-}
-
-/**
- * Resume playback without forcing mute when the user has enabled sound.
- * Unmute must happen in a user-gesture call stack on iOS; keep-alive only re-applies it.
- */
-function resumePlayback(player: YtPlayer, withSound: boolean): void {
-  if (!player || typeof player !== 'object') return;
-  if (withSound) {
-    try {
-      player.unMute();
-    } catch {
-      /* ignore */
-    }
-    forcePlay(player);
-    return;
+  try {
+    player.playVideo();
+  } catch (err) {
+    console.error('Failed to start muted playback:', err);
   }
-  startMutedPlayback(player);
 }
 
-/** Unmute + play inside a user gesture (iOS requires the gesture for audio). */
-function enableSoundAndPlay(player: YtPlayer): void {
+/** Unmute + play inside a user gesture (required for iOS audio). */
+function playWithSound(player: YtPlayer): void {
   if (!player || typeof player !== 'object') return;
   try {
     player.mute();
   } catch {
     /* ignore */
   }
-  forcePlay(player);
+  try {
+    player.playVideo();
+  } catch {
+    /* ignore */
+  }
   try {
     player.unMute();
   } catch {
     /* ignore */
   }
-  forcePlay(player);
+  try {
+    player.playVideo();
+  } catch (err) {
+    console.error('Failed to start playback with sound:', err);
+  }
 }
 
-/** First name / short label for tight overlay space. */
 function shortName(name: string, maxChars: number): string {
   if (typeof name !== 'string' || !name.trim()) return '—';
   const first = name.trim().split(/\s+/)[0] ?? name.trim();
@@ -282,47 +249,36 @@ export const StreamOverlay: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [heldResult, setHeldResult] = useState<HeldResult | null>(null);
   const [latestCompleted, setLatestCompleted] = useState<HeldResult | null>(null);
-  /** Shown when autoplay is blocked (common on iOS) until the user taps. */
   const [showPlayGate, setShowPlayGate] = useState(false);
-  /** True after user enables audio via a tap (required on iOS). */
   const [soundOn, setSoundOn] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
-  /** Native Fullscreen API, CSS immersive, or iOS cinema (YT controls). */
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cssImmersive, setCssImmersive] = useState(false);
-  /** iPhone: remount player with YouTube FS controls (only path to true FS). */
-  const [iosCinema, setIosCinema] = useState(false);
-  const [showIosFsHint, setShowIosFsHint] = useState(false);
+
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
   const keepAliveRef = useRef<number | null>(null);
-  const playGateTimerRef = useRef<number | null>(null);
-  /** After a user gesture unlocks media, keep-alive playVideo is allowed on iOS. */
-  const userUnlockedRef = useRef(false);
-  /** Prefer unmuted resume once the user has tapped for sound. */
   const soundOnRef = useRef(false);
-  const iosLikeRef = useRef(isIosLikeDevice());
+  const userStartedRef = useRef(false);
   const cssImmersiveRef = useRef(false);
-  const iosCinemaRef = useRef(false);
+  const iosLike = isIosLikeDevice();
+  const iphone = isIphoneDevice();
 
-  useEffect(() => {
-    iosLikeRef.current = isIosLikeDevice();
-  }, []);
-
-  // Keep toggle state in sync with OS / browser fullscreen (Esc, gesture exit, etc.).
   useEffect(() => {
     const sync = () => {
       const root = liveRootRef.current;
-      const native = isElementNativeFullscreen(root) || isElementNativeFullscreen(document.documentElement);
+      const native =
+        isElementNativeFullscreen(root) ||
+        isElementNativeFullscreen(document.documentElement);
       if (native) {
         cssImmersiveRef.current = false;
         setCssImmersive(false);
+        setBodyScrollLocked(false);
         setIsFullscreen(true);
         return;
       }
       setIsFullscreen(cssImmersiveRef.current);
     };
-    sync();
     return subscribeFullscreenChange(sync);
   }, []);
 
@@ -347,13 +303,11 @@ export const StreamOverlay: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Latch final score while the winner is still on currentMatch
   useEffect(() => {
     const snap = heldFromMatch(match);
     if (snap) setHeldResult(snap);
   }, [match]);
 
-  // New fixture selected → clear sticky last-result so overlay shows the new match.
   useEffect(() => {
     const id = typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
     if (!id) return;
@@ -362,36 +316,26 @@ export const StreamOverlay: React.FC = () => {
 
   const videoId = parseYouTubeVideoId(match.youtubeLiveUrl ?? '');
 
-  // Reset playback unlock when the stream URL / video changes (not when toggling cinema).
+  /**
+   * Single stable player mount (videoId only).
+   * iOS: YouTube controls on, no keep-alive, no remount — WebKit-friendly.
+   * Desktop: controls off + light keep-alive for overlay use.
+   */
   useEffect(() => {
-    userUnlockedRef.current = !iosLikeRef.current;
     soundOnRef.current = false;
+    userStartedRef.current = !iosLike;
     setSoundOn(false);
     setPlaybackError(null);
-    setShowPlayGate(Boolean(videoId) && iosLikeRef.current);
-    iosCinemaRef.current = false;
-    setIosCinema(false);
-    setShowIosFsHint(false);
+    setShowPlayGate(Boolean(videoId) && iosLike);
     cssImmersiveRef.current = false;
     setCssImmersive(false);
     setIsFullscreen(false);
     setBodyScrollLocked(false);
-  }, [videoId]);
 
-  /**
-   * Mount YouTube player.
-   * Overlay mode: no controls (score bug on top).
-   * iOS cinema: YouTube controls + FS button (only way to true fullscreen on iPhone).
-   */
-  useEffect(() => {
     if (!videoId) {
       if (keepAliveRef.current !== null) {
         window.clearInterval(keepAliveRef.current);
         keepAliveRef.current = null;
-      }
-      if (playGateTimerRef.current !== null) {
-        window.clearTimeout(playGateTimerRef.current);
-        playGateTimerRef.current = null;
       }
       try {
         playerRef.current?.destroy();
@@ -399,18 +343,11 @@ export const StreamOverlay: React.FC = () => {
         /* ignore */
       }
       playerRef.current = null;
+      setShowPlayGate(false);
       return;
     }
 
     let cancelled = false;
-    const cinema = iosCinema;
-
-    const clearPlayGateTimer = () => {
-      if (playGateTimerRef.current !== null) {
-        window.clearTimeout(playGateTimerRef.current);
-        playGateTimerRef.current = null;
-      }
-    };
 
     const mountPlayer = async () => {
       try {
@@ -423,7 +360,6 @@ export const StreamOverlay: React.FC = () => {
           /* ignore */
         }
         playerRef.current = null;
-
         if (!ensurePlayerMountNode()) return;
 
         const playingState = window.YT.PlayerState?.PLAYING ?? 1;
@@ -437,11 +373,11 @@ export const StreamOverlay: React.FC = () => {
           videoId,
           playerVars: {
             autoplay: 1,
-            mute: soundOnRef.current ? 0 : 1,
-            // Cinema: show YouTube chrome so iPhone users can tap native fullscreen.
-            controls: cinema ? 1 : 0,
-            disablekb: cinema ? 0 : 1,
-            fs: cinema ? 1 : 0,
+            mute: 1,
+            // iOS needs native YT controls (play / volume / fullscreen).
+            controls: iosLike ? 1 : 0,
+            disablekb: iosLike ? 0 : 1,
+            fs: iosLike ? 1 : 0,
             modestbranding: 1,
             playsinline: 1,
             rel: 0,
@@ -451,45 +387,21 @@ export const StreamOverlay: React.FC = () => {
           events: {
             onReady: (e) => {
               hardenYouTubeIframe(e.target);
-              fitPlayerToViewport(e.target);
-              if (soundOnRef.current) {
-                resumePlayback(e.target, true);
-              } else {
-                startMutedPlayback(e.target);
-              }
-              clearPlayGateTimer();
-              if (!userUnlockedRef.current && iosLikeRef.current && !cinema) {
-                playGateTimerRef.current = window.setTimeout(() => {
-                  if (cancelled) return;
-                  const state =
-                    typeof e.target.getPlayerState === 'function'
-                      ? e.target.getPlayerState()
-                      : pausedState;
-                  if (state !== playingState) {
-                    setShowPlayGate(true);
-                  }
-                }, 1500);
-              }
+              playMuted(e.target);
             },
             onStateChange: (e) => {
               if (e.data === playingState) {
                 setShowPlayGate(false);
-                clearPlayGateTimer();
-                if (soundOnRef.current) {
-                  try {
-                    e.target.unMute();
-                  } catch {
-                    /* ignore */
-                  }
-                }
               }
-              // In cinema mode let the user pause via YouTube controls.
-              if (iosCinemaRef.current) return;
-              if (
-                (e.data === pausedState || e.data === endedState || e.data === cuedState) &&
-                userUnlockedRef.current
-              ) {
-                resumePlayback(e.target, soundOnRef.current);
+              // Desktop overlay only: nudge muted playback if the stream stalls.
+              // Never do this on iOS — it fights user pause / native controls.
+              if (iosLike || !userStartedRef.current) return;
+              if (e.data === pausedState || e.data === endedState || e.data === cuedState) {
+                if (soundOnRef.current) {
+                  playWithSound(e.target);
+                } else {
+                  playMuted(e.target);
+                }
               }
             },
             onError: (e) => {
@@ -500,26 +412,24 @@ export const StreamOverlay: React.FC = () => {
           }
         });
         playerRef.current = player;
-        fitPlayerToViewport(player);
 
         if (keepAliveRef.current !== null) {
           window.clearInterval(keepAliveRef.current);
+          keepAliveRef.current = null;
         }
-        keepAliveRef.current = window.setInterval(() => {
-          const p = playerRef.current;
-          if (!p || !userUnlockedRef.current || iosCinemaRef.current) return;
-          const state = typeof p.getPlayerState === 'function' ? p.getPlayerState() : -1;
-          const buffering = window.YT?.PlayerState?.BUFFERING ?? 3;
-          if (state !== playingState && state !== buffering) {
-            resumePlayback(p, soundOnRef.current);
-          } else if (soundOnRef.current) {
-            try {
-              p.unMute();
-            } catch {
-              /* ignore */
-            }
-          }
-        }, 4000);
+
+        // Desktop venue screens only — skip entirely on iOS.
+        if (!iosLike) {
+          keepAliveRef.current = window.setInterval(() => {
+            const p = playerRef.current;
+            if (!p || !userStartedRef.current) return;
+            const state = typeof p.getPlayerState === 'function' ? p.getPlayerState() : -1;
+            const buffering = window.YT?.PlayerState?.BUFFERING ?? 3;
+            if (state === playingState || state === buffering) return;
+            if (soundOnRef.current) playWithSound(p);
+            else playMuted(p);
+          }, 5000);
+        }
       } catch (err) {
         console.error('YouTube live player setup failed:', err);
         setPlaybackError('Failed to load YouTube player.');
@@ -529,15 +439,8 @@ export const StreamOverlay: React.FC = () => {
 
     void mountPlayer();
 
-    const onResize = () => fitPlayerToViewport(playerRef.current);
-    window.addEventListener('resize', onResize);
-    window.addEventListener('orientationchange', onResize);
-
     return () => {
       cancelled = true;
-      clearPlayGateTimer();
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('orientationchange', onResize);
       if (keepAliveRef.current !== null) {
         window.clearInterval(keepAliveRef.current);
         keepAliveRef.current = null;
@@ -549,13 +452,10 @@ export const StreamOverlay: React.FC = () => {
       }
       playerRef.current = null;
     };
-  }, [videoId, iosCinema]);
+    // iosLike is device-constant for the page lifetime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId]);
 
-  /**
-   * User gesture unlock — required on iOS when muted autoplay is blocked.
-   * Unmute runs in the same gesture so audio is allowed.
-   * Concurrency: single player ref; gesture runs on main thread only.
-   */
   const handleUserPlay = () => {
     const player = playerRef.current;
     if (!player) {
@@ -564,31 +464,18 @@ export const StreamOverlay: React.FC = () => {
       return;
     }
     setPlaybackError(null);
-    userUnlockedRef.current = true;
+    userStartedRef.current = true;
     soundOnRef.current = true;
     setSoundOn(true);
     hardenYouTubeIframe(player);
-    enableSoundAndPlay(player);
-    // Start fullscreen in the same user gesture when the OS allows it.
-    void enterLiveFullscreen();
-    // Second tick still inside the gesture chain on most browsers; helps iOS cue→play.
-    window.setTimeout(() => {
-      if (!playerRef.current || !soundOnRef.current) return;
-      try {
-        playerRef.current.unMute();
-      } catch {
-        /* ignore */
-      }
-      forcePlay(playerRef.current);
-    }, 250);
+    playWithSound(player);
     setShowPlayGate(false);
   };
 
-  /** Enable / toggle sound after video is already playing (user gesture). */
   const handleToggleSound = () => {
     const player = playerRef.current;
     if (!player) return;
-    userUnlockedRef.current = true;
+    userStartedRef.current = true;
     if (soundOnRef.current) {
       soundOnRef.current = false;
       setSoundOn(false);
@@ -601,56 +488,47 @@ export const StreamOverlay: React.FC = () => {
     }
     soundOnRef.current = true;
     setSoundOn(true);
-    enableSoundAndPlay(player);
+    playWithSound(player);
   };
 
   /**
-   * Enter / exit fullscreen.
-   * Desktop/Android/iPad: Fullscreen API when possible.
-   * iPhone: cinema mode — remount with YouTube controls so the user can tap
-   * YouTube’s native fullscreen (webkitEnterFullscreen inside the iframe).
-   * Concurrency: UI-thread only; native FS requires a user gesture.
+   * Fullscreen: native API on desktop / Android / many iPads.
+   * iPhone: page API unsupported — no remount; page is already full-bleed + YT FS control.
    */
   const enterLiveFullscreen = async (): Promise<void> => {
     const root = liveRootRef.current;
     if (!root) return;
 
+    // iPhone cannot fullscreen the page; avoid broken cinema remounts.
+    if (iphone) {
+      setPlaybackError(
+        'iPhone browsers cannot fullscreen this page. Use the expand icon on the YouTube controls.'
+      );
+      return;
+    }
+
     const iframe =
       playerRef.current && typeof playerRef.current.getIframe === 'function'
         ? playerRef.current.getIframe()
-        : (document.getElementById(PLAYER_HOST_ID)?.querySelector('iframe') ?? null);
+        : null;
 
     const mode = await enterNativeFullscreen(root, iframe);
     if (mode === 'native') {
-      iosCinemaRef.current = false;
-      setIosCinema(false);
-      setShowIosFsHint(false);
       cssImmersiveRef.current = false;
       setCssImmersive(false);
       setBodyScrollLocked(false);
       setIsFullscreen(true);
-      fitPlayerToViewport(playerRef.current);
+      setPlaybackError(null);
       return;
     }
 
-    // iPhone / iOS fallback — enable YouTube FS chrome (page FS API is unavailable).
     cssImmersiveRef.current = true;
     setCssImmersive(true);
     setBodyScrollLocked(true);
     setIsFullscreen(true);
-    if (mode === 'ios-cinema' || isIphoneDevice() || isIosLikeDevice()) {
-      iosCinemaRef.current = true;
-      setIosCinema(true);
-      setShowIosFsHint(true);
-      setShowPlayGate(false);
-    }
-    fitPlayerToViewport(playerRef.current);
   };
 
   const exitLiveFullscreen = async (): Promise<void> => {
-    iosCinemaRef.current = false;
-    setIosCinema(false);
-    setShowIosFsHint(false);
     cssImmersiveRef.current = false;
     setCssImmersive(false);
     setBodyScrollLocked(false);
@@ -659,20 +537,13 @@ export const StreamOverlay: React.FC = () => {
   };
 
   const handleToggleFullscreen = () => {
-    if (
-      isFullscreen ||
-      cssImmersiveRef.current ||
-      iosCinemaRef.current ||
-      isElementNativeFullscreen(liveRootRef.current)
-    ) {
+    if (isFullscreen || cssImmersiveRef.current || isElementNativeFullscreen(liveRootRef.current)) {
       void exitLiveFullscreen();
       return;
     }
     void enterLiveFullscreen();
   };
 
-  // Show last result only while still on the same finished fixture (0–0 after reset).
-  // Selecting a different fixture updates the score bug immediately.
   let phase: OverlayPhase = 'live';
   let display = {
     category: match.category || 'Match',
@@ -854,63 +725,6 @@ export const StreamOverlay: React.FC = () => {
   const overlayAnchorClass =
     'fixed z-30 pointer-events-none top-[max(0.35rem,env(safe-area-inset-top))] right-[max(0.35rem,env(safe-area-inset-right))]';
 
-  const liveChrome = (
-    <>
-      {/* Sound + fullscreen — work on desktop, Android, iOS (CSS fallback when needed). */}
-      {!showPlayGate && (
-        <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleToggleSound}
-            className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
-              soundOn
-                ? 'bg-slate-900/80 text-white border-white/20'
-                : 'bg-amber-400 text-slate-950 border-amber-300 animate-pulse'
-            }`}
-            aria-pressed={soundOn}
-            aria-label={soundOn ? 'Mute stream' : 'Unmute stream'}
-          >
-            {soundOn ? 'Sound On · Mute' : 'Tap for Sound'}
-          </button>
-          <button
-            type="button"
-            onClick={handleToggleFullscreen}
-            className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
-              isFullscreen
-                ? 'bg-indigo-500 text-white border-indigo-300'
-                : 'bg-slate-900/80 text-white border-white/20'
-            }`}
-            aria-pressed={isFullscreen}
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          >
-            {isFullscreen
-              ? 'Exit Full Screen'
-              : isIphoneDevice()
-                ? 'Full Screen (iPhone)'
-                : 'Full Screen'}
-          </button>
-        </div>
-      )}
-
-      {/* Always offer fullscreen even while the play gate is up (desktop). */}
-      {showPlayGate && (
-        <div className="absolute z-50 top-[max(0.75rem,env(safe-area-inset-top))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto">
-          <button
-            type="button"
-            onClick={handleToggleFullscreen}
-            className="rounded-full px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide shadow-lg border bg-slate-900/80 text-white border-white/20"
-            aria-pressed={isFullscreen}
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          >
-            {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
-          </button>
-        </div>
-      )}
-
-      <div className={overlayAnchorClass}>{scoreBug}</div>
-    </>
-  );
-
   if (videoId) {
     return (
       <div
@@ -924,8 +738,8 @@ export const StreamOverlay: React.FC = () => {
           className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:border-0"
         />
 
-        {/* Block taps in overlay mode only — cinema mode needs YouTube's FS control. */}
-        {!showPlayGate && !iosCinema && (
+        {/* Desktop only — iOS must reach YouTube controls. */}
+        {!iosLike && !showPlayGate && (
           <div
             className="absolute inset-0 z-20 bg-transparent cursor-default"
             aria-hidden="true"
@@ -933,9 +747,8 @@ export const StreamOverlay: React.FC = () => {
           />
         )}
 
-        {/* iOS / blocked autoplay: user gesture required to start media + unlock audio. */}
         {showPlayGate && (
-          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/55 px-6 text-center">
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/60 px-6 text-center">
             <button
               type="button"
               onClick={handleUserPlay}
@@ -943,9 +756,9 @@ export const StreamOverlay: React.FC = () => {
             >
               Tap to Play with Sound
             </button>
-            <p className="max-w-xs text-xs text-white/80">
-              Starts playback with audio. On iPhone, use Full Screen then the YouTube expand
-              icon for true full screen.
+            <p className="max-w-xs text-xs text-white/85">
+              Required once on iPhone / iPad. After that, use YouTube controls for volume and
+              fullscreen.
             </p>
             {playbackError && (
               <p className="max-w-sm text-xs text-red-300" role="alert">
@@ -955,26 +768,49 @@ export const StreamOverlay: React.FC = () => {
           </div>
         )}
 
-        {/* iPhone coach mark — page Fullscreen API is unavailable in Safari/Chrome. */}
-        {showIosFsHint && iosCinema && (
-          <div className="absolute z-50 inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] flex justify-center px-4 pointer-events-none">
-            <div className="pointer-events-auto max-w-sm rounded-xl bg-amber-400 text-slate-950 px-4 py-3 shadow-xl text-center space-y-2">
-              <p className="text-xs font-bold leading-snug">
-                iPhone: tap the fullscreen icon on the YouTube bar (bottom-right of the video)
-                for true full screen.
-              </p>
+        {!showPlayGate && (
+          <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleToggleSound}
+              className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
+                soundOn
+                  ? 'bg-slate-900/80 text-white border-white/20'
+                  : 'bg-amber-400 text-slate-950 border-amber-300'
+              }`}
+              aria-pressed={soundOn}
+              aria-label={soundOn ? 'Mute stream' : 'Unmute stream'}
+            >
+              {soundOn ? 'Mute' : 'Sound'}
+            </button>
+            {!iphone && (
               <button
                 type="button"
-                onClick={() => setShowIosFsHint(false)}
-                className="text-[11px] font-black uppercase tracking-wide underline"
+                onClick={handleToggleFullscreen}
+                className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
+                  isFullscreen
+                    ? 'bg-indigo-500 text-white border-indigo-300'
+                    : 'bg-slate-900/80 text-white border-white/20'
+                }`}
+                aria-pressed={isFullscreen}
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
               >
-                Got it
+                {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
               </button>
-            </div>
+            )}
           </div>
         )}
 
-        {liveChrome}
+        {playbackError && !showPlayGate && (
+          <p
+            className="absolute z-40 bottom-[max(3.5rem,calc(env(safe-area-inset-bottom)+3rem))] left-[max(0.75rem,env(safe-area-inset-left))] right-4 max-w-sm text-[11px] text-amber-200 bg-black/70 rounded-lg px-3 py-2"
+            role="status"
+          >
+            {playbackError}
+          </p>
+        )}
+
+        <div className={overlayAnchorClass}>{scoreBug}</div>
       </div>
     );
   }
@@ -986,21 +822,23 @@ export const StreamOverlay: React.FC = () => {
         cssImmersive ? 'npl-live-immersive' : ''
       }`}
     >
-      <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto">
-        <button
-          type="button"
-          onClick={handleToggleFullscreen}
-          className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
-            isFullscreen
-              ? 'bg-indigo-500 text-white border-indigo-300'
-              : 'bg-slate-900/80 text-white border-white/20'
-          }`}
-          aria-pressed={isFullscreen}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-          {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
-        </button>
-      </div>
+      {!iphone && (
+        <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto">
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            className={`rounded-full px-4 py-2.5 text-xs font-bold uppercase tracking-wide shadow-lg border ${
+              isFullscreen
+                ? 'bg-indigo-500 text-white border-indigo-300'
+                : 'bg-slate-900/80 text-white border-white/20'
+            }`}
+            aria-pressed={isFullscreen}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+          </button>
+        </div>
+      )}
       <div className={overlayAnchorClass}>{scoreBug}</div>
     </div>
   );
