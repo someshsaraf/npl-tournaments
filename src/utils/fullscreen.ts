@@ -191,6 +191,19 @@ export function subscribeFullscreenChange(handler: () => void): () => void {
 }
 
 const BODY_LOCK_CLASS = 'npl-live-body-lock';
+const IOS_CHROME_COLLAPSE_CLASS = 'npl-live-ios-chrome-collapse';
+
+/** True when launched from Home Screen / installed PWA (no Safari/Chrome toolbars). */
+export function isStandaloneDisplayMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  if (nav.standalone === true) return true;
+  if (typeof window.matchMedia !== 'function') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches
+  );
+}
 
 /** Lock page scroll while in CSS / iOS cinema mode. */
 export function setBodyScrollLocked(locked: boolean): void {
@@ -198,6 +211,50 @@ export function setBodyScrollLocked(locked: boolean): void {
   if (typeof locked !== 'boolean') {
     throw new Error('setBodyScrollLocked: locked must be boolean');
   }
+  if (locked) {
+    setIosBrowserChromeCollapse(false);
+  }
   document.documentElement.classList.toggle(BODY_LOCK_CLASS, locked);
   document.body.classList.toggle(BODY_LOCK_CLASS, locked);
+}
+
+/**
+ * Allow a tiny document scroll so iOS Safari can collapse its toolbars.
+ * (overflow:hidden prevents that — which is why bars stay visible otherwise.)
+ */
+export function setIosBrowserChromeCollapse(enabled: boolean): void {
+  if (typeof document === 'undefined') return;
+  if (typeof enabled !== 'boolean') {
+    throw new Error('setIosBrowserChromeCollapse: enabled must be boolean');
+  }
+
+  if (!enabled) {
+    document.documentElement.classList.remove(IOS_CHROME_COLLAPSE_CLASS);
+    document.body.classList.remove(IOS_CHROME_COLLAPSE_CLASS);
+    try {
+      window.scrollTo(0, 0);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+
+  document.documentElement.classList.remove(BODY_LOCK_CLASS);
+  document.body.classList.remove(BODY_LOCK_CLASS);
+  document.documentElement.classList.add(IOS_CHROME_COLLAPSE_CLASS);
+  document.body.classList.add(IOS_CHROME_COLLAPSE_CLASS);
+
+  const nudge = () => {
+    try {
+      window.scrollTo(0, 0);
+      window.scrollTo(0, 120);
+    } catch {
+      /* ignore */
+    }
+  };
+  requestAnimationFrame(() => {
+    nudge();
+    window.setTimeout(nudge, 50);
+    window.setTimeout(nudge, 300);
+  });
 }

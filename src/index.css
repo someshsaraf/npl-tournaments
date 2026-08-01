@@ -45,6 +45,26 @@ html.npl-live-body-lock body {
   background: #000 !important;
 }
 
+/*
+ * iOS Safari only collapses the address/toolbar after a document scroll.
+ * Fixed /live content stays on screen; body is slightly taller so we can nudge scroll.
+ */
+html.npl-live-ios-chrome-collapse {
+  height: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: #000 !important;
+}
+
+html.npl-live-ios-chrome-collapse body {
+  min-height: calc(100dvh + 140px) !important;
+  height: auto !important;
+  overflow: visible !important;
+  overscroll-behavior-y: none;
+  background: #000 !important;
+  touch-action: pan-y;
+}
+
 /* NPL brand banner — entrance + continuous attention motion */
 @keyframes npl-brand-enter {
   from {

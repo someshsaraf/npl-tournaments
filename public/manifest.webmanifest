@@ -1,0 +1,25 @@
+{
+  "name": "NPL Live",
+  "short_name": "NPL Live",
+  "description": "NPL tournament live stream and scores",
+  "start_url": "/live",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/nature-walk-logo-1.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/nature-walk-logo-1.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

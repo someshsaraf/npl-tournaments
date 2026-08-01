@@ -15,7 +15,9 @@ import {
   isElementNativeFullscreen,
   isIosLikeDevice,
   isIphoneDevice,
+  isStandaloneDisplayMode,
   setBodyScrollLocked,
+  setIosBrowserChromeCollapse,
   subscribeFullscreenChange
 } from '../utils/fullscreen';
 import { ServeRacket } from '../components/ServeRacket';
@@ -258,6 +260,8 @@ export const StreamOverlay: React.FC = () => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
     return window.matchMedia('(orientation: landscape)').matches;
   });
+  const [isStandalone, setIsStandalone] = useState(() => isStandaloneDisplayMode());
+  const [showHomeScreenTip, setShowHomeScreenTip] = useState(false);
 
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
@@ -280,6 +284,10 @@ export const StreamOverlay: React.FC = () => {
     }
     mq.addListener(onChange);
     return () => mq.removeListener(onChange);
+  }, []);
+
+  useEffect(() => {
+    setIsStandalone(isStandaloneDisplayMode());
   }, []);
 
   useEffect(() => {
@@ -337,17 +345,44 @@ export const StreamOverlay: React.FC = () => {
   /** iOS + landscape + playing: hide Sound/messages for a full-bleed watch mode. */
   const iosLandscapeCinema = iosLike && isLandscape && !showPlayGate && !!videoId;
 
-  // Lock scroll / edge-to-edge shell while in iOS landscape cinema.
+  // Landscape: nudge-scroll so Safari can collapse toolbars; tip if not installed to Home Screen.
   useEffect(() => {
     if (!iosLandscapeCinema) {
+      setIosBrowserChromeCollapse(false);
       if (!cssImmersiveRef.current) setBodyScrollLocked(false);
+      setShowHomeScreenTip(false);
       return;
     }
-    setBodyScrollLocked(true);
+
+    // Standalone PWA already has no browser chrome — just lock.
+    if (isStandalone) {
+      setIosBrowserChromeCollapse(false);
+      setBodyScrollLocked(true);
+      setShowHomeScreenTip(false);
+      return () => {
+        if (!cssImmersiveRef.current) setBodyScrollLocked(false);
+      };
+    }
+
+    setBodyScrollLocked(false);
+    setIosBrowserChromeCollapse(true);
+
+    let tipTimer: number | null = null;
+    try {
+      const dismissed = sessionStorage.getItem('npl-live-homescreen-tip') === '1';
+      if (!dismissed) {
+        tipTimer = window.setTimeout(() => setShowHomeScreenTip(true), 600);
+      }
+    } catch {
+      tipTimer = window.setTimeout(() => setShowHomeScreenTip(true), 600);
+    }
+
     return () => {
-      if (!cssImmersiveRef.current) setBodyScrollLocked(false);
+      if (tipTimer !== null) window.clearTimeout(tipTimer);
+      setIosBrowserChromeCollapse(false);
+      setShowHomeScreenTip(false);
     };
-  }, [iosLandscapeCinema]);
+  }, [iosLandscapeCinema, isStandalone]);
 
   /**
    * Single stable player mount (videoId only).
@@ -364,6 +399,8 @@ export const StreamOverlay: React.FC = () => {
     setCssImmersive(false);
     setIsFullscreen(false);
     setBodyScrollLocked(false);
+    setIosBrowserChromeCollapse(false);
+    setShowHomeScreenTip(false);
 
     if (!videoId) {
       if (keepAliveRef.current !== null) {
@@ -802,8 +839,8 @@ export const StreamOverlay: React.FC = () => {
               Tap to Play with Sound
             </button>
             <p className="max-w-xs text-xs text-white/85">
-              Required once on iPhone / iPad. Rotate to landscape to hide controls and watch with
-              the live score on screen.
+              Required once on iPhone / iPad. For no Safari/Chrome bars: Share → Add to Home Screen,
+              then open NPL Live from the icon and rotate to landscape.
             </p>
             {playbackError && (
               <p className="max-w-sm text-xs text-red-300" role="alert">
@@ -854,6 +891,32 @@ export const StreamOverlay: React.FC = () => {
           >
             {playbackError}
           </p>
+        )}
+
+        {showHomeScreenTip && iosLandscapeCinema && !isStandalone && (
+          <div className="absolute z-[70] inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] flex justify-center px-3 pointer-events-none">
+            <div className="pointer-events-auto max-w-md rounded-xl bg-amber-400 text-slate-950 px-4 py-3 shadow-xl space-y-2">
+              <p className="text-[11px] font-bold leading-snug">
+                iOS cannot hide the address bar in a normal Safari/Chrome tab. For true fullscreen:
+                Share → Add to Home Screen, then open <span className="underline">NPL Live</span>{' '}
+                from your home screen.
+              </p>
+              <button
+                type="button"
+                className="text-[11px] font-black uppercase tracking-wide underline"
+                onClick={() => {
+                  setShowHomeScreenTip(false);
+                  try {
+                    sessionStorage.setItem('npl-live-homescreen-tip', '1');
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
         )}
 
         <div className={overlayAnchorClass}>{scoreBug}</div>
