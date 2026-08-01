@@ -2,6 +2,10 @@
  * Cross-browser fullscreen helpers for /live.
  * Concurrency: DOM APIs only; call from the UI thread (user gestures preferred).
  * Security: only operates on caller-provided elements already in the document.
+ *
+ * iPhone note: Safari/Chrome (WebKit) do not support Element.requestFullscreen()
+ * for page containers. True video fullscreen must go through YouTube's in-player
+ * control (HTMLVideoElement.webkitEnterFullscreen inside the cross-origin iframe).
  */
 
 type DocumentWithFS = Document & {
@@ -18,10 +22,24 @@ type ElementWithFS = HTMLElement & {
   msRequestFullscreen?: () => Promise<void> | void;
 };
 
-export type FullscreenMode = 'native' | 'css' | 'none';
+export type FullscreenEnterResult = 'native' | 'ios-cinema' | 'css';
 
 function asFsDocument(): DocumentWithFS {
   return document as DocumentWithFS;
+}
+
+/** iPhone / iPod — no page Fullscreen API (iPadOS may support it). */
+export function isIphoneDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPhone|iPod/i.test(navigator.userAgent || '');
+}
+
+/** iPhone, iPad, or iPadOS-as-Mac. */
+export function isIosLikeDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/i.test(ua)) return true;
+  return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1;
 }
 
 /** Current native fullscreen element (standard + WebKit + MS). */
@@ -46,6 +64,8 @@ export function isElementNativeFullscreen(target: Element | null | undefined): b
 
 export function canRequestNativeFullscreen(el: HTMLElement | null | undefined): boolean {
   if (!el || !(el instanceof HTMLElement)) return false;
+  // iPhone reports the method on some versions but rejects the call — skip it.
+  if (isIphoneDevice()) return false;
   const node = el as ElementWithFS;
   return (
     typeof node.requestFullscreen === 'function' ||
@@ -55,44 +75,67 @@ export function canRequestNativeFullscreen(el: HTMLElement | null | undefined): 
   );
 }
 
+async function tryEnterOn(node: HTMLElement): Promise<boolean> {
+  const target = node as ElementWithFS;
+  try {
+    if (typeof target.requestFullscreen === 'function') {
+      await target.requestFullscreen({ navigationUI: 'hide' });
+      return !!getFullscreenElement();
+    }
+    if (typeof target.webkitRequestFullscreen === 'function') {
+      await Promise.resolve(target.webkitRequestFullscreen());
+      return !!getFullscreenElement();
+    }
+    if (typeof target.webkitRequestFullScreen === 'function') {
+      await Promise.resolve(target.webkitRequestFullScreen());
+      return !!getFullscreenElement();
+    }
+    if (typeof target.msRequestFullscreen === 'function') {
+      await Promise.resolve(target.msRequestFullscreen());
+      return !!getFullscreenElement();
+    }
+  } catch (err) {
+    console.warn('Fullscreen request failed for element:', err);
+  }
+  return false;
+}
+
 /**
- * Enter native fullscreen on `el`. Tries the element, then documentElement.
- * Returns 'native' on success, 'css' when the caller should use CSS immersive fallback.
+ * Enter native fullscreen on container and/or iframe.
+ * On iPhone, returns 'ios-cinema' so the UI can enable YouTube's own FS controls.
  */
-export async function enterNativeFullscreen(el: HTMLElement): Promise<'native' | 'css'> {
+export async function enterNativeFullscreen(
+  el: HTMLElement,
+  iframe?: HTMLIFrameElement | null
+): Promise<FullscreenEnterResult> {
   if (!(el instanceof HTMLElement)) {
     throw new Error('enterNativeFullscreen: el must be an HTMLElement');
   }
 
-  const tryEnter = async (node: HTMLElement): Promise<boolean> => {
-    const target = node as ElementWithFS;
-    try {
-      if (typeof target.requestFullscreen === 'function') {
-        await target.requestFullscreen({ navigationUI: 'hide' });
-        return true;
-      }
-      if (typeof target.webkitRequestFullscreen === 'function') {
-        await Promise.resolve(target.webkitRequestFullscreen());
-        return true;
-      }
-      if (typeof target.webkitRequestFullScreen === 'function') {
-        await Promise.resolve(target.webkitRequestFullScreen());
-        return true;
-      }
-      if (typeof target.msRequestFullscreen === 'function') {
-        await Promise.resolve(target.msRequestFullscreen());
-        return true;
-      }
-    } catch (err) {
-      console.warn('Fullscreen request failed for element:', err);
-    }
-    return false;
-  };
+  if (isIphoneDevice()) {
+    return 'ios-cinema';
+  }
 
-  if (await tryEnter(el)) return 'native';
-  if (el !== document.documentElement && (await tryEnter(document.documentElement))) {
+  if (iframe instanceof HTMLIFrameElement) {
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.setAttribute('webkitallowfullscreen', 'true');
+    const allow = iframe.getAttribute('allow') || '';
+    if (!/\bfullscreen\b/i.test(allow)) {
+      iframe.setAttribute(
+        'allow',
+        `${allow}${allow ? '; ' : ''}fullscreen; autoplay; encrypted-media; picture-in-picture`
+      );
+    }
+    if (await tryEnterOn(iframe)) return 'native';
+  }
+
+  if (await tryEnterOn(el)) return 'native';
+  if (el !== document.documentElement && (await tryEnterOn(document.documentElement))) {
     return 'native';
   }
+
+  // iPad / rare WebKit cases where API exists but fails → cinema-style fallback.
+  if (isIosLikeDevice()) return 'ios-cinema';
   return 'css';
 }
 
@@ -145,4 +188,16 @@ export function subscribeFullscreenChange(handler: () => void): () => void {
       document.removeEventListener(evt, handler);
     }
   };
+}
+
+const BODY_LOCK_CLASS = 'npl-live-body-lock';
+
+/** Lock page scroll while in CSS / iOS cinema mode. */
+export function setBodyScrollLocked(locked: boolean): void {
+  if (typeof document === 'undefined') return;
+  if (typeof locked !== 'boolean') {
+    throw new Error('setBodyScrollLocked: locked must be boolean');
+  }
+  document.documentElement.classList.toggle(BODY_LOCK_CLASS, locked);
+  document.body.classList.toggle(BODY_LOCK_CLASS, locked);
 }

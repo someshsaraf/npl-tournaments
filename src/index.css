@@ -13,7 +13,7 @@
   }
 }
 
-/* /live CSS immersive fallback when native Fullscreen API is unavailable (e.g. older iOS). */
+/* /live CSS immersive / iOS cinema when native Fullscreen API is unavailable. */
 .npl-live-immersive {
   position: fixed !important;
   inset: 0 !important;
@@ -32,6 +32,17 @@
 .npl-live-immersive:-webkit-full-screen {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Prevent rubber-band scroll under the /live cinema shell (iOS Safari/Chrome). */
+html.npl-live-body-lock,
+html.npl-live-body-lock body {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  touch-action: none;
+  background: #000 !important;
 }
 
 /* NPL brand banner — entrance + continuous attention motion */

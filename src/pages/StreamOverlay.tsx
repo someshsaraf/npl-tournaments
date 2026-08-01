@@ -10,10 +10,12 @@ import {
   sortCompletedMatches
 } from '../utils/completedMatches';
 import {
-  canRequestNativeFullscreen,
   enterNativeFullscreen,
   exitNativeFullscreen,
   isElementNativeFullscreen,
+  isIosLikeDevice,
+  isIphoneDevice,
+  setBodyScrollLocked,
   subscribeFullscreenChange
 } from '../utils/fullscreen';
 import { ServeRacket } from '../components/ServeRacket';
@@ -81,6 +83,7 @@ type YtPlayer = {
   unMute: () => void;
   isMuted?: () => boolean;
   getPlayerState?: () => number;
+  setSize?: (width: number, height: number) => void;
   destroy: () => void;
   getIframe?: () => HTMLIFrameElement;
 };
@@ -189,16 +192,7 @@ function forcePlay(player: YtPlayer): void {
   }
 }
 
-/** iPhone / iPad (incl. iPadOS desktop UA) — stricter media autoplay rules. */
-function isIosLikeDevice(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent || '';
-  if (/iPad|iPhone|iPod/i.test(ua)) return true;
-  // iPadOS 13+ can report as Macintosh with touch
-  return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1;
-}
-
-/** iOS needs playsinline + autoplay allow on the iframe YouTube injects. */
+/** iOS needs playsinline + fullscreen allow on the iframe YouTube injects. */
 function hardenYouTubeIframe(player: YtPlayer): void {
   try {
     const iframe =
@@ -208,14 +202,26 @@ function hardenYouTubeIframe(player: YtPlayer): void {
     if (!iframe) return;
     iframe.setAttribute(
       'allow',
-      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
+      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen *'
     );
     iframe.setAttribute('allowfullscreen', 'true');
+    iframe.setAttribute('webkitallowfullscreen', 'true');
     iframe.setAttribute('playsinline', '1');
     iframe.setAttribute('webkit-playsinline', 'true');
     iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
   } catch (err) {
     console.error('Failed to harden YouTube iframe for iOS:', err);
+  }
+}
+
+function fitPlayerToViewport(player: YtPlayer | null): void {
+  if (!player || typeof player.setSize !== 'function') return;
+  const w = Math.max(1, Math.round(window.innerWidth || document.documentElement.clientWidth || 1));
+  const h = Math.max(1, Math.round(window.innerHeight || document.documentElement.clientHeight || 1));
+  try {
+    player.setSize(w, h);
+  } catch (err) {
+    console.warn('YouTube setSize failed:', err);
   }
 }
 
@@ -281,9 +287,12 @@ export const StreamOverlay: React.FC = () => {
   /** True after user enables audio via a tap (required on iOS). */
   const [soundOn, setSoundOn] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
-  /** Native Fullscreen API or CSS immersive fallback. */
+  /** Native Fullscreen API, CSS immersive, or iOS cinema (YT controls). */
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cssImmersive, setCssImmersive] = useState(false);
+  /** iPhone: remount player with YouTube FS controls (only path to true FS). */
+  const [iosCinema, setIosCinema] = useState(false);
+  const [showIosFsHint, setShowIosFsHint] = useState(false);
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
   const keepAliveRef = useRef<number | null>(null);
@@ -294,6 +303,7 @@ export const StreamOverlay: React.FC = () => {
   const soundOnRef = useRef(false);
   const iosLikeRef = useRef(isIosLikeDevice());
   const cssImmersiveRef = useRef(false);
+  const iosCinemaRef = useRef(false);
 
   useEffect(() => {
     iosLikeRef.current = isIosLikeDevice();
@@ -352,18 +362,28 @@ export const StreamOverlay: React.FC = () => {
 
   const videoId = parseYouTubeVideoId(match.youtubeLiveUrl ?? '');
 
-  /**
-   * Mount YouTube player.
-   * iOS: stay muted (never auto-unmute — that stops playback), show Tap to Play if blocked,
-   * and only keep-alive after a user gesture.
-   */
+  // Reset playback unlock when the stream URL / video changes (not when toggling cinema).
   useEffect(() => {
     userUnlockedRef.current = !iosLikeRef.current;
     soundOnRef.current = false;
     setSoundOn(false);
     setPlaybackError(null);
-    setShowPlayGate(iosLikeRef.current);
+    setShowPlayGate(Boolean(videoId) && iosLikeRef.current);
+    iosCinemaRef.current = false;
+    setIosCinema(false);
+    setShowIosFsHint(false);
+    cssImmersiveRef.current = false;
+    setCssImmersive(false);
+    setIsFullscreen(false);
+    setBodyScrollLocked(false);
+  }, [videoId]);
 
+  /**
+   * Mount YouTube player.
+   * Overlay mode: no controls (score bug on top).
+   * iOS cinema: YouTube controls + FS button (only way to true fullscreen on iPhone).
+   */
+  useEffect(() => {
     if (!videoId) {
       if (keepAliveRef.current !== null) {
         window.clearInterval(keepAliveRef.current);
@@ -379,11 +399,11 @@ export const StreamOverlay: React.FC = () => {
         /* ignore */
       }
       playerRef.current = null;
-      setShowPlayGate(false);
       return;
     }
 
     let cancelled = false;
+    const cinema = iosCinema;
 
     const clearPlayGateTimer = () => {
       if (playGateTimerRef.current !== null) {
@@ -417,10 +437,11 @@ export const StreamOverlay: React.FC = () => {
           videoId,
           playerVars: {
             autoplay: 1,
-            mute: 1,
-            controls: 0,
-            disablekb: 1,
-            fs: 0,
+            mute: soundOnRef.current ? 0 : 1,
+            // Cinema: show YouTube chrome so iPhone users can tap native fullscreen.
+            controls: cinema ? 1 : 0,
+            disablekb: cinema ? 0 : 1,
+            fs: cinema ? 1 : 0,
             modestbranding: 1,
             playsinline: 1,
             rel: 0,
@@ -430,25 +451,30 @@ export const StreamOverlay: React.FC = () => {
           events: {
             onReady: (e) => {
               hardenYouTubeIframe(e.target);
-              // Stay muted — auto-unmute breaks iOS Safari / WKWebView playback.
-              startMutedPlayback(e.target);
+              fitPlayerToViewport(e.target);
+              if (soundOnRef.current) {
+                resumePlayback(e.target, true);
+              } else {
+                startMutedPlayback(e.target);
+              }
               clearPlayGateTimer();
-              playGateTimerRef.current = window.setTimeout(() => {
-                if (cancelled) return;
-                const state =
-                  typeof e.target.getPlayerState === 'function'
-                    ? e.target.getPlayerState()
-                    : pausedState;
-                if (state !== playingState) {
-                  setShowPlayGate(true);
-                }
-              }, 1500);
+              if (!userUnlockedRef.current && iosLikeRef.current && !cinema) {
+                playGateTimerRef.current = window.setTimeout(() => {
+                  if (cancelled) return;
+                  const state =
+                    typeof e.target.getPlayerState === 'function'
+                      ? e.target.getPlayerState()
+                      : pausedState;
+                  if (state !== playingState) {
+                    setShowPlayGate(true);
+                  }
+                }, 1500);
+              }
             },
             onStateChange: (e) => {
               if (e.data === playingState) {
                 setShowPlayGate(false);
                 clearPlayGateTimer();
-                // Re-apply unmute if the player re-muted itself after a sound unlock.
                 if (soundOnRef.current) {
                   try {
                     e.target.unMute();
@@ -457,7 +483,8 @@ export const StreamOverlay: React.FC = () => {
                   }
                 }
               }
-              // Resume only after unlock on iOS; respect sound preference (do not re-mute).
+              // In cinema mode let the user pause via YouTube controls.
+              if (iosCinemaRef.current) return;
               if (
                 (e.data === pausedState || e.data === endedState || e.data === cuedState) &&
                 userUnlockedRef.current
@@ -473,13 +500,14 @@ export const StreamOverlay: React.FC = () => {
           }
         });
         playerRef.current = player;
+        fitPlayerToViewport(player);
 
         if (keepAliveRef.current !== null) {
           window.clearInterval(keepAliveRef.current);
         }
         keepAliveRef.current = window.setInterval(() => {
           const p = playerRef.current;
-          if (!p || !userUnlockedRef.current) return;
+          if (!p || !userUnlockedRef.current || iosCinemaRef.current) return;
           const state = typeof p.getPlayerState === 'function' ? p.getPlayerState() : -1;
           const buffering = window.YT?.PlayerState?.BUFFERING ?? 3;
           if (state !== playingState && state !== buffering) {
@@ -501,9 +529,15 @@ export const StreamOverlay: React.FC = () => {
 
     void mountPlayer();
 
+    const onResize = () => fitPlayerToViewport(playerRef.current);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+
     return () => {
       cancelled = true;
       clearPlayGateTimer();
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
       if (keepAliveRef.current !== null) {
         window.clearInterval(keepAliveRef.current);
         keepAliveRef.current = null;
@@ -515,7 +549,7 @@ export const StreamOverlay: React.FC = () => {
       }
       playerRef.current = null;
     };
-  }, [videoId]);
+  }, [videoId, iosCinema]);
 
   /**
    * User gesture unlock — required on iOS when muted autoplay is blocked.
@@ -571,38 +605,66 @@ export const StreamOverlay: React.FC = () => {
   };
 
   /**
-   * Enter / exit fullscreen for all OS types.
-   * Uses Fullscreen API when available; CSS immersive fallback otherwise (common on older iOS).
-   * Concurrency: UI-thread only; must run from a user gesture for native fullscreen.
+   * Enter / exit fullscreen.
+   * Desktop/Android/iPad: Fullscreen API when possible.
+   * iPhone: cinema mode — remount with YouTube controls so the user can tap
+   * YouTube’s native fullscreen (webkitEnterFullscreen inside the iframe).
+   * Concurrency: UI-thread only; native FS requires a user gesture.
    */
   const enterLiveFullscreen = async (): Promise<void> => {
     const root = liveRootRef.current;
     if (!root) return;
 
-    if (canRequestNativeFullscreen(root) || canRequestNativeFullscreen(document.documentElement)) {
-      const mode = await enterNativeFullscreen(root);
-      if (mode === 'native') {
-        cssImmersiveRef.current = false;
-        setCssImmersive(false);
-        setIsFullscreen(true);
-        return;
-      }
+    const iframe =
+      playerRef.current && typeof playerRef.current.getIframe === 'function'
+        ? playerRef.current.getIframe()
+        : (document.getElementById(PLAYER_HOST_ID)?.querySelector('iframe') ?? null);
+
+    const mode = await enterNativeFullscreen(root, iframe);
+    if (mode === 'native') {
+      iosCinemaRef.current = false;
+      setIosCinema(false);
+      setShowIosFsHint(false);
+      cssImmersiveRef.current = false;
+      setCssImmersive(false);
+      setBodyScrollLocked(false);
+      setIsFullscreen(true);
+      fitPlayerToViewport(playerRef.current);
+      return;
     }
 
+    // iPhone / iOS fallback — enable YouTube FS chrome (page FS API is unavailable).
     cssImmersiveRef.current = true;
     setCssImmersive(true);
+    setBodyScrollLocked(true);
     setIsFullscreen(true);
+    if (mode === 'ios-cinema' || isIphoneDevice() || isIosLikeDevice()) {
+      iosCinemaRef.current = true;
+      setIosCinema(true);
+      setShowIosFsHint(true);
+      setShowPlayGate(false);
+    }
+    fitPlayerToViewport(playerRef.current);
   };
 
   const exitLiveFullscreen = async (): Promise<void> => {
+    iosCinemaRef.current = false;
+    setIosCinema(false);
+    setShowIosFsHint(false);
     cssImmersiveRef.current = false;
     setCssImmersive(false);
+    setBodyScrollLocked(false);
     await exitNativeFullscreen();
     setIsFullscreen(false);
   };
 
   const handleToggleFullscreen = () => {
-    if (isFullscreen || cssImmersiveRef.current || isElementNativeFullscreen(liveRootRef.current)) {
+    if (
+      isFullscreen ||
+      cssImmersiveRef.current ||
+      iosCinemaRef.current ||
+      isElementNativeFullscreen(liveRootRef.current)
+    ) {
       void exitLiveFullscreen();
       return;
     }
@@ -821,7 +883,11 @@ export const StreamOverlay: React.FC = () => {
             aria-pressed={isFullscreen}
             aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           >
-            {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+            {isFullscreen
+              ? 'Exit Full Screen'
+              : isIphoneDevice()
+                ? 'Full Screen (iPhone)'
+                : 'Full Screen'}
           </button>
         </div>
       )}
@@ -858,8 +924,8 @@ export const StreamOverlay: React.FC = () => {
           className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:border-0"
         />
 
-        {/* Blocks taps on the player once playing (hide while Tap to Play is shown). */}
-        {!showPlayGate && (
+        {/* Block taps in overlay mode only — cinema mode needs YouTube's FS control. */}
+        {!showPlayGate && !iosCinema && (
           <div
             className="absolute inset-0 z-20 bg-transparent cursor-default"
             aria-hidden="true"
@@ -878,13 +944,33 @@ export const StreamOverlay: React.FC = () => {
               Tap to Play with Sound
             </button>
             <p className="max-w-xs text-xs text-white/80">
-              Starts playback with audio and enters full screen when the device allows it.
+              Starts playback with audio. On iPhone, use Full Screen then the YouTube expand
+              icon for true full screen.
             </p>
             {playbackError && (
               <p className="max-w-sm text-xs text-red-300" role="alert">
                 {playbackError}
               </p>
             )}
+          </div>
+        )}
+
+        {/* iPhone coach mark — page Fullscreen API is unavailable in Safari/Chrome. */}
+        {showIosFsHint && iosCinema && (
+          <div className="absolute z-50 inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] flex justify-center px-4 pointer-events-none">
+            <div className="pointer-events-auto max-w-sm rounded-xl bg-amber-400 text-slate-950 px-4 py-3 shadow-xl text-center space-y-2">
+              <p className="text-xs font-bold leading-snug">
+                iPhone: tap the fullscreen icon on the YouTube bar (bottom-right of the video)
+                for true full screen.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowIosFsHint(false)}
+                className="text-[11px] font-black uppercase tracking-wide underline"
+              >
+                Got it
+              </button>
+            </div>
           </div>
         )}
 
