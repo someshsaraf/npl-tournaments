@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
-import { FIXTURES, INITIAL_MATCH, SCORER_MAX_POINTS_OPTIONS } from '../data/tournamentData';
-import type { MatchState } from '../data/tournamentData';
+import {
+  FIXTURES,
+  INITIAL_MATCH,
+  SCORER_MAX_POINTS_OPTIONS,
+  isMaxPoints
+} from '../data/tournamentData';
+import type { MatchState, MaxPoints } from '../data/tournamentData';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 import {
   applyDecrementScore,
@@ -12,6 +17,7 @@ import {
   applySwapSides
 } from '../utils/scoring';
 import { buildCompletedMatch } from '../utils/completedMatches';
+import { buildCustomMatchState } from '../utils/customMatch';
 import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { BrandBanner } from '../components/BrandBanner';
@@ -30,6 +36,11 @@ export const ScoreControl: React.FC = () => {
     scoreLabel: string;
   } | null>(null);
   const [resultSaved, setResultSaved] = useState(false);
+  const [showNewMatchForm, setShowNewMatchForm] = useState(false);
+  const [newPlayer1, setNewPlayer1] = useState('');
+  const [newPlayer2, setNewPlayer2] = useState('');
+  const [newMaxPoints, setNewMaxPoints] = useState<MaxPoints>(11);
+  const [newMatchError, setNewMatchError] = useState<string | null>(null);
   const promptedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -127,6 +138,41 @@ export const ScoreControl: React.FC = () => {
     await saveCompletedMatch(pendingSaveMatch ?? match);
   };
 
+  const openNewMatchForm = () => {
+    setNewMatchError(null);
+    setNewPlayer1('');
+    setNewPlayer2('');
+    setNewMaxPoints(isMaxPoints(match.maxPoints) ? match.maxPoints : 11);
+    setShowNewMatchForm(true);
+    setCelebration(null);
+  };
+
+  /**
+   * Start a fresh custom match from the scorer after a finished game.
+   * Concurrency: single Firebase write; Security: names sanitized in buildCustomMatchState.
+   */
+  const handleStartNewMatch = () => {
+    setNewMatchError(null);
+    try {
+      const next = buildCustomMatchState(match, {
+        sideA: newPlayer1,
+        sideB: newPlayer2,
+        maxPoints: newMaxPoints,
+        category: match.category?.trim() || 'Exhibition',
+        stage: 'Custom'
+      });
+      promptedKeyRef.current = null;
+      setPendingSaveMatch(null);
+      setCelebration(null);
+      setResultSaved(false);
+      setSaveMessage(null);
+      setShowNewMatchForm(false);
+      updateMatchState(next);
+    } catch (err) {
+      setNewMatchError(err instanceof Error ? err.message : 'Could not start match.');
+    }
+  };
+
   const hasWinner = hasMatchWinner(match);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
@@ -175,11 +221,22 @@ export const ScoreControl: React.FC = () => {
           </span>
         </div>
 
-        <div className="flex flex-col items-center justify-center gap-0.5 min-w-0">
+        <div className="flex flex-col items-center justify-center gap-1 min-w-0">
           {hasWinner ? (
-            <span className="text-xs sm:text-sm font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1 rounded-full whitespace-nowrap">
-              WIN {winnerName} · {score1}-{score2}
-            </span>
+            <>
+              <span className="text-xs sm:text-sm font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1 rounded-full whitespace-nowrap">
+                WIN {winnerName} · {score1}-{score2}
+              </span>
+              {!celebration && !showNewMatchForm && (
+                <button
+                  type="button"
+                  onClick={openNewMatchForm}
+                  className="text-[10px] sm:text-xs font-black px-3 py-1 rounded-full bg-violet-500 text-slate-950 active:scale-95"
+                >
+                  New Match
+                </button>
+              )}
+            </>
           ) : match.deuceActive ? (
             <span className="text-xs font-black text-red-400 bg-red-500/20 border border-red-500/50 px-3 py-1 rounded-full animate-pulse">
               DEUCE
@@ -382,7 +439,103 @@ export const ScoreControl: React.FC = () => {
           onSave={handleConfirmSave}
           isSaving={isSavingResult}
           alreadySaved={resultSaved}
+          onNewMatch={openNewMatchForm}
         />
+      )}
+
+      {showNewMatchForm && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-match-title"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-violet-500/40 shadow-2xl p-5 space-y-4">
+            <div className="text-center space-y-1">
+              <h2 id="new-match-title" className="text-xl font-black text-violet-300">
+                Start New Match
+              </h2>
+              <p className="text-xs text-slate-400">Enter players and point format</p>
+            </div>
+
+            <label className="block space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Player 1
+              </span>
+              <input
+                type="text"
+                value={newPlayer1}
+                onChange={(e) => setNewPlayer1(e.target.value)}
+                maxLength={80}
+                autoFocus
+                placeholder="Side A name"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </label>
+
+            <label className="block space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Player 2
+              </span>
+              <input
+                type="text"
+                value={newPlayer2}
+                onChange={(e) => setNewPlayer2(e.target.value)}
+                maxLength={80}
+                placeholder="Side B name"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </label>
+
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Points
+              </span>
+              <div className="flex items-center gap-2">
+                {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
+                  <button
+                    key={pts}
+                    type="button"
+                    onClick={() => setNewMaxPoints(pts)}
+                    className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
+                      newMaxPoints === pts
+                        ? 'bg-amber-400 text-slate-950 border-amber-300'
+                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    {pts}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {newMatchError && (
+              <p className="text-xs text-red-400 text-center" role="alert">
+                {newMatchError}
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewMatchForm(false);
+                  setNewMatchError(null);
+                }}
+                className="rounded-xl bg-slate-800 text-slate-200 font-bold text-sm py-3.5 border border-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleStartNewMatch}
+                className="rounded-xl bg-violet-500 text-slate-950 font-black text-sm py-3.5 hover:bg-violet-400"
+              >
+                Start Match
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

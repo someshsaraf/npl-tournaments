@@ -24,6 +24,7 @@ import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 import { applySetServer, applySwapSides } from '../utils/scoring';
 import { ServeRacket } from '../components/ServeRacket';
 import { BrandBanner } from '../components/BrandBanner';
+import { buildCustomMatchState, sanitizeLabel } from '../utils/customMatch';
 
 const CUSTOM_MATCH_STAGES = [
   'Exhibition',
@@ -36,29 +37,6 @@ const CUSTOM_MATCH_STAGES = [
 
 function isCustomMatchId(id: string | null | undefined): boolean {
   return typeof id === 'string' && id.trim().startsWith('custom-');
-}
-
-/** Unique id for ad-hoc matches (not in FIXTURES). */
-function createCustomMatchId(): string {
-  const rand =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  return `custom-${Date.now()}-${rand}`;
-}
-
-function sanitizeLabel(value: unknown, field: string, maxLen = 80): string {
-  if (typeof value !== 'string') {
-    throw new Error(`${field} must be a string`);
-  }
-  const trimmed = value.trim().replace(/\s+/g, ' ');
-  if (!trimmed) {
-    throw new Error(`${field} is required`);
-  }
-  if (trimmed.length > maxLen) {
-    throw new Error(`${field} must be at most ${maxLen} characters`);
-  }
-  return trimmed;
 }
 
 export const AdminPanel: React.FC = () => {
@@ -391,37 +369,20 @@ export const AdminPanel: React.FC = () => {
   const handleStartCustomMatch = () => {
     setCustomMatchError(null);
     try {
-      if (!isMaxPoints(customMaxPoints)) {
-        throw new Error('Select a valid point format (11, 15, or 21).');
-      }
-      const sideA = sanitizeLabel(customSideA, 'Side A');
-      const sideB = sanitizeLabel(customSideB, 'Side B');
       const category =
         customCategory === '__other__'
           ? sanitizeLabel(customCategoryOther, 'Category')
           : sanitizeLabel(customCategory, 'Category');
       const stage = sanitizeLabel(customStage, 'Stage');
-
-      const updatedState: MatchState = {
-        ...match,
-        currentMatchId: createCustomMatchId(),
-        category,
-        stage,
-        teamA: sideA,
-        teamB: sideB,
-        player1: sideA,
-        player2: sideB,
-        score1: 0,
-        score2: 0,
-        maxPoints: customMaxPoints,
-        server: 1,
-        servingSide: 'right',
-        deuceActive: false,
-        gameWinner: null,
-        isTrump: false,
-        trumpTeam: null
-      };
-      updateMatchState(updatedState);
+      updateMatchState(
+        buildCustomMatchState(match, {
+          sideA: customSideA,
+          sideB: customSideB,
+          maxPoints: customMaxPoints,
+          category,
+          stage
+        })
+      );
       setSelectedMaxPoints(customMaxPoints);
     } catch (err) {
       setCustomMatchError(err instanceof Error ? err.message : 'Could not start custom match.');
@@ -745,57 +706,7 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Editable Teams & Rosters Overview */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-          <h3 className="text-lg font-bold text-indigo-300">Editable Teams & Rosters</h3>
-          <span className="text-xs text-slate-400">Click any name to edit</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-          {teams.map((team) => (
-            <div key={team.id} className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl space-y-3">
-              <input
-                type="text"
-                value={team.name}
-                onChange={(e) => handleTeamNameChange(team.id, e.target.value)}
-                className="w-full bg-slate-900/90 border border-slate-700/80 text-amber-400 font-bold text-sm px-2 py-1 rounded focus:outline-none focus:border-amber-400"
-                placeholder="Team Name"
-              />
-
-              <div className="space-y-1.5">
-                {team.players.map((player, idx) => (
-                  <div key={idx} className="flex items-center space-x-1 group">
-                    <input
-                      type="text"
-                      value={player}
-                      onChange={(e) => handlePlayerNameChange(team.id, idx, e.target.value)}
-                      className="w-full bg-slate-900/60 border border-slate-800 text-xs text-slate-200 px-2 py-1 rounded focus:outline-none focus:border-indigo-500"
-                      placeholder={`Player ${idx + 1}`}
-                    />
-                    <button
-                      onClick={() => handleRemovePlayer(team.id, idx)}
-                      className="text-red-400 hover:text-red-300 px-1 text-xs font-bold opacity-70 group-hover:opacity-100 transition-opacity"
-                      title="Remove Player"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => handleAddPlayer(team.id)}
-                className="w-full text-center text-[11px] text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 border border-indigo-800/40 rounded py-1 font-semibold transition-colors"
-              >
-                + Add Player
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 3. Custom match (not on fixture schedule) */}
+      {/* 2. Custom match (not on fixture schedule) */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
           <div>
@@ -922,7 +833,7 @@ export const AdminPanel: React.FC = () => {
         )}
       </div>
 
-      {/* 4. Tournament Fixtures & Master Schedule Browser */}
+      {/* 3. Tournament Fixtures & Master Schedule Browser */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1087,7 +998,7 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 5. Completed Matches Table */}
+      {/* 4. Completed Matches Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-3">
@@ -1178,6 +1089,56 @@ export const AdminPanel: React.FC = () => {
             </table>
           </div>
         )}
+      </div>
+
+      {/* 5. Editable Teams & Rosters Overview */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+          <h3 className="text-lg font-bold text-indigo-300">Editable Teams & Rosters</h3>
+          <span className="text-xs text-slate-400">Click any name to edit</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+          {teams.map((team) => (
+            <div key={team.id} className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl space-y-3">
+              <input
+                type="text"
+                value={team.name}
+                onChange={(e) => handleTeamNameChange(team.id, e.target.value)}
+                className="w-full bg-slate-900/90 border border-slate-700/80 text-amber-400 font-bold text-sm px-2 py-1 rounded focus:outline-none focus:border-amber-400"
+                placeholder="Team Name"
+              />
+
+              <div className="space-y-1.5">
+                {team.players.map((player, idx) => (
+                  <div key={idx} className="flex items-center space-x-1 group">
+                    <input
+                      type="text"
+                      value={player}
+                      onChange={(e) => handlePlayerNameChange(team.id, idx, e.target.value)}
+                      className="w-full bg-slate-900/60 border border-slate-800 text-xs text-slate-200 px-2 py-1 rounded focus:outline-none focus:border-indigo-500"
+                      placeholder={`Player ${idx + 1}`}
+                    />
+                    <button
+                      onClick={() => handleRemovePlayer(team.id, idx)}
+                      className="text-red-400 hover:text-red-300 px-1 text-xs font-bold opacity-70 group-hover:opacity-100 transition-opacity"
+                      title="Remove Player"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => handleAddPlayer(team.id)}
+                className="w-full text-center text-[11px] text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 border border-indigo-800/40 rounded py-1 font-semibold transition-colors"
+              >
+                + Add Player
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {showFreshStartConfirm && (

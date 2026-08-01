@@ -8,6 +8,8 @@ type WinnerCelebrationProps = {
   onSave?: () => void;
   isSaving?: boolean;
   alreadySaved?: boolean;
+  /** Open the new-match form after a finished game */
+  onNewMatch?: () => void;
 };
 
 type Particle = {
@@ -66,7 +68,8 @@ export function WinnerCelebration({
   onDismiss,
   onSave,
   isSaving = false,
-  alreadySaved = false
+  alreadySaved = false,
+  onNewMatch
 }: WinnerCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const safeName =
@@ -74,6 +77,7 @@ export function WinnerCelebration({
   const safeScore =
     typeof scoreLabel === 'string' && scoreLabel.trim() ? scoreLabel.trim() : '—';
   const canSave = typeof onSave === 'function' && !alreadySaved;
+  const canNewMatch = typeof onNewMatch === 'function';
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -238,7 +242,7 @@ export function WinnerCelebration({
         >
           {safeScore}
         </p>
-        <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full max-w-md">
+        <div className="mt-6 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 w-full max-w-lg">
           {canSave && (
             <button
               type="button"
@@ -251,6 +255,16 @@ export function WinnerCelebration({
           )}
           {alreadySaved && (
             <p className="text-sm font-bold text-emerald-300 self-center">Result saved</p>
+          )}
+          {canNewMatch && (
+            <button
+              type="button"
+              onClick={onNewMatch}
+              disabled={isSaving}
+              className="rounded-2xl bg-violet-500 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 active:scale-95 shadow-lg shadow-violet-500/30 disabled:opacity-50"
+            >
+              New Match
+            </button>
           )}
           <button
             type="button"
