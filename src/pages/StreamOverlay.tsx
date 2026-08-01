@@ -72,10 +72,13 @@ type YtPlayer = {
   playVideo: () => void;
   mute: () => void;
   unMute: () => void;
+  isMuted?: () => boolean;
+  getPlayerState?: () => number;
   destroy: () => void;
+  getIframe?: () => HTMLIFrameElement;
 };
 
-type YtPlayerEvent = { data: number };
+type YtPlayerEvent = { data: number; target: YtPlayer };
 
 declare global {
   interface Window {
@@ -90,10 +93,18 @@ declare global {
           events?: {
             onReady?: (e: { target: YtPlayer }) => void;
             onStateChange?: (e: YtPlayerEvent) => void;
+            onError?: (e: { data: number }) => void;
           };
         }
       ) => YtPlayer;
-      PlayerState?: { PLAYING: number; PAUSED: number; ENDED: number; CUED: number };
+      PlayerState?: {
+        UNSTARTED: number;
+        ENDED: number;
+        PLAYING: number;
+        PAUSED: number;
+        BUFFERING: number;
+        CUED: number;
+      };
     };
     onYouTubeIframeAPIReady?: () => void;
   }
@@ -123,16 +134,30 @@ function loadYouTubeApi(): Promise<void> {
       }
     };
 
-    if (!document.querySelector(`script[src="${YT_API_SRC}"]`)) {
-      const script = document.createElement('script');
-      script.src = YT_API_SRC;
-      script.async = true;
-      script.onerror = () => {
-        youtubeApiPromise = null;
-        reject(new Error('Failed to load YouTube IFrame API'));
-      };
-      document.head.appendChild(script);
+    // Script already present (API may have fired before our handler was set).
+    if (document.querySelector(`script[src="${YT_API_SRC}"]`)) {
+      const started = Date.now();
+      const poll = window.setInterval(() => {
+        if (window.YT?.Player) {
+          window.clearInterval(poll);
+          resolve();
+        } else if (Date.now() - started > 15000) {
+          window.clearInterval(poll);
+          youtubeApiPromise = null;
+          reject(new Error('YouTube IFrame API timed out'));
+        }
+      }, 50);
+      return;
     }
+
+    const script = document.createElement('script');
+    script.src = YT_API_SRC;
+    script.async = true;
+    script.onerror = () => {
+      youtubeApiPromise = null;
+      reject(new Error('Failed to load YouTube IFrame API'));
+    };
+    document.head.appendChild(script);
   });
 
   return youtubeApiPromise;
@@ -157,6 +182,46 @@ function forcePlay(player: YtPlayer): void {
   }
 }
 
+/** iPhone / iPad (incl. iPadOS desktop UA) — stricter media autoplay rules. */
+function isIosLikeDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/i.test(ua)) return true;
+  // iPadOS 13+ can report as Macintosh with touch
+  return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1;
+}
+
+/** iOS needs playsinline + autoplay allow on the iframe YouTube injects. */
+function hardenYouTubeIframe(player: YtPlayer): void {
+  try {
+    const iframe =
+      typeof player.getIframe === 'function'
+        ? player.getIframe()
+        : (document.getElementById(PLAYER_HOST_ID)?.querySelector('iframe') ?? null);
+    if (!iframe) return;
+    iframe.setAttribute(
+      'allow',
+      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
+    );
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.setAttribute('playsinline', '1');
+    iframe.setAttribute('webkit-playsinline', 'true');
+    iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  } catch (err) {
+    console.error('Failed to harden YouTube iframe for iOS:', err);
+  }
+}
+
+/** Start muted playback (required for iOS autoplay / gesture unlock). */
+function startMutedPlayback(player: YtPlayer): void {
+  try {
+    player.mute();
+  } catch {
+    /* ignore */
+  }
+  forcePlay(player);
+}
+
 /** First name / short label for tight overlay space. */
 function shortName(name: string, maxChars: number): string {
   if (typeof name !== 'string' || !name.trim()) return '—';
@@ -169,8 +234,19 @@ export const StreamOverlay: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [heldResult, setHeldResult] = useState<HeldResult | null>(null);
   const [latestCompleted, setLatestCompleted] = useState<HeldResult | null>(null);
+  /** Shown when autoplay is blocked (common on iOS) until the user taps. */
+  const [showPlayGate, setShowPlayGate] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const keepAliveRef = useRef<number | null>(null);
+  const playGateTimerRef = useRef<number | null>(null);
+  /** After a user gesture unlocks media, keep-alive playVideo is allowed on iOS. */
+  const userUnlockedRef = useRef(false);
+  const iosLikeRef = useRef(isIosLikeDevice());
+
+  useEffect(() => {
+    iosLikeRef.current = isIosLikeDevice();
+  }, []);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -208,12 +284,24 @@ export const StreamOverlay: React.FC = () => {
 
   const videoId = parseYouTubeVideoId(match.youtubeLiveUrl ?? '');
 
-  // Auto-start on load; resume if paused. Click shield blocks user pause UI.
+  /**
+   * Mount YouTube player.
+   * iOS: stay muted (never auto-unmute — that stops playback), show Tap to Play if blocked,
+   * and only keep-alive after a user gesture.
+   */
   useEffect(() => {
+    userUnlockedRef.current = !iosLikeRef.current;
+    setPlaybackError(null);
+    setShowPlayGate(iosLikeRef.current);
+
     if (!videoId) {
       if (keepAliveRef.current !== null) {
         window.clearInterval(keepAliveRef.current);
         keepAliveRef.current = null;
+      }
+      if (playGateTimerRef.current !== null) {
+        window.clearTimeout(playGateTimerRef.current);
+        playGateTimerRef.current = null;
       }
       try {
         playerRef.current?.destroy();
@@ -221,10 +309,18 @@ export const StreamOverlay: React.FC = () => {
         /* ignore */
       }
       playerRef.current = null;
+      setShowPlayGate(false);
       return;
     }
 
     let cancelled = false;
+
+    const clearPlayGateTimer = () => {
+      if (playGateTimerRef.current !== null) {
+        window.clearTimeout(playGateTimerRef.current);
+        playGateTimerRef.current = null;
+      }
+    };
 
     const mountPlayer = async () => {
       try {
@@ -239,6 +335,11 @@ export const StreamOverlay: React.FC = () => {
         playerRef.current = null;
 
         if (!ensurePlayerMountNode()) return;
+
+        const playingState = window.YT.PlayerState?.PLAYING ?? 1;
+        const pausedState = window.YT.PlayerState?.PAUSED ?? 2;
+        const endedState = window.YT.PlayerState?.ENDED ?? 0;
+        const cuedState = window.YT.PlayerState?.CUED ?? 5;
 
         const player = new window.YT.Player(PLAYER_ELEMENT_ID, {
           width: '100%',
@@ -258,29 +359,38 @@ export const StreamOverlay: React.FC = () => {
           },
           events: {
             onReady: (e) => {
-              // Mute first so browsers allow autoplay, then try unmute for venue audio.
-              try {
-                e.target.mute();
-              } catch {
-                /* ignore */
-              }
-              forcePlay(e.target);
-              window.setTimeout(() => {
-                try {
-                  e.target.unMute();
-                } catch {
-                  /* ignore */
+              hardenYouTubeIframe(e.target);
+              // Stay muted — auto-unmute breaks iOS Safari / WKWebView playback.
+              startMutedPlayback(e.target);
+              clearPlayGateTimer();
+              playGateTimerRef.current = window.setTimeout(() => {
+                if (cancelled) return;
+                const state =
+                  typeof e.target.getPlayerState === 'function'
+                    ? e.target.getPlayerState()
+                    : pausedState;
+                if (state !== playingState) {
+                  setShowPlayGate(true);
                 }
-                forcePlay(e.target);
-              }, 600);
+              }, 1500);
             },
             onStateChange: (e) => {
-              const paused = window.YT?.PlayerState?.PAUSED ?? 2;
-              const ended = window.YT?.PlayerState?.ENDED ?? 0;
-              const cued = window.YT?.PlayerState?.CUED ?? 5;
-              if (e.data === paused || e.data === ended || e.data === cued) {
-                forcePlay(player);
+              if (e.data === playingState) {
+                setShowPlayGate(false);
+                clearPlayGateTimer();
               }
+              // Resume only after unlock on iOS; desktop can keep forcing muted play.
+              if (
+                (e.data === pausedState || e.data === endedState || e.data === cuedState) &&
+                userUnlockedRef.current
+              ) {
+                startMutedPlayback(e.target);
+              }
+            },
+            onError: (e) => {
+              console.error('YouTube player error:', e.data);
+              setPlaybackError('Unable to play this YouTube stream on this device.');
+              setShowPlayGate(true);
             }
           }
         });
@@ -290,10 +400,18 @@ export const StreamOverlay: React.FC = () => {
           window.clearInterval(keepAliveRef.current);
         }
         keepAliveRef.current = window.setInterval(() => {
-          if (playerRef.current) forcePlay(playerRef.current);
-        }, 3000);
+          const p = playerRef.current;
+          if (!p || !userUnlockedRef.current) return;
+          const state = typeof p.getPlayerState === 'function' ? p.getPlayerState() : -1;
+          const buffering = window.YT?.PlayerState?.BUFFERING ?? 3;
+          if (state !== playingState && state !== buffering) {
+            startMutedPlayback(p);
+          }
+        }, 4000);
       } catch (err) {
         console.error('YouTube live player setup failed:', err);
+        setPlaybackError('Failed to load YouTube player.');
+        setShowPlayGate(true);
       }
     };
 
@@ -301,6 +419,7 @@ export const StreamOverlay: React.FC = () => {
 
     return () => {
       cancelled = true;
+      clearPlayGateTimer();
       if (keepAliveRef.current !== null) {
         window.clearInterval(keepAliveRef.current);
         keepAliveRef.current = null;
@@ -313,6 +432,28 @@ export const StreamOverlay: React.FC = () => {
       playerRef.current = null;
     };
   }, [videoId]);
+
+  /**
+   * User gesture unlock — required on iOS when muted autoplay is blocked.
+   * Concurrency: single player ref; gesture runs on main thread only.
+   */
+  const handleUserPlay = () => {
+    const player = playerRef.current;
+    if (!player) {
+      setShowPlayGate(true);
+      setPlaybackError('Player is still loading — tap again in a moment.');
+      return;
+    }
+    setPlaybackError(null);
+    userUnlockedRef.current = true;
+    hardenYouTubeIframe(player);
+    startMutedPlayback(player);
+    // Retry once after a short delay (iOS sometimes needs a second play after cue).
+    window.setTimeout(() => {
+      if (playerRef.current) startMutedPlayback(playerRef.current);
+    }, 250);
+    setShowPlayGate(false);
+  };
 
   // Show last result only while still on the same finished fixture (0–0 after reset).
   // Selecting a different fixture updates the score bug immediately.
@@ -502,15 +643,39 @@ export const StreamOverlay: React.FC = () => {
       <div className="fixed inset-0 bg-black overflow-hidden select-none">
         <div
           id={PLAYER_HOST_ID}
-          className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!h-full"
+          className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:border-0"
         />
 
-        {/* Blocks clicks/taps on the player so pause/controls cannot be used */}
-        <div
-          className="absolute inset-0 z-20 bg-transparent cursor-default"
-          aria-hidden="true"
-          onContextMenu={(e) => e.preventDefault()}
-        />
+        {/* Blocks taps on the player once playing (hide while Tap to Play is shown). */}
+        {!showPlayGate && (
+          <div
+            className="absolute inset-0 z-20 bg-transparent cursor-default"
+            aria-hidden="true"
+            onContextMenu={(e) => e.preventDefault()}
+          />
+        )}
+
+        {/* iOS / blocked autoplay: user gesture required to start media. */}
+        {showPlayGate && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/55 px-6 text-center">
+            <button
+              type="button"
+              onClick={handleUserPlay}
+              className="rounded-2xl bg-amber-400 px-8 py-4 text-base font-black uppercase tracking-wide text-slate-950 shadow-lg active:scale-[0.98]"
+            >
+              Tap to Play Live
+            </button>
+            <p className="max-w-xs text-xs text-white/80">
+              iPhone / iPad require a tap to start YouTube. Playback stays muted so it can keep
+              running.
+            </p>
+            {playbackError && (
+              <p className="max-w-sm text-xs text-red-300" role="alert">
+                {playbackError}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className={overlayAnchorClass}>{scoreBug}</div>
       </div>

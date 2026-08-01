@@ -67,9 +67,10 @@ export function toYouTubeLiveOverlayEmbedUrl(raw: string): string | null {
   const id = parseYouTubeVideoId(raw);
   if (!id) return null;
 
+  // mute=1 is required for iOS / Safari autoplay policies.
   const params = new URLSearchParams({
     autoplay: '1',
-    mute: '0',
+    mute: '1',
     controls: '0',
     disablekb: '1',
     fs: '0',
