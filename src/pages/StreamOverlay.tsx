@@ -830,18 +830,14 @@ export const StreamOverlay: React.FC = () => {
         )}
 
         {showPlayGate && (
-          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/60 px-6 text-center">
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-2 bg-black/60 px-6 text-center">
             <button
               type="button"
               onClick={handleUserPlay}
-              className="rounded-2xl bg-amber-400 px-8 py-4 text-base font-black uppercase tracking-wide text-slate-950 shadow-lg active:scale-[0.98]"
+              className="rounded-xl bg-amber-400 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-950 shadow-md active:scale-[0.98]"
             >
               Tap to Play with Sound
             </button>
-            <p className="max-w-xs text-xs text-white/85">
-              Required once on iPhone / iPad. For no Safari/Chrome bars: Share → Add to Home Screen,
-              then open NPL Live from the icon and rotate to landscape.
-            </p>
             {playbackError && (
               <p className="max-w-sm text-xs text-red-300" role="alert">
                 {playbackError}
