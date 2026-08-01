@@ -18,11 +18,6 @@ function snapshotFromMatch(match: MatchState): Snapshot {
   };
 }
 
-function sideName(match: MatchState, side: 1 | 2): string {
-  if (side === 1) return match.player1 || match.teamA || 'Side A';
-  return match.player2 || match.teamB || 'Side B';
-}
-
 /** Side whose score increased; null if neither increased (e.g. undo). */
 function sideThatIncremented(prev: Snapshot, next: Snapshot): 1 | 2 | null {
   if (next.score1 > prev.score1) return 1;
@@ -31,7 +26,7 @@ function sideThatIncremented(prev: Snapshot, next: Snapshot): 1 | 2 | null {
 }
 
 /**
- * Announces only the player whose score incremented: "Name score".
+ * Announces scores only when a side increments: point-winner score first ("6, 4").
  * Concurrency: React effect + refs only; no shared mutable module state beyond SpeechSynthesis.
  */
 export function useMatchAnnouncer(match: MatchState): {
@@ -81,13 +76,7 @@ export function useMatchAnnouncer(match: MatchState): {
 
     const scorer = sideThatIncremented(prev, next);
     if (scorer) {
-      announceScore(
-        next.score1,
-        next.score2,
-        sideName(match, 1),
-        sideName(match, 2),
-        scorer
-      );
+      announceScore(next.score1, next.score2, undefined, undefined, scorer);
     }
 
     prevRef.current = next;

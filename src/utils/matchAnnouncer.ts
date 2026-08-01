@@ -175,25 +175,26 @@ export function speak(text: unknown, rate = 1): void {
 }
 
 /**
- * Announce only the player whose score just went up: "Name score".
- * Input: finite non-negative score; pointWinner 1|2; names sanitized.
+ * Announce scores only (no names). Point-winner’s score first: "6, 4".
+ * Input: finite non-negative scores; pointWinner 1|2.
  */
 export function announceScore(
   score1: number,
   score2: number,
-  name1?: string,
-  name2?: string,
+  _name1?: string,
+  _name2?: string,
   pointWinner: 1 | 2 = 1
 ): void {
   if (!Number.isFinite(score1) || !Number.isFinite(score2)) return;
   if (score1 < 0 || score2 < 0) return;
   if (pointWinner !== 1 && pointWinner !== 2) pointWinner = 1;
-  const name =
-    pointWinner === 2
-      ? sanitizeSpeakText(name2, 'Side B')
-      : sanitizeSpeakText(name1, 'Side A');
-  const score = Math.trunc(pointWinner === 2 ? score2 : score1);
-  speak(`${name} ${score}.`);
+  const s1 = Math.trunc(score1);
+  const s2 = Math.trunc(score2);
+  if (pointWinner === 2) {
+    speak(`${s2}, ${s1}.`);
+  } else {
+    speak(`${s1}, ${s2}.`);
+  }
 }
 
 export function announceServe(serverName: unknown): void {
