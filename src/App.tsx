@@ -7,13 +7,15 @@ import ResultsPage from './pages/ResultsPage';
 import RulesPage from './pages/RulesPage';
 import AdminPanel from './pages/AdminPanel';
 import AdminScorePage from './pages/AdminScorePage';
+import AdminResultsPage from './pages/AdminResultsPage';
+import AdminTeamsPage from './pages/AdminTeamsPage';
 import LiveScoreboard from './pages/LiveScoreboard';
 import StreamOverlay from './pages/StreamOverlay';
 import ScoreControl from './pages/ScoreControl';
 
 /**
  * Public portal routes sit under PublicLayout (nav visible).
- * /admin (+ /admin/score) and /scorer are staff-only — not linked in portal nav.
+ * /admin* and /scorer are staff-only — not linked in portal nav.
  * /live is linked from portal; /score remains available by direct URL for displays.
  */
 export default function App() {
@@ -35,6 +37,8 @@ export default function App() {
         {/* Staff-only — not in public nav */}
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/admin/score" element={<AdminScorePage />} />
+        <Route path="/admin/results" element={<AdminResultsPage />} />
+        <Route path="/admin/teams" element={<AdminTeamsPage />} />
         <Route path="/scorer" element={<ScoreControl />} />
 
         {/* Legacy redirects */}

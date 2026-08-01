@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ref, set, onValue, remove } from 'firebase/database';
+import { useNavigate } from 'react-router-dom';
+import { ref, set, onValue } from 'firebase/database';
 import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
 import {
-  TEAMS,
   FIXTURES,
   FIXTURE_DATES,
   INITIAL_MATCH,
@@ -12,17 +11,14 @@ import {
   isBestOf,
   isMaxPoints
 } from '../data/tournamentData';
-import type { BestOf, MatchState, Fixture, Team, CompletedMatch, MaxPoints } from '../data/tournamentData';
+import type { BestOf, MatchState, Fixture, CompletedMatch, MaxPoints } from '../data/tournamentData';
 import { isValidYouTubeLiveUrl, parseYouTubeVideoId } from '../utils/youtube';
 import {
   completedMatchesFromFirebase,
-  mergeFixturesWithResults,
-  sortCompletedMatches
+  mergeFixturesWithResults
 } from '../utils/completedMatches';
-import { exportScores } from '../utils/exportScores';
-import type { ScoreExportFormat } from '../utils/exportScores';
 import { normalizeMatchState } from '../utils/matchState';
-import { BrandBanner } from '../components/BrandBanner';
+import { AdminNav } from '../components/AdminNav';
 import { buildCustomMatchState, sanitizeLabel } from '../utils/customMatch';
 
 const CUSTOM_MATCH_STAGES = [
@@ -41,17 +37,11 @@ function isCustomMatchId(id: string | null | undefined): boolean {
 export const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
-  const [teams, setTeams] = useState<Team[]>(TEAMS);
   const [completedById, setCompletedById] = useState<Record<string, CompletedMatch>>({});
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDate, setSelectedDate] = useState<string>(FIXTURE_DATES[0] ?? 'All');
   const [selectedMaxPoints, setSelectedMaxPoints] = useState<MaxPoints>(11);
   const [selectedBestOf, setSelectedBestOf] = useState<BestOf>(1);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
-  const [showFreshStartConfirm, setShowFreshStartConfirm] = useState(false);
-  const [isResettingAll, setIsResettingAll] = useState(false);
-  const [freshStartMessage, setFreshStartMessage] = useState<string | null>(null);
 
   const fixtureCategories = Array.from(new Set(FIXTURES.map((f) => f.category)));
   const [customSideA, setCustomSideA] = useState('');
@@ -66,22 +56,11 @@ export const AdminPanel: React.FC = () => {
   const [youtubeSaveMessage, setYoutubeSaveMessage] = useState<string | null>(null);
   const [isSavingYoutube, setIsSavingYoutube] = useState(false);
 
-  // Sync state from Firebase with normalization
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribeMatch = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
       if (data) setMatch(normalizeMatchState(data));
-    });
-
-    const teamsRef = ref(db, 'teams');
-    const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setTeams(data);
-      } else {
-        set(ref(db, 'teams'), TEAMS).catch((err) => console.error("Firebase write error:", err));
-      }
     });
 
     const completedRef = ref(db, 'completedMatches');
@@ -92,13 +71,11 @@ export const AdminPanel: React.FC = () => {
     const youtubeRef = ref(db, YOUTUBE_LIVE_URL_PATH);
     const unsubscribeYoutube = onValue(youtubeRef, (snapshot) => {
       const val = snapshot.val();
-      const url = typeof val === 'string' ? val : '';
-      setYoutubeDraft(url);
+      setYoutubeDraft(typeof val === 'string' ? val : '');
     });
 
     return () => {
       unsubscribeMatch();
-      unsubscribeTeams();
       unsubscribeCompleted();
       unsubscribeYoutube();
     };
@@ -107,123 +84,8 @@ export const AdminPanel: React.FC = () => {
   const updateMatchState = (newMatchState: MatchState) => {
     setMatch(newMatchState);
     set(ref(db, 'currentMatch'), newMatchState).catch((err) => {
-      console.error("Failed to sync match state to Firebase:", err);
+      console.error('Failed to sync match state to Firebase:', err);
     });
-  };
-
-  const updateTeamsState = (newTeams: Team[]) => {
-    setTeams(newTeams);
-    set(ref(db, 'teams'), newTeams).catch((err) => {
-      console.error("Failed to sync teams to Firebase:", err);
-    });
-  };
-
-  const handleConfirmFreshStart = async () => {
-    setIsResettingAll(true);
-    setFreshStartMessage(null);
-    setSaveError(null);
-    setExportError(null);
-    try {
-      await remove(ref(db, 'completedMatches'));
-      const resetMatch = {
-        ...INITIAL_MATCH,
-        youtubeLiveUrl: typeof youtubeDraft === 'string' ? youtubeDraft : ''
-      };
-      await set(ref(db, 'currentMatch'), resetMatch);
-      setCompletedById({});
-      setMatch(resetMatch);
-      setShowFreshStartConfirm(false);
-      setFreshStartMessage('All completed matches cleared. Live scores reset.');
-    } catch (err) {
-      console.error('Failed to reset tournament data:', err);
-      setFreshStartMessage('Failed to reset. Check connection and try again.');
-    } finally {
-      setIsResettingAll(false);
-    }
-  };
-
-  const handleExportScores = async (format: ScoreExportFormat) => {
-    setExportError(null);
-    const rows = sortCompletedMatches(Object.values(completedById));
-    if (rows.length === 0) {
-      setExportError('No completed matches to export yet.');
-      return;
-    }
-    try {
-      await exportScores(rows, format);
-    } catch (err) {
-      console.error('Export failed:', err);
-      setExportError(err instanceof Error ? err.message : 'Export failed.');
-    }
-  };
-
-  /**
-   * Delete one completed-match record from Firebase.
-   * Concurrency: single remove write; list re-syncs via onValue.
-   * Security: id must be a non-empty string key already known from completedById.
-   */
-  const handleDeleteCompletedMatch = async (fixtureId: unknown) => {
-    if (typeof fixtureId !== 'string' || !fixtureId.trim()) {
-      setSaveError('Cannot delete: missing match id.');
-      return;
-    }
-    const id = fixtureId.trim();
-    if (!completedById[id]) {
-      setSaveError('That completed match is no longer in the list.');
-      return;
-    }
-
-    const row = completedById[id];
-    const label = row?.details || row?.result || id;
-    const ok = window.confirm(`Delete completed match?\n\n${label}\n\nThis cannot be undone.`);
-    if (!ok) return;
-
-    setSaveError(null);
-    try {
-      await remove(ref(db, `completedMatches/${id}`));
-    } catch (err) {
-      console.error('Failed to delete completed match:', err);
-      setSaveError('Failed to delete completed match. Check connection and try again.');
-    }
-  };
-
-  // Team roster editing handlers
-  const handleTeamNameChange = (teamId: string, newName: string) => {
-    const updated = teams.map((t) => (t.id === teamId ? { ...t, name: newName } : t));
-    updateTeamsState(updated);
-  };
-
-  const handlePlayerNameChange = (teamId: string, playerIndex: number, newName: string) => {
-    const updated = teams.map((t) => {
-      if (t.id === teamId) {
-        const updatedPlayers = [...t.players];
-        updatedPlayers[playerIndex] = newName;
-        return { ...t, players: updatedPlayers };
-      }
-      return t;
-    });
-    updateTeamsState(updated);
-  };
-
-  const handleAddPlayer = (teamId: string) => {
-    const updated = teams.map((t) => {
-      if (t.id === teamId) {
-        return { ...t, players: [...t.players, 'New Player'] };
-      }
-      return t;
-    });
-    updateTeamsState(updated);
-  };
-
-  const handleRemovePlayer = (teamId: string, playerIndex: number) => {
-    const updated = teams.map((t) => {
-      if (t.id === teamId) {
-        const updatedPlayers = t.players.filter((_, idx) => idx !== playerIndex);
-        return { ...t, players: updatedPlayers };
-      }
-      return t;
-    });
-    updateTeamsState(updated);
   };
 
   const handleStartFixture = (fixture: Fixture, pointsLimit: MaxPoints, bestOf: BestOf = selectedBestOf) => {
@@ -356,7 +218,7 @@ export const AdminPanel: React.FC = () => {
     return acc;
   }, {});
 
-  const completedRows = sortCompletedMatches(Object.values(completedById));
+  const completedCount = Object.keys(completedById).length;
   const isCustomLiveMatch = isCustomMatchId(match.currentMatchId);
   const youtubeDraftValid = isValidYouTubeLiveUrl(youtubeDraft);
   const youtubeConfigured = !!parseYouTubeVideoId(youtubeDraft);
@@ -364,46 +226,12 @@ export const AdminPanel: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
 
-      <div className="flex flex-col items-center justify-center gap-3 border-b border-slate-800 pb-5 pt-1">
-        <BrandBanner size="lg" subtitle="Tournament Control" />
-        <p className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">
-          Admin Console
-        </p>
-        <nav
-          className="flex flex-wrap items-center justify-center gap-2"
-          aria-label="Staff navigation"
-        >
-          <Link
-            to="/admin/score"
-            className="rounded-lg bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wide px-4 py-2 shadow hover:bg-amber-300"
-          >
-            Score Desk
-          </Link>
-          <Link
-            to="/scorer"
-            className="rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs font-bold uppercase tracking-wide px-3 py-2 hover:bg-slate-800"
-          >
-            Court Scorer
-          </Link>
-          <Link
-            to="/"
-            className="rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs font-bold uppercase tracking-wide px-3 py-2 hover:bg-slate-800"
-          >
-            Viewer Portal
-          </Link>
-          <Link
-            to="/rules"
-            className="rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs font-bold uppercase tracking-wide px-3 py-2 hover:bg-slate-800"
-          >
-            Rules
-          </Link>
-        </nav>
-        <p className="text-[11px] text-slate-500 text-center max-w-lg">
-          Pick a fixture below (or start a custom match) to open the score desk. After you save,
-          you return here to choose the next game.
-        </p>
-      </div>
-      
+      <AdminNav />
+      <p className="text-[11px] text-slate-500 text-center max-w-lg mx-auto -mt-4">
+        Pick a fixture below (or start a custom match) to open the score desk. After you save,
+        you return here to choose the next game.
+      </p>
+
       {/* Persistent YouTube only — scoring lives on /admin/score */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -478,7 +306,7 @@ export const AdminPanel: React.FC = () => {
               <h3 className="text-lg font-bold text-indigo-300">Tournament Fixtures</h3>
               <span className="text-[11px] text-slate-400 font-mono">
                 {filteredFixtures.length} / {FIXTURES.length} matches
-                {completedRows.length > 0 ? ` · ${completedRows.length} completed` : ''}
+                {completedCount > 0 ? ` · ${completedCount} completed` : ''}
               </span>
               <div className="flex items-center flex-wrap gap-1">
                 <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mr-1">
@@ -798,222 +626,6 @@ export const AdminPanel: React.FC = () => {
           </p>
         )}
       </div>
-
-      {/* 4. Completed Matches Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-3">
-            <h3 className="text-lg font-bold text-indigo-300">Completed Matches</h3>
-            <span className="text-xs text-slate-400 font-mono">{completedRows.length} recorded</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {([
-              { format: 'csv' as const, label: 'CSV' },
-              { format: 'excel' as const, label: 'Excel' },
-              { format: 'json' as const, label: 'JSON' },
-              { format: 'pdf' as const, label: 'PDF' }
-            ]).map(({ format, label }) => (
-              <button
-                key={format}
-                type="button"
-                onClick={() => handleExportScores(format)}
-                disabled={completedRows.length === 0}
-                className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                title={`Export completed scores as ${label}`}
-              >
-                Export {label}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                setFreshStartMessage(null);
-                setShowFreshStartConfirm(true);
-              }}
-              disabled={isResettingAll}
-              className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-950/60 text-red-200 border border-red-500/40 hover:bg-red-900/70 hover:text-white disabled:opacity-50 transition-colors"
-              title="Delete all completed matches and reset live scores"
-            >
-              Start Fresh…
-            </button>
-          </div>
-        </div>
-        {exportError && (
-          <p className="text-[11px] text-red-400">{exportError}</p>
-        )}
-        {saveError && (
-          <p className="text-[11px] text-red-400" role="alert">
-            {saveError}
-          </p>
-        )}
-        {freshStartMessage && (
-          <p className={`text-[11px] ${freshStartMessage.startsWith('Failed') ? 'text-red-400' : 'text-emerald-400'}`}>
-            {freshStartMessage}
-          </p>
-        )}
-
-        {completedRows.length === 0 ? (
-          <p className="text-sm text-slate-500 text-center py-8">
-            No finished matches yet. After a game ends on the score desk, use{' '}
-            <strong className="text-emerald-400">Save &amp; Share</strong>.
-          </p>
-        ) : (
-          <div className="overflow-x-auto max-h-[420px] overflow-y-auto rounded-xl border border-slate-800">
-            <table className="w-full text-left text-sm min-w-[720px]">
-              <thead className="sticky top-0 bg-slate-950 text-[11px] uppercase tracking-wider text-slate-400">
-                <tr>
-                  <th className="px-3 py-2.5 font-semibold">Completed</th>
-                  <th className="px-3 py-2.5 font-semibold">Scheduled</th>
-                  <th className="px-3 py-2.5 font-semibold">Category</th>
-                  <th className="px-3 py-2.5 font-semibold">Match</th>
-                  <th className="px-3 py-2.5 font-semibold">Result</th>
-                  <th className="px-3 py-2.5 font-semibold">Winner</th>
-                  <th className="px-3 py-2.5 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedRows.map((row) => (
-                  <tr key={row.fixtureId} className="border-t border-slate-800/80 hover:bg-slate-800/40">
-                    <td className="px-3 py-2.5 text-slate-200 whitespace-nowrap font-mono text-xs">
-                      {row.completedDate} {row.completedTime}
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap font-mono text-xs">
-                      {row.scheduledDate} {row.scheduledTime}
-                    </td>
-                    <td className="px-3 py-2.5 text-indigo-300 text-xs">{row.category}</td>
-                    <td className="px-3 py-2.5 text-slate-100 text-xs max-w-[220px]">
-                      <span className="line-clamp-2">{row.details}</span>
-                    </td>
-                    <td className="px-3 py-2.5 font-mono font-bold text-amber-300 whitespace-nowrap">
-                      {row.result}
-                    </td>
-                    <td className="px-3 py-2.5 text-emerald-400 text-xs font-semibold">
-                      {row.winnerName}
-                      {row.isTrump ? <span className="ml-1 text-amber-400">★</span> : null}
-                    </td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap space-x-1.5">
-                      {typeof row.snapshotUrl === 'string' && row.snapshotUrl.startsWith('https://') ? (
-                        <a
-                          href={row.snapshotUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-950/50 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900/70"
-                          title="Open score snapshot photo"
-                        >
-                          Photo
-                        </a>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCompletedMatch(row.fixtureId)}
-                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-red-950/50 text-red-300 border border-red-500/40 hover:bg-red-900/70 hover:text-white transition-colors"
-                        title="Delete this completed match"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* 5. Editable Teams & Rosters Overview */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-          <h3 className="text-lg font-bold text-indigo-300">Editable Teams & Rosters</h3>
-          <span className="text-xs text-slate-400">Click any name to edit</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-          {teams.map((team) => (
-            <div key={team.id} className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl space-y-3">
-              <input
-                type="text"
-                value={team.name}
-                onChange={(e) => handleTeamNameChange(team.id, e.target.value)}
-                className="w-full bg-slate-900/90 border border-slate-700/80 text-amber-400 font-bold text-sm px-2 py-1 rounded focus:outline-none focus:border-amber-400"
-                placeholder="Team Name"
-              />
-
-              <div className="space-y-1.5">
-                {team.players.map((player, idx) => (
-                  <div key={idx} className="flex items-center space-x-1 group">
-                    <input
-                      type="text"
-                      value={player}
-                      onChange={(e) => handlePlayerNameChange(team.id, idx, e.target.value)}
-                      className="w-full bg-slate-900/60 border border-slate-800 text-xs text-slate-200 px-2 py-1 rounded focus:outline-none focus:border-indigo-500"
-                      placeholder={`Player ${idx + 1}`}
-                    />
-                    <button
-                      onClick={() => handleRemovePlayer(team.id, idx)}
-                      className="text-red-400 hover:text-red-300 px-1 text-xs font-bold opacity-70 group-hover:opacity-100 transition-opacity"
-                      title="Remove Player"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => handleAddPlayer(team.id)}
-                className="w-full text-center text-[11px] text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 border border-indigo-800/40 rounded py-1 font-semibold transition-colors"
-              >
-                + Add Player
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {showFreshStartConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="fresh-start-title"
-        >
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-red-500/40 shadow-2xl p-5 space-y-4">
-            <div className="space-y-2 text-center">
-              <h2 id="fresh-start-title" className="text-xl font-black text-red-400">
-                Start fresh?
-              </h2>
-              <p className="text-sm text-slate-300">
-                This will permanently delete <strong className="text-white">all completed matches</strong> and
-                reset the live scoreboard to the default starting match.
-              </p>
-              <p className="text-xs text-slate-500">
-                Team rosters are kept. This cannot be undone.
-              </p>
-              {freshStartMessage?.startsWith('Failed') && (
-                <p className="text-xs text-red-400">{freshStartMessage}</p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setShowFreshStartConfirm(false)}
-                disabled={isResettingAll}
-                className="rounded-xl bg-slate-800 text-slate-200 font-bold text-sm py-3.5 border border-slate-700 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmFreshStart}
-                disabled={isResettingAll}
-                className="rounded-xl bg-red-600 text-white font-bold text-sm py-3.5 disabled:opacity-50 hover:bg-red-500"
-              >
-                {isResettingAll ? 'Clearing…' : 'Yes, clear everything'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
