@@ -254,6 +254,10 @@ export const StreamOverlay: React.FC = () => {
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cssImmersive, setCssImmersive] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+    return window.matchMedia('(orientation: landscape)').matches;
+  });
 
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
@@ -263,6 +267,20 @@ export const StreamOverlay: React.FC = () => {
   const cssImmersiveRef = useRef(false);
   const iosLike = isIosLikeDevice();
   const iphone = isIphoneDevice();
+
+  // iOS landscape = cinema: hide app chrome; keep score only (no player remount).
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(orientation: landscape)');
+    const onChange = () => setIsLandscape(Boolean(mq.matches));
+    onChange();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', onChange);
+      return () => mq.removeEventListener('change', onChange);
+    }
+    mq.addListener(onChange);
+    return () => mq.removeListener(onChange);
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -315,6 +333,21 @@ export const StreamOverlay: React.FC = () => {
   }, [match.currentMatchId]);
 
   const videoId = parseYouTubeVideoId(match.youtubeLiveUrl ?? '');
+
+  /** iOS + landscape + playing: hide Sound/messages for a full-bleed watch mode. */
+  const iosLandscapeCinema = iosLike && isLandscape && !showPlayGate && !!videoId;
+
+  // Lock scroll / edge-to-edge shell while in iOS landscape cinema.
+  useEffect(() => {
+    if (!iosLandscapeCinema) {
+      if (!cssImmersiveRef.current) setBodyScrollLocked(false);
+      return;
+    }
+    setBodyScrollLocked(true);
+    return () => {
+      if (!cssImmersiveRef.current) setBodyScrollLocked(false);
+    };
+  }, [iosLandscapeCinema]);
 
   /**
    * Single stable player mount (videoId only).
@@ -724,15 +757,16 @@ export const StreamOverlay: React.FC = () => {
   );
 
   // High z-index so the score stays above YouTube chrome on iOS (inline playback).
-  const overlayAnchorClass =
-    'fixed z-[60] pointer-events-none top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))]';
+  const overlayAnchorClass = iosLandscapeCinema
+    ? 'fixed z-[60] pointer-events-none top-[max(0.25rem,env(safe-area-inset-top))] right-[max(0.25rem,env(safe-area-inset-right))]'
+    : 'fixed z-[60] pointer-events-none top-[max(0.5rem,env(safe-area-inset-top))] right-[max(0.5rem,env(safe-area-inset-right))]';
 
   if (videoId) {
     return (
       <div
         ref={liveRootRef}
         className={`fixed inset-0 bg-black overflow-hidden select-none ${
-          cssImmersive ? 'npl-live-immersive' : ''
+          cssImmersive || iosLandscapeCinema ? 'npl-live-immersive' : ''
         }`}
       >
         <div
@@ -740,10 +774,19 @@ export const StreamOverlay: React.FC = () => {
           className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:border-0"
         />
 
-        {/* Desktop only — iOS must reach YouTube controls. */}
+        {/* Desktop only — iOS must reach YouTube controls (portrait). */}
         {!iosLike && !showPlayGate && (
           <div
             className="absolute inset-0 z-20 bg-transparent cursor-default"
+            aria-hidden="true"
+            onContextMenu={(e) => e.preventDefault()}
+          />
+        )}
+
+        {/* iOS landscape: block taps on YT chrome so the picture stays clean; score stays usable. */}
+        {iosLandscapeCinema && (
+          <div
+            className="absolute inset-0 z-20 bg-transparent"
             aria-hidden="true"
             onContextMenu={(e) => e.preventDefault()}
           />
@@ -759,8 +802,8 @@ export const StreamOverlay: React.FC = () => {
               Tap to Play with Sound
             </button>
             <p className="max-w-xs text-xs text-white/85">
-              Required once on iPhone / iPad. Stay in this view so the live score stays visible —
-              YouTube full screen would cover the score.
+              Required once on iPhone / iPad. Rotate to landscape to hide controls and watch with
+              the live score on screen.
             </p>
             {playbackError && (
               <p className="max-w-sm text-xs text-red-300" role="alert">
@@ -770,7 +813,8 @@ export const StreamOverlay: React.FC = () => {
           </div>
         )}
 
-        {!showPlayGate && (
+        {/* Portrait (or non-iOS): show Sound / Full Screen. Hidden in iOS landscape cinema. */}
+        {!showPlayGate && !iosLandscapeCinema && (
           <div className="absolute z-40 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] pointer-events-auto flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -803,7 +847,7 @@ export const StreamOverlay: React.FC = () => {
           </div>
         )}
 
-        {playbackError && !showPlayGate && (
+        {playbackError && !showPlayGate && !iosLandscapeCinema && (
           <p
             className="absolute z-40 bottom-[max(3.5rem,calc(env(safe-area-inset-bottom)+3rem))] left-[max(0.75rem,env(safe-area-inset-left))] right-4 max-w-sm text-[11px] text-amber-200 bg-black/70 rounded-lg px-3 py-2"
             role="status"
