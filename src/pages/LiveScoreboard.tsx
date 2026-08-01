@@ -233,7 +233,7 @@ export const LiveScoreboard: React.FC = () => {
             borderRight: '1px solid rgba(51,65,85,0.6)'
           }}
         >
-          <div className="shrink-0 px-4 sm:px-6 pt-4 sm:pt-6 flex items-start justify-between gap-3">
+          <div className="shrink-0 px-4 sm:px-6 pt-3 sm:pt-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
               {team1 && team1 !== name1 && (
                 <p className="text-sm sm:text-lg md:text-xl font-bold text-indigo-300/80 uppercase tracking-wide truncate">
@@ -242,7 +242,7 @@ export const LiveScoreboard: React.FC = () => {
               )}
               <p
                 className="font-black text-white leading-tight truncate"
-                style={{ fontSize: 'clamp(1.25rem, 4vw, 3rem)' }}
+                style={{ fontSize: 'clamp(1.1rem, 3.5vw, 2.5rem)' }}
               >
                 {name1}
               </p>
@@ -257,10 +257,10 @@ export const LiveScoreboard: React.FC = () => {
             )}
           </div>
 
-          <div className="flex-1 min-h-0 flex items-center justify-center px-2">
+          <div className="flex-1 min-h-0 flex items-center justify-center px-1">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-              style={{ fontSize: 'clamp(5rem, min(32vw, 48dvh), 18rem)' }}
+              style={{ fontSize: 'clamp(7rem, min(42vw, 62dvh), 28rem)' }}
             >
               {score1}
             </span>
@@ -276,7 +276,7 @@ export const LiveScoreboard: React.FC = () => {
                 : 'rgba(2,6,23,1)'
           }}
         >
-          <div className="shrink-0 px-4 sm:px-6 pt-4 sm:pt-6 flex items-start justify-between gap-3">
+          <div className="shrink-0 px-4 sm:px-6 pt-3 sm:pt-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
               {team2 && team2 !== name2 && (
                 <p className="text-sm sm:text-lg md:text-xl font-bold text-rose-300/80 uppercase tracking-wide truncate">
@@ -285,7 +285,7 @@ export const LiveScoreboard: React.FC = () => {
               )}
               <p
                 className="font-black text-white leading-tight truncate"
-                style={{ fontSize: 'clamp(1.25rem, 4vw, 3rem)' }}
+                style={{ fontSize: 'clamp(1.1rem, 3.5vw, 2.5rem)' }}
               >
                 {name2}
               </p>
@@ -300,10 +300,10 @@ export const LiveScoreboard: React.FC = () => {
             )}
           </div>
 
-          <div className="flex-1 min-h-0 flex items-center justify-center px-2">
+          <div className="flex-1 min-h-0 flex items-center justify-center px-1">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-              style={{ fontSize: 'clamp(5rem, min(32vw, 48dvh), 18rem)' }}
+              style={{ fontSize: 'clamp(7rem, min(42vw, 62dvh), 28rem)' }}
             >
               {score2}
             </span>
