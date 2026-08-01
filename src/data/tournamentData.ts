@@ -1,3 +1,22 @@
+/** Allowed race-to point targets for a game. */
+export type MaxPoints = 11 | 15 | 21;
+
+export const MAX_POINTS_OPTIONS: readonly MaxPoints[] = [11, 15, 21] as const;
+
+/** Scorer quick picks. */
+export const SCORER_MAX_POINTS_OPTIONS: readonly MaxPoints[] = [11, 15, 21] as const;
+
+export function isMaxPoints(value: unknown): value is MaxPoints {
+  return value === 11 || value === 15 || value === 21;
+}
+
+/** Hard cap when deuce continues (win by 2 until this score). */
+export function deuceCapForMaxPoints(max: MaxPoints): number {
+  if (max === 11) return 15;
+  if (max === 15) return 21;
+  return 30;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -39,7 +58,7 @@ export interface CompletedMatch {
   player2: string;
   score1: number;
   score2: number;
-  maxPoints: 11 | 21;
+  maxPoints: MaxPoints;
   winnerSide: 1 | 2;
   winnerName: string;
   result: string;
@@ -60,7 +79,7 @@ export interface MatchState {
   player2: string;
   score1: number;
   score2: number;
-  maxPoints: 11 | 21;
+  maxPoints: MaxPoints;
   server: 1 | 2; // 1 = Team A serving, 2 = Team B serving
   servingSide: 'right' | 'left'; // Service court; updates on service over (even=right, odd=left)
   deuceActive: boolean;

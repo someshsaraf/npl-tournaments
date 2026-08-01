@@ -1,4 +1,5 @@
 import type { CompletedMatch, Fixture, MatchState } from '../data/tournamentData';
+import { isMaxPoints } from '../data/tournamentData';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
@@ -69,7 +70,7 @@ export function buildCompletedMatch(
     player2: match.player2 || '',
     score1,
     score2,
-    maxPoints: match.maxPoints === 21 ? 21 : 11,
+    maxPoints: isMaxPoints(match.maxPoints) ? match.maxPoints : 11,
     winnerSide,
     winnerName,
     result: `${score1}-${score2}`,

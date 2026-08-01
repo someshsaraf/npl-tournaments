@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ref, set, onValue } from 'firebase/database';
 import { db } from '../firebase';
-import { FIXTURES, INITIAL_MATCH } from '../data/tournamentData';
+import { FIXTURES, INITIAL_MATCH, SCORER_MAX_POINTS_OPTIONS } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import { hasMatchWinner, normalizeMatchState } from '../utils/matchState';
 import {
   applyDecrementScore,
   applyScorePoint,
+  applySetMaxPoints,
   applySetServer,
   applySwapSides
 } from '../utils/scoring';
@@ -80,6 +81,13 @@ export const ScoreControl: React.FC = () => {
 
   const handleSwapSides = () => {
     updateMatchState(applySwapSides(match));
+  };
+
+  const handleSetMaxPoints = (points: 11 | 15 | 21) => {
+    promptedKeyRef.current = null;
+    setShowSaveDialog(false);
+    setCelebration(null);
+    updateMatchState(applySetMaxPoints(match, points));
   };
 
   const saveCompletedMatch = async (matchToSave: MatchState) => {
@@ -199,7 +207,22 @@ export const ScoreControl: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1.5">
+          {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
+            <button
+              key={pts}
+              type="button"
+              onClick={() => handleSetMaxPoints(pts)}
+              title={`Race to ${pts}`}
+              className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
+                (match.maxPoints ?? 11) === pts
+                  ? 'bg-amber-400 text-slate-950 border-amber-300'
+                  : 'bg-slate-800 text-slate-300 border-slate-700'
+              }`}
+            >
+              {pts}
+            </button>
+          ))}
           <button
             type="button"
             onClick={handleSwapSides}

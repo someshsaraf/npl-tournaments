@@ -1,4 +1,4 @@
-import { INITIAL_MATCH } from '../data/tournamentData';
+import { INITIAL_MATCH, isMaxPoints } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 
 /**
@@ -20,6 +20,7 @@ export function normalizeMatchState(data: unknown): MatchState {
   const serverRaw = raw.server;
   const server = serverRaw === 2 ? 2 : 1;
   const servingSide = raw.servingSide === 'left' ? 'left' : 'right';
+  const maxPoints = isMaxPoints(raw.maxPoints) ? raw.maxPoints : INITIAL_MATCH.maxPoints;
 
   return {
     ...INITIAL_MATCH,
@@ -27,6 +28,7 @@ export function normalizeMatchState(data: unknown): MatchState {
     youtubeLiveUrl: typeof raw.youtubeLiveUrl === 'string' ? raw.youtubeLiveUrl : '',
     server,
     servingSide,
+    maxPoints,
     gameWinner
   };
 }

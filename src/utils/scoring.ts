@@ -1,8 +1,13 @@
-import type { MatchState } from '../data/tournamentData';
+import type { MatchState, MaxPoints } from '../data/tournamentData';
+import { deuceCapForMaxPoints, isMaxPoints } from '../data/tournamentData';
 
 export function getServeSide(score: number): 'right' | 'left' {
   if (!Number.isFinite(score) || score < 0) return 'right';
   return score % 2 === 0 ? 'right' : 'left';
+}
+
+function resolveMaxPoints(match: MatchState): MaxPoints {
+  return isMaxPoints(match.maxPoints) ? match.maxPoints : 11;
 }
 
 /**
@@ -20,8 +25,8 @@ export function applyScorePoint(match: MatchState, scoringTeam: 1 | 2): MatchSta
     return match;
   }
 
-  const max = match.maxPoints ?? 11;
-  const cap = max === 11 ? 15 : 30;
+  const max = resolveMaxPoints(match);
+  const cap = deuceCapForMaxPoints(max);
   const deuceThreshold = max - 1;
 
   let s1 = match.score1 ?? 0;
@@ -77,7 +82,7 @@ export function applyDecrementScore(match: MatchState, side: 1 | 2): MatchState 
   if (side === 1) s1 = Math.max(0, s1 - 1);
   else s2 = Math.max(0, s2 - 1);
 
-  const maxPoints = match.maxPoints ?? 11;
+  const maxPoints = resolveMaxPoints(match);
 
   return {
     ...match,
@@ -85,6 +90,24 @@ export function applyDecrementScore(match: MatchState, side: 1 | 2): MatchState 
     score2: s2,
     gameWinner: null,
     deuceActive: s1 >= (maxPoints - 1) && s2 >= (maxPoints - 1) && s1 === s2
+  };
+}
+
+/** Change race-to target; clears winner so the new format can finish cleanly. */
+export function applySetMaxPoints(match: MatchState, maxPoints: MaxPoints): MatchState {
+  if (!match || typeof match !== 'object') {
+    throw new Error('applySetMaxPoints: match is required');
+  }
+  if (!isMaxPoints(maxPoints)) {
+    throw new Error('applySetMaxPoints: maxPoints must be 11, 15, or 21');
+  }
+  const s1 = match.score1 ?? 0;
+  const s2 = match.score2 ?? 0;
+  return {
+    ...match,
+    maxPoints,
+    gameWinner: null,
+    deuceActive: s1 >= maxPoints - 1 && s2 >= maxPoints - 1 && s1 === s2
   };
 }
 
