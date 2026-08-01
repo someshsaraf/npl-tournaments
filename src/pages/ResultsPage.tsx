@@ -9,7 +9,6 @@ import {
 
 /**
  * Public results list — completed matches only (read-only Firebase).
- * Replaces the portal Score nav entry for online viewers.
  */
 export default function ResultsPage() {
   const [rows, setRows] = useState<CompletedMatch[]>([]);
@@ -34,12 +33,14 @@ export default function ResultsPage() {
   }, [rows, category]);
 
   return (
-    <div className="space-y-5">
+    <div className="portal-page space-y-6">
       <header className="space-y-1">
-        <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Results</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="portal-display text-4xl sm:text-5xl text-[var(--pine-deep)]">
+          Results
+        </h1>
+        <p className="text-sm text-[var(--pine-muted)]">
           {filtered.length} completed match{filtered.length === 1 ? '' : 'es'}
-          {rows.length > 0 ? ` · newest first` : ''}
+          {rows.length > 0 ? ' · newest first' : ''}
         </p>
       </header>
 
@@ -55,8 +56,8 @@ export default function ResultsPage() {
                 onClick={() => setCategory(cat)}
                 className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
                   active
-                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-md'
-                    : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80'
+                    ? 'bg-[var(--pine-deep)] text-[var(--pine-lime)] font-bold'
+                    : 'bg-[var(--pine-paper)] text-[var(--pine-muted)] border border-[var(--pine-line)] hover:text-[var(--pine-deep)]'
                 }`}
               >
                 {cat}
@@ -67,11 +68,11 @@ export default function ResultsPage() {
       )}
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+        <p className="text-sm text-[var(--pine-muted)] text-center py-12 rounded-2xl border border-[var(--pine-line)] bg-[var(--pine-paper)]">
           No results yet. Finished matches will appear here.
         </p>
       ) : (
-        <ul className="rounded-2xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 bg-slate-900/40">
+        <ul className="rounded-2xl border border-[var(--pine-line)] overflow-hidden divide-y divide-[var(--pine-line)] bg-[var(--pine-paper)]">
           {filtered.map((row) => {
             const id = row.fixtureId || row.id;
             const when = [row.completedDate, row.completedTime].filter(Boolean).join(' ');
@@ -80,28 +81,32 @@ export default function ResultsPage() {
                 key={id}
                 className="grid grid-cols-1 sm:grid-cols-[7.5rem_1fr_auto] gap-1 sm:gap-3 px-3 sm:px-4 py-3.5 text-sm"
               >
-                <span className="font-mono text-xs text-amber-400/90 sm:pt-0.5">{when || '—'}</span>
+                <span className="font-mono text-xs text-[var(--pine-clay)] sm:pt-0.5">
+                  {when || '—'}
+                </span>
                 <div className="min-w-0 space-y-0.5">
-                  <p className="text-[11px] uppercase tracking-wide text-indigo-300/90 truncate">
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--pine-sky)] truncate font-semibold">
                     {row.category || 'Match'}
                     {row.stage ? (
                       <>
-                        <span className="text-slate-600"> · </span>
-                        <span className="text-slate-500 normal-case tracking-normal">{row.stage}</span>
+                        <span className="text-[var(--pine-line)]"> · </span>
+                        <span className="text-[var(--pine-muted)] normal-case tracking-normal font-medium">
+                          {row.stage}
+                        </span>
                       </>
                     ) : null}
                   </p>
-                  <p className="font-semibold text-slate-100 truncate">
+                  <p className="font-semibold text-[var(--pine-ink)] truncate">
                     {row.details || `${row.player1 || row.teamA} vs ${row.player2 || row.teamB}`}
                   </p>
-                  <p className="text-xs text-emerald-400/90">
+                  <p className="text-xs text-[var(--pine-leaf)] font-medium">
                     Winner: {row.winnerName || '—'}
                     {row.result ? ` · ${row.result}` : ''}
                     {row.isTrump ? ' · Trump' : ''}
                   </p>
                 </div>
                 <div className="sm:justify-self-end sm:self-center">
-                  <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
+                  <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-[var(--pine-leaf)]/15 text-[var(--pine-leaf)]">
                     Final
                   </span>
                 </div>

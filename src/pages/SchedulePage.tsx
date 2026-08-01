@@ -13,7 +13,6 @@ import {
 
 /**
  * Read-only public schedule with date/category filters and completed results.
- * No writes; staff editing stays on /admin.
  */
 export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<string>('All');
@@ -56,60 +55,70 @@ export default function SchedulePage() {
   const completedCount = fixtures.filter((f) => f.status === 'completed').length;
 
   return (
-    <div className="space-y-5">
+    <div className="portal-page space-y-6">
       <header className="space-y-1">
-        <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Schedule</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="portal-display text-4xl sm:text-5xl text-[var(--pine-deep)]">
+          Schedule
+        </h1>
+        <p className="text-sm text-[var(--pine-muted)]">
           {filtered.length} matches shown
           {completedCount > 0 ? ` · ${completedCount} completed overall` : ''}
         </p>
       </header>
 
-      <div className="space-y-3">
+      <div className="space-y-4 rounded-2xl border border-[var(--pine-line)] bg-[var(--pine-paper)] p-4 sm:p-5">
         <FilterRow
           label="Date"
           options={dates}
           value={selectedDate}
           onChange={setSelectedDate}
-          activeClass="bg-amber-400 text-slate-950"
+          activeClass="bg-[var(--pine-clay)] text-white"
         />
         <FilterRow
           label="Category"
           options={categories}
           value={selectedCategory}
           onChange={setSelectedCategory}
-          activeClass="bg-emerald-500 text-slate-950"
+          activeClass="bg-[var(--pine-deep)] text-[var(--pine-lime)]"
         />
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-7">
         {Object.keys(byDate).length === 0 && (
-          <p className="text-sm text-slate-500 text-center py-10">No fixtures for this filter.</p>
+          <p className="text-sm text-[var(--pine-muted)] text-center py-10">
+            No fixtures for this filter.
+          </p>
         )}
         {Object.entries(byDate).map(([date, dayFixtures]) => (
           <section key={date} className="space-y-2">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h2 className="text-sm font-bold text-amber-400">{date}</h2>
-              <span className="text-[11px] text-slate-500">{dayFixtures.length} matches</span>
+            <div className="flex items-center justify-between pb-1">
+              <h2 className="portal-display text-xl text-[var(--pine-deep)]">{date}</h2>
+              <span className="text-[11px] text-[var(--pine-muted)] font-medium">
+                {dayFixtures.length} matches
+              </span>
             </div>
-            <ul className="rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 bg-slate-900/40">
+            <ul className="rounded-2xl border border-[var(--pine-line)] overflow-hidden divide-y divide-[var(--pine-line)] bg-[var(--pine-paper)]">
               {dayFixtures.map((f) => {
                 const done = f.status === 'completed';
                 return (
                   <li
                     key={f.id}
-                    className="grid grid-cols-1 sm:grid-cols-[4.5rem_1fr_auto] gap-1 sm:gap-3 px-3 sm:px-4 py-3 text-sm"
+                    className="grid grid-cols-1 sm:grid-cols-[4.5rem_1fr_auto] gap-1 sm:gap-3 px-3 sm:px-4 py-3.5 text-sm"
                   >
-                    <span className="font-mono text-xs text-slate-400 sm:pt-0.5">{f.time}</span>
+                    <span className="font-mono text-xs text-[var(--pine-muted)] sm:pt-0.5">
+                      {f.time}
+                    </span>
                     <div className="min-w-0 space-y-0.5">
-                      <p className="text-[11px] uppercase tracking-wide text-indigo-300/90 truncate">
+                      <p className="text-[11px] uppercase tracking-wide text-[var(--pine-sky)] truncate font-semibold">
                         {f.category}
-                        <span className="text-slate-600"> · </span>
-                        <span className="text-slate-500 normal-case tracking-normal">{f.stage}</span>
+                        <span className="text-[var(--pine-line)]"> · </span>
+                        <span className="text-[var(--pine-muted)] normal-case tracking-normal font-medium">
+                          {f.stage}
+                        </span>
                       </p>
-                      <p className="font-semibold text-slate-100 truncate">{f.details}</p>
+                      <p className="font-semibold text-[var(--pine-ink)] truncate">{f.details}</p>
                       {done && f.winnerName ? (
-                        <p className="text-xs text-emerald-400/90">
+                        <p className="text-xs text-[var(--pine-leaf)] font-medium">
                           Winner: {f.winnerName}
                           {f.result ? ` · ${f.result}` : ''}
                         </p>
@@ -117,10 +126,10 @@ export default function SchedulePage() {
                     </div>
                     <div className="sm:justify-self-end sm:self-center">
                       <span
-                        className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border ${
+                        className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${
                           done
-                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                            ? 'bg-[var(--pine-leaf)]/15 text-[var(--pine-leaf)]'
+                            : 'bg-[var(--pine-mist)] text-[var(--pine-muted)]'
                         }`}
                       >
                         {done ? 'Completed' : 'Scheduled'}
@@ -151,8 +160,10 @@ function FilterRow({ label, options, value, onChange, activeClass }: FilterRowPr
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+      <p className="text-[11px] font-semibold text-[var(--pine-muted)] uppercase tracking-wider">
+        {label}
+      </p>
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
         {options.map((opt) => {
           if (typeof opt !== 'string' || !opt.trim()) return null;
           const active = opt === safeValue;
@@ -163,8 +174,8 @@ function FilterRow({ label, options, value, onChange, activeClass }: FilterRowPr
               onClick={() => onChange(opt)}
               className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
                 active
-                  ? `${activeClass} font-bold shadow-md`
-                  : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80'
+                  ? `${activeClass} font-bold`
+                  : 'bg-white text-[var(--pine-muted)] border border-[var(--pine-line)] hover:text-[var(--pine-deep)]'
               }`}
             >
               {opt}

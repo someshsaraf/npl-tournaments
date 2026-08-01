@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import { ref, onValue, set } from 'firebase/database';
 import { db } from '../firebase';
 import { TEAMS, type Team } from '../data/tournamentData';
-import { AdminNav } from '../components/AdminNav';
+import { AdminShell } from '../components/AdminShell';
 
 /**
- * Admin team roster editor. Moved off the main /admin schedule page.
- * Writes to Firebase `teams`; validates array shape before update.
+ * Admin team roster editor. Writes to Firebase `teams`.
  */
 export default function AdminTeamsPage() {
   const [teams, setTeams] = useState<Team[]>(TEAMS);
@@ -72,27 +71,27 @@ export default function AdminTeamsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
-      <AdminNav subtitle="Teams" />
-
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-          <h1 className="text-lg font-bold text-indigo-300">Editable Teams &amp; Rosters</h1>
-          <span className="text-xs text-slate-400">Click any name to edit</span>
+    <AdminShell subtitle="Teams">
+      <section className="admin-panel p-5 sm:p-6 space-y-4">
+        <div className="flex justify-between items-center border-b border-[var(--admin-line)] pb-3">
+          <h1 className="admin-display text-xl text-[var(--admin-lime)]">
+            Editable Teams &amp; Rosters
+          </h1>
+          <span className="text-xs text-[var(--admin-muted)]">Click any name to edit</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
           {teams.map((team) => (
             <div
               key={team.id}
-              className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl space-y-3"
+              className="bg-black/20 border border-[var(--admin-line)] p-3 rounded-xl space-y-3"
             >
               <input
                 type="text"
                 value={team.name}
                 onChange={(e) => handleTeamNameChange(team.id, e.target.value)}
                 maxLength={80}
-                className="w-full bg-slate-900/90 border border-slate-700/80 text-amber-400 font-bold text-sm px-2 py-1 rounded focus:outline-none focus:border-amber-400"
+                className="w-full bg-black/30 border border-[var(--admin-line)] text-[var(--admin-lime)] font-bold text-sm px-2 py-1 rounded focus:outline-none focus:border-[var(--admin-lime)]"
                 placeholder="Team Name"
               />
 
@@ -104,13 +103,13 @@ export default function AdminTeamsPage() {
                       value={player}
                       onChange={(e) => handlePlayerNameChange(team.id, idx, e.target.value)}
                       maxLength={80}
-                      className="w-full bg-slate-900/60 border border-slate-800 text-xs text-slate-200 px-2 py-1 rounded focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-black/25 border border-[var(--admin-line)] text-xs text-[var(--admin-ink)] px-2 py-1 rounded focus:outline-none focus:border-[var(--admin-teal)]"
                       placeholder={`Player ${idx + 1}`}
                     />
                     <button
                       type="button"
                       onClick={() => handleRemovePlayer(team.id, idx)}
-                      className="text-red-400 hover:text-red-300 px-1 text-xs font-bold opacity-70 group-hover:opacity-100 transition-opacity"
+                      className="text-[var(--admin-clay)] hover:brightness-125 px-1 text-xs font-bold opacity-70 group-hover:opacity-100 transition-opacity"
                       title="Remove Player"
                     >
                       ×
@@ -122,14 +121,14 @@ export default function AdminTeamsPage() {
               <button
                 type="button"
                 onClick={() => handleAddPlayer(team.id)}
-                className="w-full text-center text-[11px] text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 border border-indigo-800/40 rounded py-1 font-semibold transition-colors"
+                className="w-full text-center text-[11px] text-[var(--admin-teal)] hover:brightness-110 bg-[var(--admin-teal)]/10 border border-[var(--admin-teal)]/30 rounded py-1 font-semibold transition-[filter]"
               >
                 + Add Player
               </button>
             </div>
           ))}
         </div>
-      </div>
-    </div>
+      </section>
+    </AdminShell>
   );
 }

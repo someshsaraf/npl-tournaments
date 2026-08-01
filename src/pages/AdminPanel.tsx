@@ -18,7 +18,7 @@ import {
   mergeFixturesWithResults
 } from '../utils/completedMatches';
 import { normalizeMatchState } from '../utils/matchState';
-import { AdminNav } from '../components/AdminNav';
+import { AdminShell } from '../components/AdminShell';
 import { buildCustomMatchState, sanitizeLabel } from '../utils/customMatch';
 
 const CUSTOM_MATCH_STAGES = [
@@ -224,24 +224,18 @@ export const AdminPanel: React.FC = () => {
   const youtubeConfigured = !!parseYouTubeVideoId(youtubeDraft);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
-
-      <AdminNav />
-      <p className="text-[11px] text-slate-500 text-center max-w-lg mx-auto -mt-4">
-        Pick a fixture below (or start a custom match) to open the score desk. After you save,
-        you return here to choose the next game.
-      </p>
-
-      {/* Persistent YouTube only — scoring lives on /admin/score */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-2">
+    <AdminShell
+      hint="Pick a fixture (or start a custom match) to open the score desk. After you save, you return here for the next game."
+    >
+      <section className="admin-panel p-5 space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <label htmlFor="youtube-live-url" className="text-sm font-semibold text-slate-200">
+          <label htmlFor="youtube-live-url" className="text-sm font-semibold text-[var(--admin-ink)]">
             YouTube Live Link
           </label>
-          <span className="text-[11px] text-slate-500">
-            Saved for all admins · used by <code className="text-indigo-300">/live</code>
+          <span className="text-[11px] text-[var(--admin-muted)]">
+            Saved for all admins · used by <code className="text-[var(--admin-teal)]">/live</code>
             {youtubeConfigured ? (
-              <span className="ml-2 text-emerald-400 font-semibold">● Linked</span>
+              <span className="ml-2 text-[var(--admin-teal)] font-semibold">● Linked</span>
             ) : null}
           </span>
         </div>
@@ -255,10 +249,10 @@ export const AdminPanel: React.FC = () => {
               setYoutubeSaveMessage(null);
             }}
             placeholder="https://www.youtube.com/watch?v=… or /live/…"
-            className={`flex-1 bg-slate-950 border rounded-lg p-2.5 text-sm text-white focus:outline-none ${
+            className={`flex-1 bg-black/30 border rounded-lg p-2.5 text-sm text-[var(--admin-ink)] focus:outline-none ${
               youtubeDraft.trim() && !youtubeDraftValid
                 ? 'border-red-500 focus:border-red-400'
-                : 'border-slate-700 focus:border-indigo-500'
+                : 'border-[var(--admin-line)] focus:border-[var(--admin-teal)]'
             }`}
             autoComplete="off"
             spellCheck={false}
@@ -267,7 +261,7 @@ export const AdminPanel: React.FC = () => {
             type="button"
             onClick={() => void handleSaveYoutubeLiveUrl()}
             disabled={isSavingYoutube || (youtubeDraft.trim() !== '' && !youtubeDraftValid)}
-            className="text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition-colors"
+            className="text-xs font-bold bg-[var(--admin-lime)] text-[var(--admin-bg)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition-[filter]"
           >
             {isSavingYoutube ? 'Saving…' : 'Save Link'}
           </button>
@@ -275,13 +269,13 @@ export const AdminPanel: React.FC = () => {
             type="button"
             onClick={() => void handleClearYoutubeDraft()}
             disabled={isSavingYoutube || !youtubeDraft}
-            className="text-xs text-slate-300 hover:text-white bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-lg transition-colors"
+            className="text-xs text-[var(--admin-ink)] hover:bg-white/5 bg-black/25 border border-[var(--admin-line)] disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-lg transition-colors"
           >
             Clear
           </button>
         </div>
         {youtubeDraft.trim() && !youtubeDraftValid && (
-          <p className="text-[11px] text-red-400">
+          <p className="text-[11px] text-[var(--admin-clay)]">
             Enter a valid YouTube watch, live, or share URL.
           </p>
         )}
@@ -289,65 +283,68 @@ export const AdminPanel: React.FC = () => {
           <p
             className={`text-[11px] ${
               youtubeSaveMessage.startsWith('Failed') || youtubeSaveMessage.startsWith('Enter')
-                ? 'text-red-400'
-                : 'text-emerald-400'
+                ? 'text-[var(--admin-clay)]'
+                : 'text-[var(--admin-teal)]'
             }`}
           >
             {youtubeSaveMessage}
           </p>
         )}
-      </div>
+      </section>
 
-      {/* 1. Tournament Fixtures — start a match */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+      <section className="admin-panel p-5 sm:p-6 space-y-4">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-lg font-bold text-indigo-300">Tournament Fixtures</h3>
-              <span className="text-[11px] text-slate-400 font-mono">
-                {filteredFixtures.length} / {FIXTURES.length} matches
-                {completedCount > 0 ? ` · ${completedCount} completed` : ''}
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="admin-display text-xl text-[var(--admin-lime)]">Tournament Fixtures</h3>
+            <span className="text-[11px] text-[var(--admin-muted)] font-mono">
+              {filteredFixtures.length} / {FIXTURES.length} matches
+              {completedCount > 0 ? ` · ${completedCount} completed` : ''}
+            </span>
+            <div className="flex items-center flex-wrap gap-1">
+              <span className="text-[10px] text-[var(--admin-muted)] font-semibold uppercase tracking-wider mr-1">
+                Start as
               </span>
-              <div className="flex items-center flex-wrap gap-1">
-                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mr-1">
-                  Start as
-                </span>
-                <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
-                  {MAX_POINTS_OPTIONS.map((pts) => (
-                    <button
-                      key={pts}
-                      type="button"
-                      onClick={() => setSelectedMaxPoints(pts)}
-                      className={`text-[10px] px-2.5 py-1 rounded font-bold ${
-                        selectedMaxPoints === pts ? 'bg-amber-400 text-slate-950' : 'text-slate-400 hover:text-white'
-                      }`}
-                      title={`Default fixture start format: ${pts} points`}
-                    >
-                      {pts} Points
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
-                  {BEST_OF_OPTIONS.map((bo) => (
-                    <button
-                      key={bo}
-                      type="button"
-                      onClick={() => setSelectedBestOf(bo)}
-                      className={`text-[10px] px-2.5 py-1 rounded font-bold ${
-                        selectedBestOf === bo ? 'bg-violet-400 text-slate-950' : 'text-slate-400 hover:text-white'
-                      }`}
-                      title={`Best of ${bo} games`}
-                    >
-                      BO{bo}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex items-center flex-wrap bg-black/25 p-1 rounded-lg border border-[var(--admin-line)] gap-0.5">
+                {MAX_POINTS_OPTIONS.map((pts) => (
+                  <button
+                    key={pts}
+                    type="button"
+                    onClick={() => setSelectedMaxPoints(pts)}
+                    className={`text-[10px] px-2.5 py-1 rounded font-bold ${
+                      selectedMaxPoints === pts
+                        ? 'bg-[var(--admin-clay)] text-white'
+                        : 'text-[var(--admin-muted)] hover:text-white'
+                    }`}
+                    title={`Default fixture start format: ${pts} points`}
+                  >
+                    {pts} Points
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center flex-wrap bg-black/25 p-1 rounded-lg border border-[var(--admin-line)] gap-0.5">
+                {BEST_OF_OPTIONS.map((bo) => (
+                  <button
+                    key={bo}
+                    type="button"
+                    onClick={() => setSelectedBestOf(bo)}
+                    className={`text-[10px] px-2.5 py-1 rounded font-bold ${
+                      selectedBestOf === bo
+                        ? 'bg-[var(--admin-teal)] text-[var(--admin-bg)]'
+                        : 'text-[var(--admin-muted)] hover:text-white'
+                    }`}
+                    title={`Best of ${bo} games`}
+                  >
+                    BO{bo}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Date</p>
+            <p className="text-[11px] font-semibold text-[var(--admin-muted)] uppercase tracking-wider">
+              Date
+            </p>
             <div className="flex items-center space-x-2 overflow-x-auto max-w-full pb-1">
               {dates.map((date) => (
                 <button
@@ -355,8 +352,8 @@ export const AdminPanel: React.FC = () => {
                   onClick={() => setSelectedDate(date)}
                   className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
                     selectedDate === date
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-md'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      ? 'bg-[var(--admin-clay)] text-white font-bold'
+                      : 'bg-black/25 text-[var(--admin-muted)] hover:text-white border border-[var(--admin-line)]'
                   }`}
                 >
                   {date}
@@ -366,7 +363,9 @@ export const AdminPanel: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Category</p>
+            <p className="text-[11px] font-semibold text-[var(--admin-muted)] uppercase tracking-wider">
+              Category
+            </p>
             <div className="flex items-center space-x-2 overflow-x-auto max-w-full pb-1">
               {categories.map((cat) => (
                 <button
@@ -374,8 +373,8 @@ export const AdminPanel: React.FC = () => {
                   onClick={() => setSelectedCategory(cat)}
                   className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
                     selectedCategory === cat
-                      ? 'bg-indigo-600 text-white font-bold shadow-md'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      ? 'bg-[var(--admin-lime)] text-[var(--admin-bg)] font-bold'
+                      : 'bg-black/25 text-[var(--admin-muted)] hover:text-white border border-[var(--admin-line)]'
                   }`}
                 >
                   {cat}
@@ -387,13 +386,17 @@ export const AdminPanel: React.FC = () => {
 
         <div className="space-y-6 max-h-[640px] overflow-y-auto pr-1">
           {Object.keys(fixturesByDate).length === 0 && (
-            <p className="text-sm text-slate-500 text-center py-8">No fixtures for this filter.</p>
+            <p className="text-sm text-[var(--admin-muted)] text-center py-8">
+              No fixtures for this filter.
+            </p>
           )}
           {Object.entries(fixturesByDate).map(([date, dayFixtures]) => (
             <div key={date} className="space-y-3">
-              <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800 py-2 flex items-center justify-between">
-                <h4 className="text-sm font-bold text-amber-400">{date}</h4>
-                <span className="text-[11px] text-slate-500">{dayFixtures.length} matches</span>
+              <div className="sticky top-0 z-10 bg-[var(--admin-panel)]/95 backdrop-blur-sm border-b border-[var(--admin-line)] py-2 flex items-center justify-between">
+                <h4 className="text-sm font-bold text-[var(--admin-lime)]">{date}</h4>
+                <span className="text-[11px] text-[var(--admin-muted)]">
+                  {dayFixtures.length} matches
+                </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {dayFixtures.map((fixture) => {
@@ -404,24 +407,26 @@ export const AdminPanel: React.FC = () => {
                       key={fixture.id}
                       className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
                         isLive
-                          ? 'bg-indigo-950/70 border-indigo-500 shadow-md ring-1 ring-indigo-500/50'
+                          ? 'bg-[var(--admin-teal)]/10 border-[var(--admin-teal)] ring-1 ring-[var(--admin-teal)]/40'
                           : isCompleted
-                            ? 'bg-emerald-950/30 border-emerald-700/50'
-                            : 'bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/80'
+                            ? 'bg-[var(--admin-teal)]/5 border-[var(--admin-teal)]/30'
+                            : 'bg-black/20 border-[var(--admin-line)] hover:bg-black/30'
                       }`}
                     >
                       <div>
-                        <div className="flex justify-between items-center text-[11px] text-slate-400 mb-1.5 gap-2">
+                        <div className="flex justify-between items-center text-[11px] text-[var(--admin-muted)] mb-1.5 gap-2">
                           <span className="font-mono">{fixture.time}</span>
-                          <span className="font-semibold text-indigo-400 text-right">{fixture.category}</span>
+                          <span className="font-semibold text-[var(--admin-teal)] text-right">
+                            {fixture.category}
+                          </span>
                         </div>
-                        <p className="text-sm font-bold text-slate-100">{fixture.details}</p>
+                        <p className="text-sm font-bold text-[var(--admin-ink)]">{fixture.details}</p>
                         {isCompleted && (
                           <div className="mt-2 space-y-0.5">
-                            <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">
+                            <p className="text-[11px] font-bold text-[var(--admin-teal)] uppercase tracking-wide">
                               Match completed · {fixture.result}
                             </p>
-                            <p className="text-[10px] text-slate-400">
+                            <p className="text-[10px] text-[var(--admin-muted)]">
                               Winner: {fixture.winnerName}
                               {fixture.completedDate
                                 ? ` · ${fixture.completedDate} ${fixture.completedTime ?? ''}`
@@ -431,20 +436,22 @@ export const AdminPanel: React.FC = () => {
                         )}
                       </div>
 
-                      <div className="mt-3.5 flex justify-between items-center pt-2 border-t border-slate-800/80 gap-2">
-                        <span className="text-[10px] text-slate-400 uppercase tracking-wider">
+                      <div className="mt-3.5 flex justify-between items-center pt-2 border-t border-[var(--admin-line)] gap-2">
+                        <span className="text-[10px] text-[var(--admin-muted)] uppercase tracking-wider">
                           {isCompleted ? 'Completed' : fixture.stage}
                         </span>
                         <div className="flex items-center flex-wrap justify-end gap-1 shrink-0">
                           <button
                             type="button"
-                            onClick={() => handleStartFixture(fixture, selectedMaxPoints, selectedBestOf)}
+                            onClick={() =>
+                              handleStartFixture(fixture, selectedMaxPoints, selectedBestOf)
+                            }
                             className={`text-[11px] px-2.5 py-1 rounded font-bold transition-all ${
                               isLive &&
                               match.maxPoints === selectedMaxPoints &&
                               (match.bestOf ?? 1) === selectedBestOf
-                                ? 'bg-emerald-500 text-slate-950 shadow'
-                                : 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                                ? 'bg-[var(--admin-teal)] text-[var(--admin-bg)]'
+                                : 'bg-[var(--admin-lime)] text-[var(--admin-bg)] hover:brightness-110'
                             }`}
                             title={`Start as ${selectedMaxPoints} point · best of ${selectedBestOf}`}
                           >
@@ -456,23 +463,29 @@ export const AdminPanel: React.FC = () => {
                                 ? `Replay ${selectedMaxPoints}p BO${selectedBestOf}`
                                 : `Start ${selectedMaxPoints}p BO${selectedBestOf}`}
                           </button>
-                          {MAX_POINTS_OPTIONS.filter((pts) => pts !== selectedMaxPoints).map((pts) => (
-                            <button
-                              key={pts}
-                              type="button"
-                              onClick={() => handleStartFixture(fixture, pts, selectedBestOf)}
-                              className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${
-                                isLive && match.maxPoints === pts && (match.bestOf ?? 1) === selectedBestOf
-                                  ? 'bg-emerald-500 text-slate-950 shadow'
-                                  : 'bg-indigo-600 text-white hover:bg-indigo-500'
-                              }`}
-                              title={`Start as ${pts} point · best of ${selectedBestOf}`}
-                            >
-                              {isLive && match.maxPoints === pts && (match.bestOf ?? 1) === selectedBestOf
-                                ? `Live ${pts}p`
-                                : `${pts}p`}
-                            </button>
-                          ))}
+                          {MAX_POINTS_OPTIONS.filter((pts) => pts !== selectedMaxPoints).map(
+                            (pts) => (
+                              <button
+                                key={pts}
+                                type="button"
+                                onClick={() => handleStartFixture(fixture, pts, selectedBestOf)}
+                                className={`text-[10px] px-2 py-1 rounded font-bold transition-all ${
+                                  isLive &&
+                                  match.maxPoints === pts &&
+                                  (match.bestOf ?? 1) === selectedBestOf
+                                    ? 'bg-[var(--admin-teal)] text-[var(--admin-bg)]'
+                                    : 'bg-black/35 text-[var(--admin-ink)] border border-[var(--admin-line)] hover:bg-black/50'
+                                }`}
+                                title={`Start as ${pts} point · best of ${selectedBestOf}`}
+                              >
+                                {isLive &&
+                                match.maxPoints === pts &&
+                                (match.bestOf ?? 1) === selectedBestOf
+                                  ? `Live ${pts}p`
+                                  : `${pts}p`}
+                              </button>
+                            )
+                          )}
                         </div>
                       </div>
                     </div>
@@ -482,23 +495,20 @@ export const AdminPanel: React.FC = () => {
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* 2. Custom match (not on fixture schedule) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-          <div>
-            <h3 className="text-lg font-bold text-violet-300">Start Custom Match</h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Use for exhibition / friendly / unscheduled games. Does not change the fixture list.
-              Results still save to Completed Matches under a <span className="font-mono text-slate-300">custom-*</span> id.
-            </p>
-          </div>
+      <section className="admin-panel p-5 sm:p-6 space-y-4">
+        <div>
+          <h3 className="admin-display text-xl text-[var(--admin-clay)]">Start Custom Match</h3>
+          <p className="text-xs text-[var(--admin-muted)] mt-1">
+            Exhibition / friendly / unscheduled games. Does not change the fixture list. Results
+            save under a <span className="font-mono text-[var(--admin-ink)]">custom-*</span> id.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block space-y-1.5">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-[var(--admin-muted)] uppercase tracking-wider">
               Side A / Player 1
             </span>
             <input
@@ -507,11 +517,11 @@ export const AdminPanel: React.FC = () => {
               onChange={(e) => setCustomSideA(e.target.value)}
               maxLength={80}
               placeholder="e.g. Nitin Verma"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              className="w-full bg-black/30 border border-[var(--admin-line)] rounded-lg px-3 py-2 text-sm text-[var(--admin-ink)] placeholder:text-[var(--admin-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--admin-teal)]"
             />
           </label>
           <label className="block space-y-1.5">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-[var(--admin-muted)] uppercase tracking-wider">
               Side B / Player 2
             </span>
             <input
@@ -520,17 +530,17 @@ export const AdminPanel: React.FC = () => {
               onChange={(e) => setCustomSideB(e.target.value)}
               maxLength={80}
               placeholder="e.g. Sambit Mahapatra"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              className="w-full bg-black/30 border border-[var(--admin-line)] rounded-lg px-3 py-2 text-sm text-[var(--admin-ink)] placeholder:text-[var(--admin-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--admin-teal)]"
             />
           </label>
           <label className="block space-y-1.5">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-[var(--admin-muted)] uppercase tracking-wider">
               Category
             </span>
             <select
               value={customCategory}
               onChange={(e) => setCustomCategory(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              className="w-full bg-black/30 border border-[var(--admin-line)] rounded-lg px-3 py-2 text-sm text-[var(--admin-ink)] focus:outline-none focus:ring-1 focus:ring-[var(--admin-teal)]"
             >
               {fixtureCategories.map((cat) => (
                 <option key={cat} value={cat}>
@@ -547,18 +557,18 @@ export const AdminPanel: React.FC = () => {
                 onChange={(e) => setCustomCategoryOther(e.target.value)}
                 maxLength={80}
                 placeholder="Custom category name"
-                className="w-full mt-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full mt-2 bg-black/30 border border-[var(--admin-line)] rounded-lg px-3 py-2 text-sm text-[var(--admin-ink)] placeholder:text-[var(--admin-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--admin-teal)]"
               />
             )}
           </label>
           <label className="block space-y-1.5">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-[var(--admin-muted)] uppercase tracking-wider">
               Stage
             </span>
             <select
               value={customStage}
               onChange={(e) => setCustomStage(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              className="w-full bg-black/30 border border-[var(--admin-line)] rounded-lg px-3 py-2 text-sm text-[var(--admin-ink)] focus:outline-none focus:ring-1 focus:ring-[var(--admin-teal)]"
             >
               {CUSTOM_MATCH_STAGES.map((stage) => (
                 <option key={stage} value={stage}>
@@ -571,10 +581,10 @@ export const AdminPanel: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
           <div className="flex items-center flex-wrap gap-2">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-[var(--admin-muted)] uppercase tracking-wider">
               Format
             </span>
-            <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
+            <div className="flex items-center flex-wrap bg-black/25 p-1 rounded-lg border border-[var(--admin-line)] gap-0.5">
               {MAX_POINTS_OPTIONS.map((pts) => (
                 <button
                   key={pts}
@@ -582,15 +592,15 @@ export const AdminPanel: React.FC = () => {
                   onClick={() => setCustomMaxPoints(pts)}
                   className={`text-[10px] px-2.5 py-1 rounded font-bold ${
                     customMaxPoints === pts
-                      ? 'bg-violet-400 text-slate-950'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[var(--admin-teal)] text-[var(--admin-bg)]'
+                      : 'text-[var(--admin-muted)] hover:text-white'
                   }`}
                 >
                   {pts} Points
                 </button>
               ))}
             </div>
-            <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
+            <div className="flex items-center flex-wrap bg-black/25 p-1 rounded-lg border border-[var(--admin-line)] gap-0.5">
               {BEST_OF_OPTIONS.map((bo) => (
                 <button
                   key={bo}
@@ -598,8 +608,8 @@ export const AdminPanel: React.FC = () => {
                   onClick={() => setCustomBestOf(bo)}
                   className={`text-[10px] px-2.5 py-1 rounded font-bold ${
                     customBestOf === bo
-                      ? 'bg-amber-400 text-slate-950'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[var(--admin-clay)] text-white'
+                      : 'text-[var(--admin-muted)] hover:text-white'
                   }`}
                 >
                   Best of {bo}
@@ -610,24 +620,23 @@ export const AdminPanel: React.FC = () => {
           <button
             type="button"
             onClick={handleStartCustomMatch}
-            className="bg-violet-500 hover:bg-violet-400 text-slate-950 font-bold text-sm px-5 py-2.5 rounded-lg transition-colors shadow"
+            className="bg-[var(--admin-clay)] hover:brightness-110 text-white font-bold text-sm px-5 py-2.5 rounded-lg transition-[filter]"
           >
             Start Custom Match ({customMaxPoints}p · BO{customBestOf})
           </button>
         </div>
         {customMatchError && (
-          <p className="text-xs text-red-400" role="alert">
+          <p className="text-xs text-[var(--admin-clay)]" role="alert">
             {customMatchError}
           </p>
         )}
         {isCustomLiveMatch && (
-          <p className="text-[11px] text-violet-300/90">
+          <p className="text-[11px] text-[var(--admin-teal)]">
             Live now: {match.player1} vs {match.player2} · {match.category} · {match.stage}
           </p>
         )}
-      </div>
-
-    </div>
+      </section>
+    </AdminShell>
   );
 };
 

@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+:root {
+  /* Pine Court — public portal (light) */
+  --pine-mist: #eef3ec;
+  --pine-paper: #f7faf6;
+  --pine-deep: #0a2f24;
+  --pine-ink: #142820;
+  --pine-muted: #5a6f64;
+  --pine-line: #d5e0d4;
+  --pine-leaf: #1b8a62;
+  --pine-lime: #d4e85a;
+  --pine-clay: #e4572e;
+  --pine-sky: #2a6f7a;
+
+  /* Ops room — admin (dark pine) */
+  --admin-bg: #061a14;
+  --admin-panel: #0c2a20;
+  --admin-ink: #e8f2ea;
+  --admin-muted: #8aa396;
+  --admin-line: #1e4034;
+  --admin-lime: #c8e04a;
+  --admin-clay: #ff6b45;
+  --admin-teal: #3ecf9a;
+}
+
 @layer base {
   html,
   body,
@@ -9,16 +33,83 @@
   }
 
   body {
-    @apply bg-slate-950 text-slate-100 antialiased;
-    font-family: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+    @apply antialiased;
+    font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+    background: var(--pine-mist);
+    color: var(--pine-ink);
   }
 }
 
-/* Public portal display headings */
+/* Public portal */
+.npl-portal {
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(212, 232, 90, 0.22), transparent 55%),
+    radial-gradient(900px 420px at 100% 0%, rgba(27, 138, 98, 0.12), transparent 50%),
+    var(--pine-mist);
+}
+
 .npl-portal .portal-display {
-  font-family: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
-  font-weight: 400;
-  letter-spacing: 0.04em;
+  font-family: "Syne", "Arial Narrow", Impact, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.npl-portal .portal-page {
+  @apply mx-auto w-full max-w-6xl px-3 sm:px-5 py-6 sm:py-8;
+}
+
+@keyframes npl-hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes npl-hero-ken {
+  from {
+    transform: scale(1.06);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.npl-hero-copy {
+  animation: npl-hero-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.npl-hero-media {
+  animation: npl-hero-ken 8s ease-out both;
+}
+
+/* Admin ops shell */
+.npl-admin {
+  background: var(--admin-bg);
+  color: var(--admin-ink);
+  font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+}
+
+.npl-admin .admin-mesh {
+  background:
+    radial-gradient(900px 400px at 0% 0%, rgba(200, 224, 74, 0.08), transparent 55%),
+    radial-gradient(700px 360px at 100% 0%, rgba(62, 207, 154, 0.07), transparent 50%),
+    var(--admin-bg);
+}
+
+.npl-admin .admin-panel {
+  background: color-mix(in srgb, var(--admin-panel) 92%, black);
+  border: 1px solid var(--admin-line);
+  border-radius: 1.1rem;
+}
+
+.npl-admin .admin-display {
+  font-family: "Syne", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 /* /live CSS immersive / iOS cinema when native Fullscreen API is unavailable. */
@@ -211,7 +302,9 @@ html.npl-live-ios-chrome-collapse body {
 @media (prefers-reduced-motion: reduce) {
   .npl-live-match-end,
   .npl-live-match-end-score,
-  .npl-live-match-end-winner {
+  .npl-live-match-end-winner,
+  .npl-hero-copy,
+  .npl-hero-media {
     animation: none !important;
   }
 }
