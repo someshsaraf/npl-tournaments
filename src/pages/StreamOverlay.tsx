@@ -26,7 +26,7 @@ import { ServeRacket } from '../components/ServeRacket';
 import { LiveWinCelebration } from '../components/LiveWinCelebration';
 
 /** Broadcast lag for /live score bug only — does not affect Score Desk or /score. */
-const LIVE_SCORE_DELAY_MS = 8000;
+const LIVE_SCORE_DELAY_MS = 7000;
 
 
 /** Snapshot shown on /live between matches. */
@@ -334,7 +334,7 @@ export const StreamOverlay: React.FC = () => {
   }, []);
 
   /**
-   * Queue each Firebase score snapshot to appear 8s later (broadcast lag).
+   * Queue each Firebase score snapshot to appear 7s later (broadcast lag).
    * Timers are not cancelled on newer updates so intermediate points still show in order.
    * Concurrency: timer ids tracked in a Set; cleared only on unmount.
    */
@@ -773,7 +773,7 @@ export const StreamOverlay: React.FC = () => {
     void enterLiveFullscreen();
   };
 
-  // Score bug + win chrome use delayed scoreMatch only (8s lag).
+  // Score bug + win chrome use delayed scoreMatch only (7s lag).
   let phase: OverlayPhase = 'live';
   let display = {
     category: scoreMatch.category || 'Match',
