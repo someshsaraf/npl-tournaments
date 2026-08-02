@@ -35,6 +35,7 @@ export const LiveScoreboard: React.FC = () => {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
   const [celebration, setCelebration] = useState<{
     winnerName: string;
+    opponentName: string;
     scoreLabel: string;
     subtitle: string;
     gameScores: { score1: number; score2: number; winner: 1 | 2 }[];
@@ -91,10 +92,10 @@ export const LiveScoreboard: React.FC = () => {
     const key = `${match.currentMatchId}:g${match.gameNumber}:${match.score1}-${match.score2}:w${match.gameWinner}`;
     if (promptedKeyRef.current === key) return;
     promptedKeyRef.current = key;
-    const winName =
-      match.gameWinner === 1
-        ? match.player1 || match.teamA || 'Winner'
-        : match.player2 || match.teamB || 'Winner';
+    const side1 = match.player1 || match.teamA || 'Side A';
+    const side2 = match.player2 || match.teamB || 'Side B';
+    const winName = match.gameWinner === 1 ? side1 : side2;
+    const oppName = match.gameWinner === 1 ? side2 : side1;
     const seriesOver = hasSeriesWinner(match);
     const gamesLine = formatGameScoresLine(match);
     const subtitle =
@@ -106,6 +107,7 @@ export const LiveScoreboard: React.FC = () => {
     const rawScores = Array.isArray(match.gameScores) ? match.gameScores : [];
     setCelebration({
       winnerName: winName,
+      opponentName: oppName,
       scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`,
       subtitle,
       gameScores: match.bestOf === 3 ? rawScores : [],
@@ -171,10 +173,8 @@ export const LiveScoreboard: React.FC = () => {
   const name2 = match.player2 || match.teamB || 'Side B';
   const team1 = match.teamA || '';
   const team2 = match.teamB || '';
-  const winnerLabel =
-    match.gameWinner === 1
-      ? match.player1 || match.teamA
-      : match.player2 || match.teamB;
+  const winnerLabel = match.gameWinner === 1 ? name1 : name2;
+  const opponentLabel = match.gameWinner === 1 ? name2 : name1;
 
   return (
     <div
@@ -223,7 +223,10 @@ export const LiveScoreboard: React.FC = () => {
               className="font-black text-emerald-300 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-6 py-2 rounded-2xl text-center leading-tight max-w-[min(92vw,48rem)]"
               style={{ fontSize: 'clamp(1.25rem, 4vw, 3rem)' }}
             >
-              {seriesOver ? 'MATCH' : 'GAME'} WIN · {winnerLabel} · {score1}-{score2}
+              {seriesOver ? 'MATCH' : 'GAME'} WIN · {winnerLabel}
+              <span className="font-bold text-emerald-400/75"> def. {opponentLabel}</span>
+              {' · '}
+              {score1}-{score2}
             </span>
           ) : isGoldenPoint(match) ? (
             <span className="text-sm sm:text-base font-black text-amber-300 bg-amber-500/20 border border-amber-400/50 px-4 py-1.5 rounded-full animate-pulse">
@@ -396,6 +399,7 @@ export const LiveScoreboard: React.FC = () => {
       {celebration && (
         <WinnerCelebration
           winnerName={celebration.winnerName}
+          opponentName={celebration.opponentName}
           scoreLabel={celebration.scoreLabel}
           subtitle={celebration.subtitle}
           gameScores={celebration.gameScores}

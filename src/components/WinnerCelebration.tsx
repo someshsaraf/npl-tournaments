@@ -3,6 +3,8 @@ import type { GameScore } from '../data/tournamentData';
 
 type WinnerCelebrationProps = {
   winnerName: string;
+  /** Losing side display name — shown under the winner */
+  opponentName?: string;
   scoreLabel: string;
   onDismiss: () => void;
   /** Optional save action shown on the celebration screen */
@@ -82,6 +84,7 @@ function burst(particles: Particle[], x: number, y: number, color: string): void
  */
 export function WinnerCelebration({
   winnerName,
+  opponentName,
   scoreLabel,
   onDismiss,
   onSave,
@@ -99,6 +102,8 @@ export function WinnerCelebration({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const safeName =
     typeof winnerName === 'string' && winnerName.trim() ? winnerName.trim() : 'Winner';
+  const safeOpponent =
+    typeof opponentName === 'string' && opponentName.trim() ? opponentName.trim() : '';
   const safeScore =
     typeof scoreLabel === 'string' && scoreLabel.trim() ? scoreLabel.trim() : '—';
   const safeSubtitle =
@@ -303,6 +308,21 @@ export function WinnerCelebration({
         >
           {safeName}
         </h1>
+        {safeOpponent ? (
+          <p
+            className={`font-bold text-slate-300 ${audience ? 'shrink-0 -mt-1' : 'shrink-0 -mt-2'}`}
+            style={{
+              fontSize: audience
+                ? 'clamp(1rem, 2.8vw, 1.75rem)'
+                : 'clamp(0.85rem, 2.2vw, 1.25rem)'
+            }}
+          >
+            <span className="text-slate-500 uppercase tracking-[0.2em] text-[0.7em] font-black mr-2">
+              def.
+            </span>
+            {safeOpponent}
+          </p>
+        ) : null}
         {showBo3Games ? (
           <div
             className={

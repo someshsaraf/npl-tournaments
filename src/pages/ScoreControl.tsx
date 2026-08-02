@@ -57,6 +57,7 @@ export const ScoreControl: React.FC = () => {
   const [newMatchError, setNewMatchError] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<{
     winnerName: string;
+    opponentName: string;
     scoreLabel: string;
     subtitle: string;
     seriesOver: boolean;
@@ -125,10 +126,10 @@ export const ScoreControl: React.FC = () => {
     } else {
       setPendingSaveMatch(null);
     }
-    const winName =
-      match.gameWinner === 1
-        ? match.player1 || match.teamA || 'Winner'
-        : match.player2 || match.teamB || 'Winner';
+    const side1 = match.player1 || match.teamA || 'Side A';
+    const side2 = match.player2 || match.teamB || 'Side B';
+    const winName = match.gameWinner === 1 ? side1 : side2;
+    const oppName = match.gameWinner === 1 ? side2 : side1;
     const gamesLine = formatGameScoresLine(match);
     const subtitle =
       match.bestOf === 3
@@ -139,6 +140,7 @@ export const ScoreControl: React.FC = () => {
     const rawScores = Array.isArray(match.gameScores) ? match.gameScores : [];
     setCelebration({
       winnerName: winName,
+      opponentName: oppName,
       scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`,
       subtitle,
       seriesOver,
@@ -298,13 +300,10 @@ export const ScoreControl: React.FC = () => {
   const scoreButtonsLocked = seriesOver || (hasWinner && match.bestOf !== 3);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
-  const winnerName =
-    match.gameWinner === 1
-      ? match.player1 || match.teamA
-      : match.player2 || match.teamB;
-
   const name1 = match.player1 || match.teamA || 'Side A';
   const name2 = match.player2 || match.teamB || 'Side B';
+  const winnerName = match.gameWinner === 1 ? name1 : name2;
+  const opponentName = match.gameWinner === 1 ? name2 : name1;
   const isBo3 = match.bestOf === 3;
 
   const postMatchLinks = (
@@ -455,7 +454,10 @@ export const ScoreControl: React.FC = () => {
           {hasWinner ? (
             <>
               <span className="text-xs sm:text-sm font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1 rounded-full whitespace-nowrap">
-                {seriesOver ? 'MATCH' : 'GAME'} WIN {winnerName} · {score1}-{score2}
+                {seriesOver ? 'MATCH' : 'GAME'} WIN {winnerName}
+                <span className="font-bold text-emerald-400/70"> def. {opponentName}</span>
+                {' · '}
+                {score1}-{score2}
               </span>
               {!celebration && !showNewMatchForm && !seriesOver && isBo3 && (
                 <button
@@ -657,6 +659,7 @@ export const ScoreControl: React.FC = () => {
       {celebration && (
         <WinnerCelebration
           winnerName={celebration.winnerName}
+          opponentName={celebration.opponentName}
           scoreLabel={celebration.scoreLabel}
           subtitle={celebration.subtitle}
           gameScores={celebration.gameScores}
