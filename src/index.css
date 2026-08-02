@@ -55,7 +55,46 @@
 }
 
 .npl-portal .portal-page {
-  @apply mx-auto w-full max-w-6xl px-3 sm:px-5 py-6 sm:py-8;
+  @apply mx-auto w-full max-w-6xl px-4 sm:px-6 py-6 sm:py-8;
+}
+
+/* Reusable portal UI primitives */
+.npl-portal .portal-card {
+  @apply rounded-2xl border border-[var(--pine-line)] bg-[var(--pine-paper)] shadow-sm;
+}
+
+.npl-portal .portal-section-title {
+  font-family: "Syne", "Arial Narrow", Impact, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  @apply text-xl sm:text-2xl text-[var(--pine-deep)];
+}
+
+.npl-portal .portal-list {
+  @apply rounded-2xl border border-[var(--pine-line)] overflow-hidden divide-y divide-[var(--pine-line)] bg-[var(--pine-paper)];
+}
+
+.npl-portal .portal-list-item {
+  @apply px-4 py-4 text-sm hover:bg-[var(--pine-mist)]/60 transition-colors;
+}
+
+.npl-portal .portal-btn-primary {
+  @apply inline-flex items-center justify-center rounded-xl bg-[var(--pine-deep)] text-[var(--pine-lime)] font-bold text-sm px-5 py-2.5 hover:opacity-95 transition-opacity;
+}
+
+.npl-portal .portal-btn-secondary {
+  @apply inline-flex items-center justify-center rounded-xl border border-[var(--pine-line)] bg-white text-[var(--pine-deep)] font-bold text-sm px-5 py-2.5 hover:bg-[var(--pine-mist)] transition-colors;
+}
+
+/* Mobile bottom navigation safe area */
+.npl-portal .portal-main-with-nav {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .npl-portal .portal-main-with-nav {
+    padding-bottom: 0;
+  }
 }
 
 @keyframes npl-hero-rise {
