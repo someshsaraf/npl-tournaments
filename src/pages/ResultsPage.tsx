@@ -75,6 +75,15 @@ export default function ResultsPage() {
           {filtered.map((row) => {
             const id = row.fixtureId || row.id;
             const when = [row.completedDate, row.completedTime].filter(Boolean).join(' ');
+            const stageLabel =
+              typeof row.stage === 'string' && row.stage.trim() ? row.stage.trim() : '';
+            const categoryLabel =
+              typeof row.category === 'string' && row.category.trim()
+                ? row.category.trim()
+                : '';
+            // Badge shows category (Exhibition, League, Boys Singles…), not a blanket "Final".
+            const badgeLabel = categoryLabel || stageLabel || 'Match';
+            const isFinalStage = /^final$/i.test(stageLabel);
             return (
               <li
                 key={id}
@@ -83,11 +92,13 @@ export default function ResultsPage() {
                 <span className="font-mono text-xs text-amber-400/90 sm:pt-0.5">{when || '—'}</span>
                 <div className="min-w-0 space-y-0.5">
                   <p className="text-[11px] uppercase tracking-wide text-indigo-300/90 truncate">
-                    {row.category || 'Match'}
-                    {row.stage ? (
+                    {categoryLabel || 'Match'}
+                    {stageLabel ? (
                       <>
                         <span className="text-slate-600"> · </span>
-                        <span className="text-slate-500 normal-case tracking-normal">{row.stage}</span>
+                        <span className="text-slate-500 normal-case tracking-normal">
+                          {stageLabel}
+                        </span>
                       </>
                     ) : null}
                   </p>
@@ -101,8 +112,15 @@ export default function ResultsPage() {
                   </p>
                 </div>
                 <div className="sm:justify-self-end sm:self-center">
-                  <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
-                    Final
+                  <span
+                    className={`inline-block max-w-[10rem] truncate text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border ${
+                      isFinalStage
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                        : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40'
+                    }`}
+                    title={badgeLabel}
+                  >
+                    {badgeLabel}
                   </span>
                 </div>
               </li>

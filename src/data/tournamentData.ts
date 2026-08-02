@@ -171,7 +171,7 @@ export const TEAMS: Team[] = [
   {
     id: 'team-e',
     name: 'Team E',
-    players: ['Vikash Srivastava', 'Anupam', 'Mihir', 'Dhanashree']
+    players: ['Vikash Srivastava', 'Anupam', 'Ramakrishna', 'Sujata']
   }
 ];
 
@@ -271,8 +271,8 @@ export const FIXTURES: Fixture[] = [
   { id: 'f-92', date: '2-Aug-26', time: '19:15', category: "Men's Doubles A", stage: 'Group Stage', details: 'Tejas A & Anupam vs Sambit Mahapatra & Shaunak', teamA: 'Tejas A & Anupam', teamB: 'Sambit Mahapatra & Shaunak' },
   { id: 'f-93', date: '2-Aug-26', time: '19:30', category: "Men's Doubles A", stage: 'Group Stage', details: 'Ishan Suman & Abhishek Modi vs Ajay Narang & Vikash', teamA: 'Ishan Suman & Abhishek Modi', teamB: 'Ajay Narang & Vikash' },
   { id: 'f-94', date: '2-Aug-26', time: '19:45', category: "Men's Doubles B", stage: 'Group Stage', details: 'Prateek Surana & Samik vs Vinamra Jaiswal & Anirudh', teamA: 'Prateek Surana & Samik', teamB: 'Vinamra Jaiswal & Anirudh' },
-  { id: 'f-95', date: '2-Aug-26', time: '20:00', category: "Men's Doubles B", stage: 'Group Stage', details: 'Satish Ram & Mihir vs Vishwajeet & Mayank Sehlot', teamA: 'Satish Ram & Mihir', teamB: 'Vishwajeet & Mayank Sehlot' },
-  { id: 'f-96', date: '2-Aug-26', time: '20:15', category: "Men's Doubles B", stage: 'Group Stage', details: 'Prateek Surana & Samik vs Satish Ram & Mihir', teamA: 'Prateek Surana & Samik', teamB: 'Satish Ram & Mihir' },
+  { id: 'f-95', date: '2-Aug-26', time: '20:00', category: "Men's Doubles B", stage: 'Group Stage', details: 'Satish Ram & Ramakrishna vs Vishwajeet & Mayank Sehlot', teamA: 'Satish Ram & Ramakrishna', teamB: 'Vishwajeet & Mayank Sehlot' },
+  { id: 'f-96', date: '2-Aug-26', time: '20:15', category: "Men's Doubles B", stage: 'Group Stage', details: 'Prateek Surana & Samik vs Satish Ram & Ramakrishna', teamA: 'Prateek Surana & Samik', teamB: 'Satish Ram & Ramakrishna' },
   { id: 'f-97', date: '2-Aug-26', time: '20:30', category: "Men's Doubles B", stage: 'Group Stage', details: 'Vinamra Jaiswal & Anirudh vs Vishwajeet & Mayank Sehlot', teamA: 'Vinamra Jaiswal & Anirudh', teamB: 'Vishwajeet & Mayank Sehlot' },
   { id: 'f-98', date: '2-Aug-26', time: '20:45', category: "Men's Doubles B", stage: 'Group Stage', details: 'Prateek Surana & Samik vs Vishwajeet & Mayank Sehlot', teamA: 'Prateek Surana & Samik', teamB: 'Vishwajeet & Mayank Sehlot' },
   { id: 'f-99', date: '7-Aug-26', time: '17:00', category: 'Team Championship', stage: 'Group Stage', details: 'Team B vs Team D (Match 1)', teamA: 'Team B', teamB: 'Team D' },
@@ -285,7 +285,7 @@ export const FIXTURES: Fixture[] = [
   { id: 'f-106', date: '7-Aug-26', time: '18:45', category: 'Team Championship', stage: 'Group Stage', details: 'Team E vs Team B (Match 3)', teamA: 'Team E', teamB: 'Team B' },
   { id: 'f-107', date: '7-Aug-26', time: '19:00', category: 'Team Championship', stage: 'Group Stage', details: 'Team E vs Team B (Match 4)', teamA: 'Team E', teamB: 'Team B' },
   { id: 'f-108', date: '7-Aug-26', time: '19:15', category: 'Team Championship', stage: 'Group Stage', details: 'Team E vs Team B (Match 5)', teamA: 'Team E', teamB: 'Team B' },
-  { id: 'f-109', date: '7-Aug-26', time: '19:30', category: "Men's Doubles B", stage: 'Group Stage', details: 'Vinamra Jaiswal & Anirudh vs Satish Ram & Mihir', teamA: 'Vinamra Jaiswal & Anirudh', teamB: 'Satish Ram & Mihir' },
+  { id: 'f-109', date: '7-Aug-26', time: '19:30', category: "Men's Doubles B", stage: 'Group Stage', details: 'Vinamra Jaiswal & Anirudh vs Satish Ram & Ramakrishna', teamA: 'Vinamra Jaiswal & Anirudh', teamB: 'Satish Ram & Ramakrishna' },
   { id: 'f-110', date: '7-Aug-26', time: '19:45', category: "Men's Doubles B", stage: 'Group Stage', details: 'Anand & Rohit vs Kshounis & Manmohan', teamA: 'Anand & Rohit', teamB: 'Kshounis & Manmohan' },
   { id: 'f-111', date: '7-Aug-26', time: '20:00', category: "Men's Doubles B", stage: 'Group Stage', details: 'Kumar Abhishek & Rajanish vs Rumit Sehlot & Naman', teamA: 'Kumar Abhishek & Rajanish', teamB: 'Rumit Sehlot & Naman' },
   { id: 'f-112', date: '7-Aug-26', time: '20:15', category: "Men's Doubles B", stage: 'Group Stage', details: 'Anand & Rohit vs Kumar Abhishek & Rajanish', teamA: 'Anand & Rohit', teamB: 'Kumar Abhishek & Rajanish' },
@@ -304,15 +304,15 @@ export const FIXTURES: Fixture[] = [
   { id: 'f-125', date: '8-Aug-26', time: '09:30', category: "Men's Singles <35", stage: 'Group Stage', details: 'Ishan Suman vs Rup Chitrak', teamA: 'Ishan Suman', teamB: 'Rup Chitrak' },
   { id: 'f-126', date: '8-Aug-26', time: '09:45', category: "Men's Singles <35", stage: 'Group Stage', details: 'Ajay Narang vs Shaunak', teamA: 'Ajay Narang', teamB: 'Shaunak' },
   { id: 'f-127', date: '8-Aug-26', time: '10:00', category: "Women's Doubles", stage: 'Group Stage', details: 'Sujata Dusi & Punitha vs Shila sg & Ashritha', teamA: 'Sujata Dusi & Punitha', teamB: 'Shila sg & Ashritha' },
-  { id: 'f-128', date: '8-Aug-26', time: '10:15', category: "Women's Doubles", stage: 'Group Stage', details: 'Anisha & Dhanashree vs Manila & Shwetha', teamA: 'Anisha & Dhanashree', teamB: 'Manila & Shwetha' },
+  { id: 'f-128', date: '8-Aug-26', time: '10:15', category: "Women's Doubles", stage: 'Group Stage', details: 'Anisha & Sujata vs Manila & Shwetha', teamA: 'Anisha & Sujata', teamB: 'Manila & Shwetha' },
   { id: 'f-129', date: '8-Aug-26', time: '10:30', category: "Women's Doubles", stage: 'Group Stage', details: 'Sujata Dusi & Punitha vs Deepthi Bapat & Dhanya', teamA: 'Sujata Dusi & Punitha', teamB: 'Deepthi Bapat & Dhanya' },
-  { id: 'f-130', date: '8-Aug-26', time: '10:45', category: "Women's Doubles", stage: 'Group Stage', details: 'Shila sg & Ashritha vs Anisha & Dhanashree', teamA: 'Shila sg & Ashritha', teamB: 'Anisha & Dhanashree' },
+  { id: 'f-130', date: '8-Aug-26', time: '10:45', category: "Women's Doubles", stage: 'Group Stage', details: 'Shila sg & Ashritha vs Anisha & Sujata', teamA: 'Shila sg & Ashritha', teamB: 'Anisha & Sujata' },
   { id: 'f-131', date: '8-Aug-26', time: '11:00', category: "Women's Doubles", stage: 'Group Stage', details: 'Manila & Shwetha vs Deepthi Bapat & Dhanya', teamA: 'Manila & Shwetha', teamB: 'Deepthi Bapat & Dhanya' },
   { id: 'f-132', date: '8-Aug-26', time: '11:15', category: "Women's Singles", stage: 'Group Stage', details: 'Sujata Dusi vs Manila', teamA: 'Sujata Dusi', teamB: 'Manila' },
   { id: 'f-133', date: '8-Aug-26', time: '11:30', category: "Women's Singles", stage: 'Group Stage', details: 'Shila sg vs Anisha', teamA: 'Shila sg', teamB: 'Anisha' },
   { id: 'f-134', date: '8-Aug-26', time: '11:45', category: "Women's Singles", stage: 'Group Stage', details: 'Anisha vs Saanvi', teamA: 'Anisha', teamB: 'Saanvi' },
   { id: 'f-135', date: '8-Aug-26', time: '12:00', category: "Women's Singles", stage: 'Group Stage', details: 'Manila vs Saanvi', teamA: 'Manila', teamB: 'Saanvi' },
-  { id: 'f-136', date: '8-Aug-26', time: '12:15', category: "Women's Doubles", stage: 'Group Stage', details: 'Sujata Dusi & Punitha vs Anisha & Dhanashree', teamA: 'Sujata Dusi & Punitha', teamB: 'Anisha & Dhanashree' },
+  { id: 'f-136', date: '8-Aug-26', time: '12:15', category: "Women's Doubles", stage: 'Group Stage', details: 'Sujata Dusi & Punitha vs Anisha & Sujata', teamA: 'Sujata Dusi & Punitha', teamB: 'Anisha & Sujata' },
   { id: 'f-137', date: '8-Aug-26', time: '16:00', category: 'Team Championship', stage: 'Group Stage', details: 'Team C vs Team D (Match 1)', teamA: 'Team C', teamB: 'Team D' },
   { id: 'f-138', date: '8-Aug-26', time: '16:15', category: 'Team Championship', stage: 'Group Stage', details: 'Team C vs Team D (Match 2)', teamA: 'Team C', teamB: 'Team D' },
   { id: 'f-139', date: '8-Aug-26', time: '16:30', category: 'Team Championship', stage: 'Group Stage', details: 'Team C vs Team D (Match 3)', teamA: 'Team C', teamB: 'Team D' },
@@ -343,7 +343,7 @@ export const FIXTURES: Fixture[] = [
   { id: 'f-164', date: '9-Aug-26', time: '08:30', category: "Women's Doubles", stage: 'Group Stage', details: 'Shila sg & Ashritha vs Manila & Shwetha', teamA: 'Shila sg & Ashritha', teamB: 'Manila & Shwetha' },
   { id: 'f-165', date: '9-Aug-26', time: '08:45', category: "Women's Doubles", stage: 'Group Stage', details: 'Sujata Dusi & Punitha vs Manila & Shwetha', teamA: 'Sujata Dusi & Punitha', teamB: 'Manila & Shwetha' },
   { id: 'f-166', date: '9-Aug-26', time: '09:00', category: "Women's Doubles", stage: 'Group Stage', details: 'Shila sg & Ashritha vs Deepthi Bapat & Dhanya', teamA: 'Shila sg & Ashritha', teamB: 'Deepthi Bapat & Dhanya' },
-  { id: 'f-167', date: '9-Aug-26', time: '09:15', category: "Women's Doubles", stage: 'Group Stage', details: 'Anisha & Dhanashree vs Deepthi Bapat & Dhanya', teamA: 'Anisha & Dhanashree', teamB: 'Deepthi Bapat & Dhanya' },
+  { id: 'f-167', date: '9-Aug-26', time: '09:15', category: "Women's Doubles", stage: 'Group Stage', details: 'Anisha & Sujata vs Deepthi Bapat & Dhanya', teamA: 'Anisha & Sujata', teamB: 'Deepthi Bapat & Dhanya' },
   { id: 'f-168', date: '9-Aug-26', time: '09:30', category: 'Boys Singles', stage: 'Round 2', details: 'Winner Pool A vs Winner Pool B', teamA: 'Winner Pool A', teamB: 'Winner Pool B' },
   { id: 'f-169', date: '9-Aug-26', time: '09:45', category: 'Boys Singles', stage: 'Round 2', details: 'Winner Pool A vs Winner Pool C', teamA: 'Winner Pool A', teamB: 'Winner Pool C' },
   { id: 'f-170', date: '9-Aug-26', time: '10:00', category: 'Boys Singles', stage: 'Round 2', details: 'Winner Pool B vs Winner Pool C', teamA: 'Winner Pool B', teamB: 'Winner Pool C' },
