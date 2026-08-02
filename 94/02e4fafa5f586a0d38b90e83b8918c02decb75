@@ -1,0 +1,23 @@
+src/pages/ResultsPage.tsx
+  s_7aef03ee995153::t_10aad4729556c6 84-86
+  s_7aef03ee995153::t_f9a5af3ddd5f05 78-83,95-96,99-101,115-123
+src/data/tournamentData.ts
+  s_7aef03ee995153::t_99f007e8ec4488 274-275,288
+  s_7aef03ee995153::t_519870670a1ec8 174,307,309,315,346
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "9402e4fafa5f586a0d38b90e83b8918c02decb75",
+  "prompts": {},
+  "sessions": {
+    "s_7aef03ee995153": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee928348-7757-49ed-92f1-74421ce661ae",
+        "model": "default"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
