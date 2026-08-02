@@ -25,6 +25,9 @@ import {
 import { ServeRacket } from '../components/ServeRacket';
 import { LiveWinCelebration } from '../components/LiveWinCelebration';
 
+/** Broadcast lag for /live score bug only — does not affect Score Desk or /score. */
+const LIVE_SCORE_DELAY_MS = 8000;
+
 type WinCelebrationState = {
   winnerName: string;
   opponentName: string;
@@ -297,7 +300,10 @@ function compactNameBudget(nameA: unknown, nameB: unknown): number {
 }
 
 export const StreamOverlay: React.FC = () => {
-  const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
+  /** Latest Firebase match (immediate). Not used for the on-screen score bug. */
+  const [liveMatch, setLiveMatch] = useState<MatchState>(INITIAL_MATCH);
+  /** Score shown on /live — each liveMatch snapshot applied after LIVE_SCORE_DELAY_MS. */
+  const [scoreMatch, setScoreMatch] = useState<MatchState>(INITIAL_MATCH);
   const [settingsYoutubeUrl, setSettingsYoutubeUrl] = useState('');
   const [heldResult, setHeldResult] = useState<HeldResult | null>(null);
   const [latestCompleted, setLatestCompleted] = useState<HeldResult | null>(null);
@@ -322,17 +328,41 @@ export const StreamOverlay: React.FC = () => {
   const userStartedRef = useRef(false);
   const cssImmersiveRef = useRef(false);
   const winCelebKeyRef = useRef<string | null>(null);
+  const scoreDelayTimersRef = useRef<Set<number>>(new Set());
 
   const dismissWinCelebration = useCallback(() => {
     setWinCelebration(null);
   }, []);
 
   /**
-   * Fire stream celebration once per completed result key.
+   * Queue each Firebase score snapshot to appear 8s later (broadcast lag).
+   * Timers are not cancelled on newer updates so intermediate points still show in order.
+   * Concurrency: timer ids tracked in a Set; cleared only on unmount.
+   */
+  useEffect(() => {
+    const snapshot = liveMatch;
+    const id = window.setTimeout(() => {
+      scoreDelayTimersRef.current.delete(id);
+      setScoreMatch(snapshot);
+    }, LIVE_SCORE_DELAY_MS);
+    scoreDelayTimersRef.current.add(id);
+  }, [liveMatch]);
+
+  useEffect(() => {
+    return () => {
+      for (const id of scoreDelayTimersRef.current) {
+        window.clearTimeout(id);
+      }
+      scoreDelayTimersRef.current.clear();
+    };
+  }, []);
+
+  /**
+   * Fire stream celebration once per completed result key (on delayed scoreMatch).
    * Clears when a new in-progress match starts so the next win can celebrate again.
    */
   useEffect(() => {
-    if (isMatchInProgress(match) && !hasSeriesWinner(match)) {
+    if (isMatchInProgress(scoreMatch) && !hasSeriesWinner(scoreMatch)) {
       winCelebKeyRef.current = null;
       setWinCelebration(null);
       return;
@@ -346,20 +376,24 @@ export const StreamOverlay: React.FC = () => {
     let winnerName = '';
     let opponentName = '';
 
-    if (hasSeriesWinner(match)) {
+    if (hasSeriesWinner(scoreMatch)) {
       ended = true;
-      winnerSide = match.matchWinner === 2 ? 2 : 1;
-      score1 = match.score1 ?? 0;
-      score2 = match.score2 ?? 0;
+      winnerSide = scoreMatch.matchWinner === 2 ? 2 : 1;
+      score1 = scoreMatch.score1 ?? 0;
+      score2 = scoreMatch.score2 ?? 0;
       fixtureId =
-        typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
-      const p1 = match.player1 || match.teamA || 'Side A';
-      const p2 = match.player2 || match.teamB || 'Side B';
+        typeof scoreMatch.currentMatchId === 'string'
+          ? scoreMatch.currentMatchId.trim()
+          : '';
+      const p1 = scoreMatch.player1 || scoreMatch.teamA || 'Side A';
+      const p2 = scoreMatch.player2 || scoreMatch.teamB || 'Side B';
       winnerName = winnerSide === 1 ? p1 : p2;
       opponentName = winnerSide === 1 ? p2 : p1;
     } else {
       const currentId =
-        typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+        typeof scoreMatch.currentMatchId === 'string'
+          ? scoreMatch.currentMatchId.trim()
+          : '';
       const sticky = heldResult || latestCompleted;
       if (sticky && sticky.fixtureId === currentId) {
         ended = true;
@@ -384,7 +418,7 @@ export const StreamOverlay: React.FC = () => {
       opponentName,
       scoreLabel: `${score1}-${score2}`
     });
-  }, [match, heldResult, latestCompleted]);
+  }, [scoreMatch, heldResult, latestCompleted]);
   const iosLike = isIosLikeDevice();
   const iphone = isIphoneDevice();
 
@@ -428,7 +462,7 @@ export const StreamOverlay: React.FC = () => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setMatch(normalizeMatchState(data));
+      if (data) setLiveMatch(normalizeMatchState(data));
     });
     return () => unsubscribe();
   }, []);
@@ -455,18 +489,20 @@ export const StreamOverlay: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const snap = heldFromMatch(match);
+    const snap = heldFromMatch(scoreMatch);
     if (snap) setHeldResult(snap);
-  }, [match]);
+  }, [scoreMatch]);
 
   useEffect(() => {
-    const id = typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+    const id =
+      typeof scoreMatch.currentMatchId === 'string' ? scoreMatch.currentMatchId.trim() : '';
     if (!id) return;
     setHeldResult((prev) => (prev && prev.fixtureId !== id ? null : prev));
-  }, [match.currentMatchId]);
+  }, [scoreMatch.currentMatchId]);
 
+  // YouTube URL updates immediately (not delayed) so the stream link stays current.
   const videoId = parseYouTubeVideoId(
-    settingsYoutubeUrl || match.youtubeLiveUrl || ''
+    settingsYoutubeUrl || liveMatch.youtubeLiveUrl || ''
   );
 
   /** iOS + landscape + playing: hide Sound/messages for a full-bleed watch mode. */
@@ -747,33 +783,34 @@ export const StreamOverlay: React.FC = () => {
     void enterLiveFullscreen();
   };
 
+  // Score bug + win chrome use delayed scoreMatch only (8s lag).
   let phase: OverlayPhase = 'live';
   let display = {
-    category: match.category || 'Match',
-    stage: match.stage || '',
-    teamA: match.teamA || 'Team A',
-    teamB: match.teamB || 'Team B',
-    player1: match.player1 || 'Player 1',
-    player2: match.player2 || 'Player 2',
-    score1: match.score1 ?? 0,
-    score2: match.score2 ?? 0,
-    maxPoints: match.maxPoints ?? 11,
-    server: (match.server === 2 ? 2 : 1) as 1 | 2,
+    category: scoreMatch.category || 'Match',
+    stage: scoreMatch.stage || '',
+    teamA: scoreMatch.teamA || 'Team A',
+    teamB: scoreMatch.teamB || 'Team B',
+    player1: scoreMatch.player1 || 'Player 1',
+    player2: scoreMatch.player2 || 'Player 2',
+    score1: scoreMatch.score1 ?? 0,
+    score2: scoreMatch.score2 ?? 0,
+    maxPoints: scoreMatch.maxPoints ?? 11,
+    server: (scoreMatch.server === 2 ? 2 : 1) as 1 | 2,
     winnerSide: null as 1 | 2 | null,
-    deuceActive: !!match.deuceActive,
-    goldenPoint: isGoldenPoint(match)
+    deuceActive: !!scoreMatch.deuceActive,
+    goldenPoint: isGoldenPoint(scoreMatch)
   };
 
   const currentFixtureId =
-    typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+    typeof scoreMatch.currentMatchId === 'string' ? scoreMatch.currentMatchId.trim() : '';
 
-  if (hasSeriesWinner(match)) {
+  if (hasSeriesWinner(scoreMatch)) {
     phase = 'final';
     display = {
       ...display,
-      winnerSide: match.matchWinner === 2 ? 2 : 1
+      winnerSide: scoreMatch.matchWinner === 2 ? 2 : 1
     };
-  } else if (!isMatchInProgress(match) && currentFixtureId) {
+  } else if (!isMatchInProgress(scoreMatch) && currentFixtureId) {
     const sticky = heldResult || latestCompleted;
     if (sticky && sticky.fixtureId === currentFixtureId) {
       phase = 'last';
