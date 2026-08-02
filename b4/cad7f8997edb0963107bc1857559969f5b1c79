@@ -1,0 +1,21 @@
+src/components/AdminNav.tsx
+  s_7aef03ee995153::t_96f2f8622150e3 2-9,12-23,38-60
+src/components/PublicLayout.tsx
+  s_7aef03ee995153::t_9121dc40e0c53f 2-11,15-28,70-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "b4cad7f8997edb0963107bc1857559969f5b1c79",
+  "prompts": {},
+  "sessions": {
+    "s_7aef03ee995153": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ee928348-7757-49ed-92f1-74421ce661ae",
+        "model": "default"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
