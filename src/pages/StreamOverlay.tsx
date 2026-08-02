@@ -28,11 +28,6 @@ import { LiveWinCelebration } from '../components/LiveWinCelebration';
 /** Broadcast lag for /live score bug only — does not affect Score Desk or /score. */
 const LIVE_SCORE_DELAY_MS = 8000;
 
-type WinCelebrationState = {
-  winnerName: string;
-  opponentName: string;
-  scoreLabel: string;
-};
 
 /** Snapshot shown on /live between matches. */
 type HeldResult = {
@@ -319,7 +314,8 @@ export const StreamOverlay: React.FC = () => {
   });
   const [isStandalone, setIsStandalone] = useState(() => isStandaloneDisplayMode());
   const [showHomeScreenTip, setShowHomeScreenTip] = useState(false);
-  const [winCelebration, setWinCelebration] = useState<WinCelebrationState | null>(null);
+  /** Brief fireworks on the score bug only — not a center-page modal. */
+  const [scoreBurst, setScoreBurst] = useState(false);
 
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
@@ -329,9 +325,12 @@ export const StreamOverlay: React.FC = () => {
   const cssImmersiveRef = useRef(false);
   const winCelebKeyRef = useRef<string | null>(null);
   const scoreDelayTimersRef = useRef<Set<number>>(new Set());
+  /** After first delayed snapshot, we know load/refresh state and won't false-trigger. */
+  const celebrateArmedRef = useRef(false);
+  const prevSeriesOverRef = useRef(false);
 
-  const dismissWinCelebration = useCallback(() => {
-    setWinCelebration(null);
+  const dismissScoreBurst = useCallback(() => {
+    setScoreBurst(false);
   }, []);
 
   /**
@@ -358,67 +357,58 @@ export const StreamOverlay: React.FC = () => {
   }, []);
 
   /**
-   * Fire stream celebration once per completed result key (on delayed scoreMatch).
-   * Clears when a new in-progress match starts so the next win can celebrate again.
+   * Score-local fireworks only when series flips to won while this page is watching.
+   * Never on refresh / already-ended / sticky "last result" alone.
    */
   useEffect(() => {
-    if (isMatchInProgress(scoreMatch) && !hasSeriesWinner(scoreMatch)) {
-      winCelebKeyRef.current = null;
-      setWinCelebration(null);
+    const seriesOver = hasSeriesWinner(scoreMatch);
+    const inProgress = isMatchInProgress(scoreMatch) && !seriesOver;
+    const fixtureId =
+      typeof scoreMatch.currentMatchId === 'string' ? scoreMatch.currentMatchId.trim() : '';
+    const endKey = seriesOver
+      ? `${fixtureId || 'unknown'}:${scoreMatch.score1 ?? 0}-${scoreMatch.score2 ?? 0}:w${
+          scoreMatch.matchWinner === 2 ? 2 : 1
+        }`
+      : null;
+
+    // First delayed snapshot after open/refresh: arm without celebrating.
+    if (!celebrateArmedRef.current) {
+      // Ignore pristine INITIAL until a real delayed update arrives (or stay empty).
+      const looksPristine =
+        !fixtureId &&
+        (scoreMatch.score1 ?? 0) === 0 &&
+        (scoreMatch.score2 ?? 0) === 0 &&
+        !seriesOver &&
+        !isMatchInProgress(scoreMatch);
+      if (looksPristine) return;
+
+      celebrateArmedRef.current = true;
+      prevSeriesOverRef.current = seriesOver;
+      if (endKey) winCelebKeyRef.current = endKey;
+      setScoreBurst(false);
       return;
     }
 
-    let ended = false;
-    let winnerSide: 1 | 2 | null = null;
-    let score1 = 0;
-    let score2 = 0;
-    let fixtureId = '';
-    let winnerName = '';
-    let opponentName = '';
-
-    if (hasSeriesWinner(scoreMatch)) {
-      ended = true;
-      winnerSide = scoreMatch.matchWinner === 2 ? 2 : 1;
-      score1 = scoreMatch.score1 ?? 0;
-      score2 = scoreMatch.score2 ?? 0;
-      fixtureId =
-        typeof scoreMatch.currentMatchId === 'string'
-          ? scoreMatch.currentMatchId.trim()
-          : '';
-      const p1 = scoreMatch.player1 || scoreMatch.teamA || 'Side A';
-      const p2 = scoreMatch.player2 || scoreMatch.teamB || 'Side B';
-      winnerName = winnerSide === 1 ? p1 : p2;
-      opponentName = winnerSide === 1 ? p2 : p1;
-    } else {
-      const currentId =
-        typeof scoreMatch.currentMatchId === 'string'
-          ? scoreMatch.currentMatchId.trim()
-          : '';
-      const sticky = heldResult || latestCompleted;
-      if (sticky && sticky.fixtureId === currentId) {
-        ended = true;
-        winnerSide = sticky.winnerSide === 2 ? 2 : 1;
-        score1 = sticky.score1 ?? 0;
-        score2 = sticky.score2 ?? 0;
-        fixtureId = sticky.fixtureId;
-        const p1 = sticky.player1 || sticky.teamA || 'Side A';
-        const p2 = sticky.player2 || sticky.teamB || 'Side B';
-        winnerName = winnerSide === 1 ? p1 : p2;
-        opponentName = winnerSide === 1 ? p2 : p1;
-      }
+    if (inProgress) {
+      prevSeriesOverRef.current = false;
+      winCelebKeyRef.current = null;
+      setScoreBurst(false);
+      return;
     }
 
-    if (!ended || !winnerSide) return;
+    // Transition: was live → series just completed on delayed score.
+    if (seriesOver && !prevSeriesOverRef.current && endKey) {
+      prevSeriesOverRef.current = true;
+      if (winCelebKeyRef.current === endKey) return;
+      winCelebKeyRef.current = endKey;
+      setScoreBurst(true);
+      return;
+    }
 
-    const key = `${fixtureId || 'unknown'}:${score1}-${score2}:w${winnerSide}`;
-    if (winCelebKeyRef.current === key) return;
-    winCelebKeyRef.current = key;
-    setWinCelebration({
-      winnerName,
-      opponentName,
-      scoreLabel: `${score1}-${score2}`
-    });
-  }, [scoreMatch, heldResult, latestCompleted]);
+    if (seriesOver) {
+      prevSeriesOverRef.current = true;
+    }
+  }, [scoreMatch]);
   const iosLike = isIosLikeDevice();
   const iphone = isIphoneDevice();
 
@@ -841,6 +831,12 @@ export const StreamOverlay: React.FC = () => {
       : display.winnerSide === 2
         ? display.player2 || display.teamB
         : '';
+  const loserLabel =
+    display.winnerSide === 1
+      ? display.player2 || display.teamB
+      : display.winnerSide === 2
+        ? display.player1 || display.teamA
+        : '';
 
   const compactOnly =
     'flex [@media(min-width:1024px)_and_(min-height:600px)]:hidden';
@@ -881,15 +877,16 @@ export const StreamOverlay: React.FC = () => {
           : `Last result ${winnerLabel} ${display.score1}-${display.score2}`
       }
     >
-      {/* Mobile / landscape: names above larger scores so digits never get crushed */}
+      {/* Mobile / landscape: names above larger scores; winner stays until next match */}
       <div
-        className={`${compactOnly} flex-col gap-0.5 w-max ${compactMaxW} rounded-lg bg-black/85 border border-white/25 px-2 py-1.5 shadow-lg ring-1 ring-black/40${
+        className={`${compactOnly} relative flex-col gap-0.5 w-max ${compactMaxW} rounded-lg bg-black/85 border border-white/25 px-2 py-1.5 shadow-lg ring-1 ring-black/40 overflow-hidden${
           matchEnded ? ' border-emerald-400/50' : ''
         }`}
       >
+        {scoreBurst ? <LiveWinCelebration onDismiss={dismissScoreBurst} /> : null}
         {matchEnded && (
           <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300 self-start npl-live-match-end-winner">
-            {phase === 'final' ? 'Final' : 'Last'}
+            {phase === 'final' ? 'Final' : 'Last result'}
           </span>
         )}
         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-x-1.5 gap-y-0.5 w-full min-w-[11rem]">
@@ -898,8 +895,15 @@ export const StreamOverlay: React.FC = () => {
               {showServe && activeServer === 1 && (
                 <ServeRacket active size={12} title="Serving" />
               )}
-              <span className="text-[10px] landscape:text-[9px] font-semibold text-white/90 truncate">
+              <span
+                className={`text-[10px] landscape:text-[9px] font-semibold truncate ${
+                  matchEnded && display.winnerSide === 1
+                    ? 'text-emerald-300 font-black'
+                    : 'text-white/90'
+                }`}
+              >
                 {label1}
+                {matchEnded && display.winnerSide === 1 ? ' · WIN' : ''}
               </span>
             </div>
             <span
@@ -917,8 +921,15 @@ export const StreamOverlay: React.FC = () => {
 
           <div className="min-w-0 text-center">
             <div className="flex items-center justify-center gap-0.5 min-w-0 mb-0.5">
-              <span className="text-[10px] landscape:text-[9px] font-semibold text-white/90 truncate">
+              <span
+                className={`text-[10px] landscape:text-[9px] font-semibold truncate ${
+                  matchEnded && display.winnerSide === 2
+                    ? 'text-emerald-300 font-black'
+                    : 'text-white/90'
+                }`}
+              >
                 {label2}
+                {matchEnded && display.winnerSide === 2 ? ' · WIN' : ''}
               </span>
               {showServe && activeServer === 2 && (
                 <ServeRacket active size={12} title="Serving" />
@@ -935,14 +946,27 @@ export const StreamOverlay: React.FC = () => {
             </span>
           </div>
         </div>
+        {matchEnded && winnerLabel ? (
+          <div className="mt-1 pt-1 border-t border-emerald-400/30 w-full text-center npl-live-match-end-winner">
+            <p className="text-[11px] landscape:text-[10px] font-black text-emerald-300 leading-snug break-words">
+              Winner: {winnerLabel}
+            </p>
+            {loserLabel ? (
+              <p className="text-[10px] landscape:text-[9px] font-bold text-white/85 leading-snug break-words mt-0.5">
+                def. {loserLabel}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
-      <div className={`${fullOnly} ${fullPanelW}`}>
+      <div className={`${fullOnly} relative ${fullPanelW}`}>
         <div
-          className={`bg-slate-950/92 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md overflow-hidden${
+          className={`relative bg-slate-950/92 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md overflow-hidden${
             matchEnded ? ' border-emerald-400/50' : ''
           }`}
         >
+          {scoreBurst ? <LiveWinCelebration onDismiss={dismissScoreBurst} /> : null}
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-slate-800/80 bg-slate-900/60">
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider truncate">
@@ -981,8 +1005,15 @@ export const StreamOverlay: React.FC = () => {
                 {showServe && activeServer === 1 && (
                   <ServeRacket active size={14} title="Serving" />
                 )}
-                <span className="text-xs font-bold text-slate-100 uppercase tracking-wide line-clamp-2 break-words leading-snug">
+                <span
+                  className={`text-xs font-bold uppercase tracking-wide line-clamp-2 break-words leading-snug ${
+                    matchEnded && display.winnerSide === 1
+                      ? 'text-emerald-300'
+                      : 'text-slate-100'
+                  }`}
+                >
                   {display.teamA}
+                  {matchEnded && display.winnerSide === 1 ? ' · WIN' : ''}
                 </span>
               </div>
               <p className="text-[11px] text-slate-300 line-clamp-2 break-words mt-0.5 leading-snug">
@@ -1007,8 +1038,15 @@ export const StreamOverlay: React.FC = () => {
               } ${display.winnerSide === 2 ? 'bg-emerald-950/40' : ''}`}
             >
               <div className="flex items-start justify-end gap-1 min-w-0">
-                <span className="text-xs font-bold text-slate-100 uppercase tracking-wide line-clamp-2 break-words leading-snug">
+                <span
+                  className={`text-xs font-bold uppercase tracking-wide line-clamp-2 break-words leading-snug ${
+                    matchEnded && display.winnerSide === 2
+                      ? 'text-emerald-300'
+                      : 'text-slate-100'
+                  }`}
+                >
                   {display.teamB}
+                  {matchEnded && display.winnerSide === 2 ? ' · WIN' : ''}
                 </span>
                 {showServe && activeServer === 2 && (
                   <ServeRacket active size={14} title="Serving" />
@@ -1027,13 +1065,22 @@ export const StreamOverlay: React.FC = () => {
             </div>
           </div>
 
-          {matchEnded && winnerLabel && (
-            <div className="px-2.5 py-1.5 border-t border-emerald-500/40 bg-emerald-500/15 text-center npl-live-match-end-winner">
-              <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide line-clamp-2 break-words">
-                {phase === 'last' ? 'Last match · ' : ''}Winner: {winnerLabel}
+          {matchEnded && winnerLabel ? (
+            <div className="px-2.5 py-2 border-t border-emerald-500/40 bg-emerald-500/15 text-center npl-live-match-end-winner">
+              <p className="text-[12px] font-black text-emerald-300 uppercase tracking-wide line-clamp-2 break-words">
+                Winner: {winnerLabel}
+              </p>
+              {loserLabel ? (
+                <p className="text-[11px] font-bold text-slate-100 mt-0.5 line-clamp-2 break-words">
+                  def. {loserLabel}
+                </p>
+              ) : null}
+              <p className="text-[10px] font-mono font-bold text-amber-300/90 mt-1">
+                {display.score1}-{display.score2}
+                {phase === 'last' ? ' · Last match' : ' · Final'}
               </p>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -1171,15 +1218,6 @@ export const StreamOverlay: React.FC = () => {
         )}
 
         <div className={overlayAnchorClass}>{scoreBug}</div>
-
-        {winCelebration ? (
-          <LiveWinCelebration
-            winnerName={winCelebration.winnerName}
-            opponentName={winCelebration.opponentName}
-            scoreLabel={winCelebration.scoreLabel}
-            onDismiss={dismissWinCelebration}
-          />
-        ) : null}
       </div>
     );
   }
@@ -1216,15 +1254,6 @@ export const StreamOverlay: React.FC = () => {
         Portal
       </Link>
       <div className={overlayAnchorClass}>{scoreBug}</div>
-
-      {winCelebration ? (
-        <LiveWinCelebration
-          winnerName={winCelebration.winnerName}
-          opponentName={winCelebration.opponentName}
-          scoreLabel={winCelebration.scoreLabel}
-          onDismiss={dismissWinCelebration}
-        />
-      ) : null}
     </div>
   );
 };
