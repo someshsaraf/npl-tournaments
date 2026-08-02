@@ -22,10 +22,12 @@ import { toYouTubeEmbedUrl } from '../utils/youtube';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { QuickNav } from '../components/ui/QuickNav';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { SectionHeading } from '../components/ui/SectionHeading';
+import { MatchCard } from '../components/ui/MatchCard';
 import heroImage from '../assets/hero.png';
 
 /**
- * Public home: hero, quick navigation hub, live stream + score, upcoming fixtures.
+ * Goalkick-inspired home: hero matchup, live stream, upcoming fixtures.
  */
 export default function HomePage() {
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
@@ -64,77 +66,87 @@ export default function HomePage() {
   const seriesOver = hasSeriesWinner(match);
   const name1 = match.player1 || match.teamA || 'Side A';
   const name2 = match.player2 || match.teamB || 'Side B';
-  const upcoming = fixtures.filter((f) => f.status !== 'completed').slice(0, 5);
+  const upcoming = fixtures.filter((f) => f.status !== 'completed').slice(0, 4);
+  const latest = fixtures.filter((f) => f.status === 'completed').slice(-3).reverse();
   const hasScore = (match.score1 ?? 0) > 0 || (match.score2 ?? 0) > 0;
-
   const liveStatus = seriesOver ? 'completed' : hasScore ? 'live' : 'on-court';
 
   return (
     <div>
-      <section className="relative min-h-[min(68vh,34rem)] sm:min-h-[min(74vh,38rem)] overflow-hidden text-white">
+      {/* Hero — Goalkick league-home style matchup */}
+      <section className="relative min-h-[min(75vh,40rem)] overflow-hidden">
         <img
           src={heroImage}
           alt=""
           className="npl-hero-media absolute inset-0 h-full w-full object-cover"
           draggable={false}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--pine-deep)] via-[color-mix(in_srgb,var(--pine-deep)_75%,transparent)] to-[color-mix(in_srgb,var(--pine-deep)_40%,transparent)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_70%,rgba(212,232,90,0.18),transparent_55%)]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[var(--gk-bg)] via-[color-mix(in_srgb,var(--gk-bg)_85%,transparent)] to-[color-mix(in_srgb,var(--gk-bg)_60%,transparent)]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--gk-bg)] via-transparent to-transparent" />
 
-        <div className="npl-hero-copy relative z-10 mx-auto flex min-h-[inherit] w-full max-w-6xl flex-col justify-end px-4 sm:px-6 pb-10 sm:pb-14 pt-20">
-          <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.28em] text-[var(--pine-lime)] mb-3">
-            Renaissance Nature Walk
-          </p>
-          <h1 className="portal-display text-[clamp(3rem,11vw,6.5rem)] leading-[0.92] text-white">
-            NPL 2026
-          </h1>
-          <p className="mt-3 max-w-lg text-sm sm:text-base text-white/85 font-medium leading-relaxed">
-            Everything you need for tournament day — live scores, schedule, teams, and stream.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2.5">
-            <Link to="/live" className="portal-btn-primary !bg-[var(--pine-lime)] !text-[var(--pine-deep)]">
-              Watch live
+        <div className="npl-hero-copy relative z-10 mx-auto flex min-h-[inherit] w-full max-w-7xl flex-col justify-center px-4 sm:px-6 py-16 sm:py-20">
+          <p className="portal-section-label mb-4">2026 Tournament</p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] items-center gap-6 lg:gap-10 max-w-4xl">
+            <div className="text-center lg:text-right">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--gk-muted)] mb-2">
+                {match.category || 'On Court'}
+              </p>
+              <p className="portal-display text-3xl sm:text-4xl lg:text-5xl text-[var(--gk-ink)] leading-tight">
+                {name1}
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-2">
+              <StatusBadge
+                status={liveStatus}
+                pulse={liveStatus === 'live' || liveStatus === 'on-court'}
+              />
+              <div className="gk-score text-5xl sm:text-6xl lg:text-7xl">
+                {match.score1 ?? 0}
+                <span className="text-[var(--gk-red)] mx-2 text-3xl sm:text-4xl">:</span>
+                {match.score2 ?? 0}
+              </div>
+              <span className="gk-vs">VS</span>
+            </div>
+
+            <div className="text-center lg:text-left">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--gk-muted)] mb-2">
+                {match.stage || 'Match'}
+              </p>
+              <p className="portal-display text-3xl sm:text-4xl lg:text-5xl text-[var(--gk-ink)] leading-tight">
+                {name2}
+              </p>
+            </div>
+          </div>
+
+          {match.bestOf === 3 && (
+            <div className="mt-6 flex justify-center">
+              <SeriesScoreStrip match={match} size="sm" className="justify-center" />
+            </div>
+          )}
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link to="/live" className="portal-btn-primary">
+              Watch Live
             </Link>
-            <Link
-              to="/schedule"
-              className="inline-flex items-center justify-center rounded-xl border border-white/35 bg-white/10 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/18 transition-colors"
-            >
-              View schedule
+            <Link to="/schedule" className="portal-btn-secondary">
+              View Schedule
             </Link>
           </div>
         </div>
       </section>
 
-      <div className="portal-page space-y-8">
-        <section className="space-y-3 -mt-6 relative z-10">
-          <h2 className="sr-only">Quick navigation</h2>
+      <div className="portal-page space-y-12">
+        <section className="space-y-4 -mt-8 relative z-10">
           <QuickNav />
         </section>
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="portal-section-title">Live now</h2>
-            <Link
-              to="/score"
-              className="text-xs font-bold text-[var(--pine-leaf)] hover:text-[var(--pine-deep)] flex items-center gap-0.5"
-            >
-              Full scoreboard
-              <ChevronRight className="size-4" aria-hidden />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.85fr] gap-4">
-            <div className="portal-card overflow-hidden">
-              <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--pine-line)] bg-[var(--pine-mist)]/50">
-                <h3 className="text-sm font-bold text-[var(--pine-deep)]">Live stream</h3>
-                <Link
-                  to="/live"
-                  className="text-[11px] font-bold text-[var(--pine-leaf)] hover:text-[var(--pine-deep)]"
-                >
-                  Cinema view →
-                </Link>
-              </div>
-              <div className="relative aspect-video bg-[var(--pine-deep)]">
+        <section className="space-y-5">
+          <SectionHeading label="Live Broadcast" title="Watch Stream" />
+          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.8fr] gap-4">
+            <div className="portal-card overflow-hidden gk-stripe">
+              <div className="relative aspect-video bg-black">
                 {embedUrl ? (
                   <iframe
                     title="NPL live stream"
@@ -145,116 +157,131 @@ export default function HomePage() {
                     referrerPolicy="strict-origin-when-cross-origin"
                   />
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center bg-[var(--gk-surface-2)]">
                     <img
                       src="/nature-walk-logo-1.png"
                       alt="NPL"
-                      className="h-16 w-16 rounded-xl object-cover ring-1 ring-white/20 bg-white"
+                      className="h-16 w-16 rounded-sm object-cover ring-1 ring-[var(--gk-line)]"
                       draggable={false}
                     />
-                    <p className="text-sm font-semibold text-white">Stream offline</p>
-                    <p className="text-xs text-white/60 max-w-xs">
-                      The live feed appears here when organisers connect YouTube.
+                    <p className="portal-display text-lg text-[var(--gk-ink)]">Stream Offline</p>
+                    <p className="text-xs text-[var(--gk-muted)] max-w-xs">
+                      Live feed appears when organisers connect YouTube.
                     </p>
                   </div>
                 )}
               </div>
             </div>
 
-            <aside className="portal-card p-5 flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-bold text-[var(--pine-deep)]">On court</h3>
+            <aside className="portal-card p-5 flex flex-col gap-4 gk-stripe">
+              <div className="flex items-center justify-between">
+                <h3 className="portal-display text-lg text-[var(--gk-ink)]">On Court</h3>
                 <StatusBadge
                   status={liveStatus}
                   pulse={liveStatus === 'live' || liveStatus === 'on-court'}
                 />
               </div>
 
-              <div className="rounded-xl bg-[var(--pine-mist)]/80 px-3 py-2">
-                <p className="text-[11px] text-[var(--pine-sky)] font-semibold uppercase tracking-wider truncate">
-                  {match.category || 'Match'}
+              <div className="rounded-sm bg-[var(--gk-surface-2)] border border-[var(--gk-line)] px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--gk-red)]">
+                  {match.category || '—'}
                 </p>
-                <p className="text-xs text-[var(--pine-muted)] truncate">{match.stage || '—'}</p>
+                <p className="text-xs text-[var(--gk-muted)] mt-0.5">{match.stage || '—'}</p>
               </div>
 
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-center py-2">
-                <div className="min-w-0 text-left sm:text-center">
-                  <p className="text-sm font-bold text-[var(--pine-deep)] truncate leading-tight">
-                    {name1}
-                  </p>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-3">
+                <p className="text-sm font-bold text-right truncate">{name1}</p>
+                <div className="gk-score text-3xl px-2">
+                  {match.score1 ?? 0}:{match.score2 ?? 0}
                 </div>
-                <div className="font-black tabular-nums text-4xl text-[var(--pine-deep)] leading-none px-2">
-                  {match.score1 ?? 0}
-                  <span className="text-[var(--pine-muted)] mx-0.5 font-semibold text-2xl">:</span>
-                  {match.score2 ?? 0}
-                </div>
-                <div className="min-w-0 text-right sm:text-center">
-                  <p className="text-sm font-bold text-[var(--pine-deep)] truncate leading-tight">
-                    {name2}
-                  </p>
-                </div>
+                <p className="text-sm font-bold text-left truncate">{name2}</p>
               </div>
 
-              {match.bestOf === 3 ? (
-                <SeriesScoreStrip match={match} size="sm" className="justify-center py-1" />
-              ) : (
-                <p className="text-center text-[11px] font-mono text-[var(--pine-muted)]">
-                  Race to {match.maxPoints ?? 11}
-                  {match.isTrump ? ' · Trump' : ''}
-                </p>
-              )}
+              <p className="text-center text-[11px] font-mono text-[var(--gk-muted)] uppercase">
+                Race to {match.maxPoints ?? 11}
+                {match.isTrump ? ' · Trump' : ''}
+                {match.bestOf === 3 ? ` · Series ${formatGamesWonLabel(match)}` : ''}
+              </p>
 
-              {match.bestOf === 3 && (
-                <p className="text-center text-[11px] font-mono text-[var(--pine-muted)]">
-                  Series {formatGamesWonLabel(match)}
-                </p>
-              )}
-
-              <div className="mt-auto grid grid-cols-2 gap-2 pt-1">
-                <Link to="/results" className="portal-btn-primary text-center text-xs !py-2">
-                  Results
+              <div className="mt-auto grid grid-cols-2 gap-2">
+                <Link to="/score" className="portal-btn-primary text-center !text-xs !py-2.5">
+                  Scoreboard
                 </Link>
-                <Link to="/schedule" className="portal-btn-secondary text-center text-xs !py-2">
-                  Schedule
+                <Link to="/live" className="portal-btn-secondary text-center !text-xs !py-2.5">
+                  Cinema
                 </Link>
               </div>
             </aside>
           </div>
         </section>
 
-        <section className="space-y-3 pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="portal-section-title">Up next</h2>
+        {latest.length > 0 && (
+          <section className="space-y-5">
+            <div className="flex items-end justify-between gap-2">
+              <SectionHeading label="Recent" title="Latest Matches" />
+              <Link
+                to="/results"
+                className="text-xs font-bold uppercase tracking-wider text-[var(--gk-red)] hover:text-[var(--gk-ink)] flex items-center gap-0.5 shrink-0 mb-1"
+              >
+                All results
+                <ChevronRight className="size-4" aria-hidden />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {latest.map((f) => {
+                const [teamA, teamB] = f.details.split(' vs ');
+                return (
+                  <MatchCard
+                    key={f.id}
+                    date={f.date}
+                    time={f.time}
+                    category={f.category}
+                    stage={f.stage}
+                    teamA={teamA || f.details}
+                    teamB={teamB || '—'}
+                    status="completed"
+                    winnerName={f.winnerName}
+                    result={f.result}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <section className="space-y-5 pb-4">
+          <div className="flex items-end justify-between gap-2">
+            <SectionHeading label="Fixtures" title="Upcoming Matches" />
             <Link
               to="/schedule"
-              className="text-xs font-bold text-[var(--pine-leaf)] hover:text-[var(--pine-deep)] flex items-center gap-0.5"
+              className="text-xs font-bold uppercase tracking-wider text-[var(--gk-red)] hover:text-[var(--gk-ink)] flex items-center gap-0.5 shrink-0 mb-1"
             >
-              All fixtures
+              Full schedule
               <ChevronRight className="size-4" aria-hidden />
             </Link>
           </div>
           {upcoming.length === 0 ? (
-            <p className="text-sm text-[var(--pine-muted)] py-8 text-center portal-card">
+            <p className="text-sm text-[var(--gk-muted)] py-10 text-center portal-card">
               No upcoming fixtures right now.
             </p>
           ) : (
-            <ul className="portal-list">
-              {upcoming.map((f) => (
-                <li key={f.id} className="portal-list-item">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                    <span className="shrink-0 font-mono text-xs font-semibold text-[var(--pine-clay)] w-[8rem]">
-                      {f.date} · {f.time}
-                    </span>
-                    <span className="text-[11px] uppercase tracking-wide text-[var(--pine-sky)] shrink-0 sm:w-36 truncate font-semibold">
-                      {f.category}
-                    </span>
-                    <span className="text-[var(--pine-ink)] min-w-0 truncate font-medium flex-1">
-                      {f.details}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {upcoming.map((f) => {
+                const [teamA, teamB] = f.details.split(' vs ');
+                return (
+                  <MatchCard
+                    key={f.id}
+                    date={f.date}
+                    time={f.time}
+                    category={f.category}
+                    stage={f.stage}
+                    teamA={teamA || f.details}
+                    teamB={teamB || 'TBD'}
+                    status="scheduled"
+                  />
+                );
+              })}
+            </div>
           )}
         </section>
       </div>

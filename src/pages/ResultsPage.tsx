@@ -9,11 +9,19 @@ import {
 } from '../utils/completedMatches';
 import { PageHeader } from '../components/ui/PageHeader';
 import { FilterPills } from '../components/ui/FilterPills';
-import { StatusBadge } from '../components/ui/StatusBadge';
+import { MatchCard } from '../components/ui/MatchCard';
 import { EmptyState } from '../components/ui/EmptyState';
 
+function splitTeams(row: CompletedMatch): [string, string] {
+  if (row.details?.includes(' vs ')) {
+    const [a, b] = row.details.split(' vs ');
+    return [a, b];
+  }
+  return [row.player1 || row.teamA || 'Side A', row.player2 || row.teamB || 'Side B'];
+}
+
 /**
- * Public results list — completed matches only (read-only Firebase).
+ * Goalkick latest-matches style results page.
  */
 export default function ResultsPage() {
   const [rows, setRows] = useState<CompletedMatch[]>([]);
@@ -38,15 +46,16 @@ export default function ResultsPage() {
   }, [rows, category]);
 
   return (
-    <div className="portal-page space-y-6">
+    <div className="portal-page space-y-8">
       <PageHeader
-        title="Results"
-        description={`${filtered.length} completed match${filtered.length === 1 ? '' : 'es'}${rows.length > 0 ? ' · newest first' : ''}`}
+        label="Standings"
+        title="Match Results"
+        description={`${filtered.length} completed match${filtered.length === 1 ? '' : 'es'} · newest first`}
       />
 
       {categories.length > 1 && (
         <FilterPills
-          label="Filter by category"
+          label="Category"
           options={categories}
           value={category}
           onChange={setCategory}
@@ -56,49 +65,31 @@ export default function ResultsPage() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={Trophy}
-          title="No results yet"
+          title="No Results Yet"
           description="Finished matches will appear here automatically."
         />
       ) : (
-        <ul className="portal-list">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((row) => {
             const id = row.fixtureId || row.id;
-            const when = [row.completedDate, row.completedTime].filter(Boolean).join(' ');
+            const [teamA, teamB] = splitTeams(row);
+            const when = [row.completedDate, row.completedTime].filter(Boolean).join(' · ');
             return (
-              <li key={id} className="portal-list-item">
-                <div className="flex flex-col sm:grid sm:grid-cols-[7.5rem_1fr_auto] gap-2 sm:gap-4">
-                  <span className="font-mono text-xs font-semibold text-[var(--pine-clay)] sm:pt-1">
-                    {when || '—'}
-                  </span>
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-[11px] uppercase tracking-wide text-[var(--pine-sky)] truncate font-semibold">
-                      {row.category || 'Match'}
-                      {row.stage ? (
-                        <>
-                          <span className="text-[var(--pine-line)] mx-1">·</span>
-                          <span className="text-[var(--pine-muted)] normal-case tracking-normal font-medium">
-                            {row.stage}
-                          </span>
-                        </>
-                      ) : null}
-                    </p>
-                    <p className="font-semibold text-[var(--pine-ink)] leading-snug">
-                      {row.details || `${row.player1 || row.teamA} vs ${row.player2 || row.teamB}`}
-                    </p>
-                    <p className="text-xs text-[var(--pine-leaf)] font-medium">
-                      Winner: {row.winnerName || '—'}
-                      {row.result ? ` · ${row.result}` : ''}
-                      {row.isTrump ? ' · Trump' : ''}
-                    </p>
-                  </div>
-                  <div className="sm:justify-self-end sm:self-center">
-                    <StatusBadge status="final" />
-                  </div>
-                </div>
-              </li>
+              <MatchCard
+                key={id}
+                date={row.completedDate}
+                time={when || row.completedTime}
+                category={row.category}
+                stage={row.stage}
+                teamA={teamA}
+                teamB={teamB}
+                status="completed"
+                winnerName={row.winnerName}
+                result={row.result}
+              />
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );

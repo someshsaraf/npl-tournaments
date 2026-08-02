@@ -5,7 +5,6 @@ const SECTIONS = [
   {
     icon: ShieldAlert,
     title: 'General Rules & Guidelines',
-    color: 'text-[var(--pine-leaf)]',
     items: [
       "Match referee's decision is final. Arguing with referee leads to penalties.",
       'All players must arrive at least 10 minutes prior to scheduled slot.',
@@ -16,7 +15,6 @@ const SECTIONS = [
   {
     icon: Award,
     title: 'Team Championship & Trump Rules',
-    color: 'text-[var(--pine-clay)]',
     items: [
       '5 Teams, 5 players each. Each tie has 5 matches (1 Singles, 4 Ranked Doubles).',
       'Group Stage matches are a race to 15 points. From 14-14, win by 2; at 15-15 the next point wins (golden point).',
@@ -27,12 +25,13 @@ const SECTIONS = [
 ] as const;
 
 /**
- * Public rules page. Read-only static content.
+ * Goalkick-style rules page with dark cards.
  */
 export default function RulesPage() {
   return (
-    <div className="portal-page space-y-6 max-w-4xl">
+    <div className="portal-page space-y-8 max-w-4xl">
       <PageHeader
+        label="Regulations"
         title="Official Rules"
         description="NPL 2026 regulations for players and spectators."
       />
@@ -40,17 +39,17 @@ export default function RulesPage() {
       {SECTIONS.map((section) => {
         const Icon = section.icon;
         return (
-          <section key={section.title} className="portal-card p-5 sm:p-6 space-y-3">
-            <h2 className={`text-lg font-bold flex items-center gap-2 ${section.color}`}>
-              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-[var(--pine-mist)]">
-                <Icon className="size-4" aria-hidden />
+          <section key={section.title} className="portal-card p-6 space-y-4 gk-stripe">
+            <h2 className="flex items-center gap-3">
+              <span className="inline-flex size-10 items-center justify-center rounded-sm bg-[var(--gk-red)]/15 text-[var(--gk-red)]">
+                <Icon className="size-5" aria-hidden />
               </span>
-              {section.title}
+              <span className="portal-display text-xl text-[var(--gk-ink)]">{section.title}</span>
             </h2>
-            <ul className="space-y-2.5 text-[var(--pine-ink)] text-sm md:text-base">
+            <ul className="space-y-3 text-[var(--gk-muted)] text-sm md:text-base">
               {section.items.map((item) => (
-                <li key={item} className="flex gap-2.5 leading-relaxed">
-                  <span className="text-[var(--pine-leaf)] font-bold shrink-0 mt-0.5">•</span>
+                <li key={item} className="flex gap-3 leading-relaxed">
+                  <span className="text-[var(--gk-red)] font-bold shrink-0">▸</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -59,24 +58,26 @@ export default function RulesPage() {
         );
       })}
 
-      <section className="portal-card p-5 sm:p-6 space-y-4">
-        <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--pine-sky)]">
-          <span className="inline-flex size-8 items-center justify-center rounded-lg bg-[var(--pine-mist)]">
-            <Dices className="size-4" aria-hidden />
+      <section className="portal-card p-6 space-y-4 gk-stripe">
+        <h2 className="flex items-center gap-3">
+          <span className="inline-flex size-10 items-center justify-center rounded-sm bg-[var(--gk-gold)]/15 text-[var(--gk-gold)]">
+            <Dices className="size-5" aria-hidden />
           </span>
-          Category Formats
+          <span className="portal-display text-xl text-[var(--gk-ink)]">Category Formats</span>
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div className="rounded-xl bg-[var(--pine-mist)] p-4 border border-[var(--pine-line)]">
-            <h3 className="font-bold text-[var(--pine-deep)]">Kids & Women&apos;s Categories</h3>
-            <p className="text-[var(--pine-muted)] mt-2 leading-relaxed">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="rounded-sm bg-[var(--gk-surface-2)] border border-[var(--gk-line)] p-5">
+            <h3 className="portal-display text-base text-[var(--gk-ink)]">
+              Kids & Women&apos;s
+            </h3>
+            <p className="text-[var(--gk-muted)] mt-2 leading-relaxed">
               Race to 15 points. Deuce from 14-14 (win by 2); at 21-21 the next point wins
               (golden point).
             </p>
           </div>
-          <div className="rounded-xl bg-[var(--pine-mist)] p-4 border border-[var(--pine-line)]">
-            <h3 className="font-bold text-[var(--pine-deep)]">Men&apos;s Categories</h3>
-            <p className="text-[var(--pine-muted)] mt-2 leading-relaxed">
+          <div className="rounded-sm bg-[var(--gk-surface-2)] border border-[var(--gk-line)] p-5">
+            <h3 className="portal-display text-base text-[var(--gk-ink)]">Men&apos;s</h3>
+            <p className="text-[var(--gk-muted)] mt-2 leading-relaxed">
               Race to 21 points. Deuce from 20-20 (win by 2); at 30-30 the next point wins
               (golden point).
             </p>

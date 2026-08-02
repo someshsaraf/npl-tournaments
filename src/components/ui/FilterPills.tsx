@@ -7,9 +7,9 @@ type FilterPillsProps = {
 };
 
 const ACTIVE: Record<NonNullable<FilterPillsProps['variant']>, string> = {
-  default: 'bg-[var(--pine-deep)] text-[var(--pine-lime)] shadow-sm',
-  accent: 'bg-[var(--pine-leaf)] text-white shadow-sm',
-  clay: 'bg-[var(--pine-clay)] text-white shadow-sm'
+  default: 'bg-[var(--gk-red)] text-white border-[var(--gk-red)]',
+  accent: 'bg-[var(--gk-green)] text-white border-[var(--gk-green)]',
+  clay: 'bg-[var(--gk-gold)] text-[var(--gk-bg)] border-[var(--gk-gold)]'
 };
 
 export function FilterPills({
@@ -24,12 +24,12 @@ export function FilterPills({
   return (
     <div className="space-y-2">
       {label ? (
-        <p className="text-xs font-semibold text-[var(--pine-muted)] uppercase tracking-wider">
+        <p className="text-[10px] font-bold text-[var(--gk-red)] uppercase tracking-wider">
           {label}
         </p>
       ) : null}
       <div
-        className="flex items-center gap-1.5 overflow-x-auto pb-0.5 -mx-0.5 px-0.5"
+        className="flex items-center gap-1.5 overflow-x-auto pb-0.5"
         role="group"
         aria-label={label || 'Filter options'}
       >
@@ -42,10 +42,10 @@ export function FilterPills({
               onClick={() => onChange(opt)}
               aria-pressed={active}
               className={[
-                'shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition-all',
+                'shrink-0 rounded-sm px-3.5 py-2 text-xs font-bold uppercase tracking-wide border transition-all',
                 active
                   ? ACTIVE[variant]
-                  : 'bg-white text-[var(--pine-muted)] border border-[var(--pine-line)] hover:text-[var(--pine-deep)] hover:border-[var(--pine-leaf)]/40'
+                  : 'bg-[var(--gk-surface-2)] text-[var(--gk-muted)] border-[var(--gk-line)] hover:text-[var(--gk-ink)] hover:border-[var(--gk-red)]/50'
               ].join(' ')}
             >
               {opt}

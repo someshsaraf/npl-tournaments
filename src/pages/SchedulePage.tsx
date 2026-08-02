@@ -13,11 +13,17 @@ import {
 } from '../utils/completedMatches';
 import { PageHeader } from '../components/ui/PageHeader';
 import { FilterPills } from '../components/ui/FilterPills';
-import { MatchListItem } from '../components/ui/MatchListItem';
+import { MatchCard } from '../components/ui/MatchCard';
 import { EmptyState } from '../components/ui/EmptyState';
+import { SectionHeading } from '../components/ui/SectionHeading';
+
+function splitTeams(details: string): [string, string] {
+  const parts = details.split(' vs ');
+  return [parts[0] || details, parts[1] || 'TBD'];
+}
 
 /**
- * Read-only public schedule with date/category filters and completed results.
+ * Goalkick match-schedule-dark style fixture list.
  */
 export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<string>('All');
@@ -61,60 +67,65 @@ export default function SchedulePage() {
   const dateKeys = Object.keys(byDate);
 
   return (
-    <div className="portal-page space-y-6">
+    <div className="portal-page space-y-8">
       <PageHeader
-        title="Schedule"
-        description={`${filtered.length} matches shown${completedCount > 0 ? ` · ${completedCount} completed overall` : ''}`}
+        label="Fixtures"
+        title="Match Schedule"
+        description={`${filtered.length} matches shown${completedCount > 0 ? ` · ${completedCount} completed` : ''}`}
       />
 
-      <div className="portal-card p-4 sm:p-5 space-y-4">
+      <div className="portal-card p-5 sm:p-6 space-y-5 gk-stripe">
         <FilterPills
-          label="Filter by date"
+          label="Date"
           options={dates}
           value={selectedDate}
           onChange={setSelectedDate}
           variant="clay"
         />
         <FilterPills
-          label="Filter by category"
+          label="Category"
           options={categories}
           value={selectedCategory}
           onChange={setSelectedCategory}
         />
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         {dateKeys.length === 0 ? (
           <EmptyState
             icon={CalendarX2}
-            title="No fixtures match your filters"
+            title="No Fixtures Found"
             description="Try selecting a different date or category."
           />
         ) : (
           dateKeys.map((date) => {
             const dayFixtures = byDate[date];
             return (
-              <section key={date} className="space-y-2">
-                <div className="flex items-center justify-between pb-1">
-                  <h2 className="portal-section-title">{date}</h2>
-                  <span className="text-xs text-[var(--pine-muted)] font-medium">
-                    {dayFixtures.length} match{dayFixtures.length === 1 ? '' : 'es'}
-                  </span>
+              <section key={date} className="space-y-4">
+                <SectionHeading
+                  label={`${dayFixtures.length} Matches`}
+                  title={date}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {dayFixtures.map((f) => {
+                    const [teamA, teamB] = splitTeams(f.details);
+                    const done = f.status === 'completed';
+                    return (
+                      <MatchCard
+                        key={f.id}
+                        date={f.date}
+                        time={f.time}
+                        category={f.category}
+                        stage={f.stage}
+                        teamA={teamA}
+                        teamB={teamB}
+                        status={done ? 'completed' : 'scheduled'}
+                        winnerName={f.winnerName}
+                        result={f.result}
+                      />
+                    );
+                  })}
                 </div>
-                <ul className="portal-list">
-                  {dayFixtures.map((f) => (
-                    <MatchListItem
-                      key={f.id}
-                      time={f.time}
-                      category={f.category}
-                      stage={f.stage}
-                      details={f.details}
-                      status={f.status === 'completed' ? 'completed' : 'scheduled'}
-                      winnerName={f.winnerName}
-                      result={f.result}
-                    />
-                  ))}
-                </ul>
               </section>
             );
           })
