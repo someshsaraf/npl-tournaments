@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ref, onValue } from 'firebase/database';
+import { Users } from 'lucide-react';
 import { db } from '../firebase';
 import { TEAMS, type Team } from '../data/tournamentData';
+import { PageHeader } from '../components/ui/PageHeader';
 
 function normalizeTeams(raw: unknown): Team[] {
   if (!Array.isArray(raw)) return TEAMS;
@@ -17,11 +19,11 @@ function normalizeTeams(raw: unknown): Team[] {
 }
 
 const ACCENTS = [
-  'border-l-[var(--pine-leaf)]',
-  'border-l-[var(--pine-clay)]',
-  'border-l-[var(--pine-sky)]',
-  'border-l-[var(--pine-lime)]',
-  'border-l-[var(--pine-deep)]'
+  'border-t-[var(--pine-leaf)]',
+  'border-t-[var(--pine-clay)]',
+  'border-t-[var(--pine-sky)]',
+  'border-t-[var(--pine-lime)]',
+  'border-t-[var(--pine-deep)]'
 ] as const;
 
 /**
@@ -40,12 +42,10 @@ export default function TeamsPage() {
 
   return (
     <div className="portal-page space-y-6">
-      <header className="space-y-1">
-        <h1 className="portal-display text-4xl sm:text-5xl text-[var(--pine-deep)]">Teams</h1>
-        <p className="text-sm text-[var(--pine-muted)]">
-          Team Championship rosters · {teams.length} teams
-        </p>
-      </header>
+      <PageHeader
+        title="Teams"
+        description={`Team Championship rosters · ${teams.length} teams`}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {teams.map((team, index) => {
@@ -55,32 +55,39 @@ export default function TeamsPage() {
           return (
             <article
               key={team.id || team.name}
-              className={`rounded-2xl border border-[var(--pine-line)] border-l-4 ${accent} bg-[var(--pine-paper)] overflow-hidden shadow-sm`}
+              className={`portal-card border-t-4 ${accent} overflow-hidden hover:shadow-md transition-shadow`}
             >
-              <div className="px-4 pt-4 pb-3 border-b border-[var(--pine-line)]">
-                <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--pine-muted)] font-semibold">
-                  Team Championship
-                </p>
-                <h2 className="portal-display text-2xl text-[var(--pine-deep)] mt-0.5">
-                  {team.name}
-                </h2>
-                <p className="text-xs text-[var(--pine-muted)] mt-1">
-                  {players.length} players
-                </p>
+              <div className="px-4 pt-4 pb-3 border-b border-[var(--pine-line)] bg-[var(--pine-mist)]/40">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex size-9 items-center justify-center rounded-xl bg-white border border-[var(--pine-line)] text-[var(--pine-deep)] shrink-0">
+                    <Users className="size-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--pine-muted)] font-semibold">
+                      Team Championship
+                    </p>
+                    <h2 className="portal-display text-xl sm:text-2xl text-[var(--pine-deep)] mt-0.5 leading-tight">
+                      {team.name}
+                    </h2>
+                    <p className="text-xs text-[var(--pine-muted)] mt-1">
+                      {players.length} player{players.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <ol className="px-4 py-3 space-y-1.5">
+              <ol className="px-4 py-3 space-y-2">
                 {players.length === 0 ? (
                   <li className="text-sm text-[var(--pine-muted)]">No players listed.</li>
                 ) : (
                   players.map((player, i) => (
                     <li
                       key={`${team.id}-${player}-${i}`}
-                      className="flex items-baseline gap-2 text-sm text-[var(--pine-ink)]"
+                      className="flex items-center gap-3 text-sm text-[var(--pine-ink)]"
                     >
-                      <span className="font-mono text-[10px] text-[var(--pine-muted)] w-4 shrink-0">
+                      <span className="flex size-6 items-center justify-center rounded-full bg-[var(--pine-mist)] font-mono text-[10px] font-bold text-[var(--pine-muted)] shrink-0">
                         {i + 1}
                       </span>
-                      <span>{typeof player === 'string' ? player : '—'}</span>
+                      <span className="font-medium">{typeof player === 'string' ? player : '—'}</span>
                     </li>
                   ))
                 )}

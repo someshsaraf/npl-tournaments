@@ -1,4 +1,30 @@
 import { ShieldAlert, Award, Dices } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
+
+const SECTIONS = [
+  {
+    icon: ShieldAlert,
+    title: 'General Rules & Guidelines',
+    color: 'text-[var(--pine-leaf)]',
+    items: [
+      "Match referee's decision is final. Arguing with referee leads to penalties.",
+      'All players must arrive at least 10 minutes prior to scheduled slot.',
+      'Non-marking shoes are strictly required on court.',
+      'Service contact point must be below 1.15m; spin serves are banned.'
+    ]
+  },
+  {
+    icon: Award,
+    title: 'Team Championship & Trump Rules',
+    color: 'text-[var(--pine-clay)]',
+    items: [
+      '5 Teams, 5 players each. Each tie has 5 matches (1 Singles, 4 Ranked Doubles).',
+      'Group Stage matches are a race to 15 points. From 14-14, win by 2; at 15-15 the next point wins (golden point).',
+      'Trump Game: Winning a Trump game gives +2 points; losing gives -1 point.',
+      'Each team must specify exactly 1 Trump Game per match tie.'
+    ]
+  }
+] as const;
 
 /**
  * Public rules page. Read-only static content.
@@ -6,63 +32,51 @@ import { ShieldAlert, Award, Dices } from 'lucide-react';
 export default function RulesPage() {
   return (
     <div className="portal-page space-y-6 max-w-4xl">
-      <header className="space-y-1 pb-2">
-        <h1 className="portal-display text-4xl sm:text-5xl text-[var(--pine-deep)]">
-          Official Rules
-        </h1>
-        <p className="text-sm text-[var(--pine-muted)]">
-          NPL 2026 regulations for players and spectators.
-        </p>
-      </header>
+      <PageHeader
+        title="Official Rules"
+        description="NPL 2026 regulations for players and spectators."
+      />
 
-      <section className="bg-[var(--pine-paper)] p-5 sm:p-6 rounded-2xl border border-[var(--pine-line)] space-y-3 shadow-sm">
-        <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--pine-leaf)]">
-          <ShieldAlert className="w-5 h-5" /> General Rules &amp; Guidelines
-        </h2>
-        <ul className="list-disc list-inside space-y-2 text-[var(--pine-ink)] text-sm md:text-base">
-          <li>Match referee&apos;s decision is final. Arguing with referee leads to penalties.</li>
-          <li>All players must arrive at least 10 minutes prior to scheduled slot.</li>
-          <li>Non-marking shoes are strictly required on court.</li>
-          <li>Service contact point must be below 1.15m; spin serves are banned.</li>
-        </ul>
-      </section>
+      {SECTIONS.map((section) => {
+        const Icon = section.icon;
+        return (
+          <section key={section.title} className="portal-card p-5 sm:p-6 space-y-3">
+            <h2 className={`text-lg font-bold flex items-center gap-2 ${section.color}`}>
+              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-[var(--pine-mist)]">
+                <Icon className="size-4" aria-hidden />
+              </span>
+              {section.title}
+            </h2>
+            <ul className="space-y-2.5 text-[var(--pine-ink)] text-sm md:text-base">
+              {section.items.map((item) => (
+                <li key={item} className="flex gap-2.5 leading-relaxed">
+                  <span className="text-[var(--pine-leaf)] font-bold shrink-0 mt-0.5">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
 
-      <section className="bg-[var(--pine-paper)] p-5 sm:p-6 rounded-2xl border border-[var(--pine-line)] space-y-3 shadow-sm">
-        <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--pine-clay)]">
-          <Award className="w-5 h-5" /> Team Championship &amp; Trump Rules
-        </h2>
-        <ul className="list-disc list-inside space-y-2 text-[var(--pine-ink)] text-sm md:text-base">
-          <li>5 Teams, 5 players each. Each tie has 5 matches (1 Singles, 4 Ranked Doubles).</li>
-          <li>
-            Group Stage matches are a race to 15 points. From 14-14, win by 2; at{' '}
-            <strong className="text-[var(--pine-clay)]">15-15</strong> the next point wins
-            (golden point).
-          </li>
-          <li>
-            <strong className="text-[var(--pine-clay)]">Trump Game:</strong> Winning a Trump
-            game gives <strong>+2 points</strong>; losing gives <strong>-1 point</strong>.
-          </li>
-          <li>Each team must specify exactly 1 Trump Game per match tie.</li>
-        </ul>
-      </section>
-
-      <section className="bg-[var(--pine-paper)] p-5 sm:p-6 rounded-2xl border border-[var(--pine-line)] space-y-3 shadow-sm">
+      <section className="portal-card p-5 sm:p-6 space-y-4">
         <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--pine-sky)]">
-          <Dices className="w-5 h-5" /> Category Formats
+          <span className="inline-flex size-8 items-center justify-center rounded-lg bg-[var(--pine-mist)]">
+            <Dices className="size-4" aria-hidden />
+          </span>
+          Category Formats
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div className="bg-[var(--pine-mist)] p-4 rounded-xl border border-[var(--pine-line)]">
-            <h3 className="font-semibold text-[var(--pine-deep)]">
-              Kids &amp; Women&apos;s Categories
-            </h3>
-            <p className="text-[var(--pine-muted)] mt-1.5 leading-relaxed">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <div className="rounded-xl bg-[var(--pine-mist)] p-4 border border-[var(--pine-line)]">
+            <h3 className="font-bold text-[var(--pine-deep)]">Kids & Women&apos;s Categories</h3>
+            <p className="text-[var(--pine-muted)] mt-2 leading-relaxed">
               Race to 15 points. Deuce from 14-14 (win by 2); at 21-21 the next point wins
               (golden point).
             </p>
           </div>
-          <div className="bg-[var(--pine-mist)] p-4 rounded-xl border border-[var(--pine-line)]">
-            <h3 className="font-semibold text-[var(--pine-deep)]">Men&apos;s Categories</h3>
-            <p className="text-[var(--pine-muted)] mt-1.5 leading-relaxed">
+          <div className="rounded-xl bg-[var(--pine-mist)] p-4 border border-[var(--pine-line)]">
+            <h3 className="font-bold text-[var(--pine-deep)]">Men&apos;s Categories</h3>
+            <p className="text-[var(--pine-muted)] mt-2 leading-relaxed">
               Race to 21 points. Deuce from 20-20 (win by 2); at 30-30 the next point wins
               (golden point).
             </p>
