@@ -297,8 +297,11 @@ function compactNameBudget(nameA: unknown, nameB: unknown): number {
 export const StreamOverlay: React.FC = () => {
   /** Latest Firebase match (immediate). Not used for the on-screen score bug. */
   const [liveMatch, setLiveMatch] = useState<MatchState>(INITIAL_MATCH);
-  /** Score shown on /live — each liveMatch snapshot applied after LIVE_SCORE_DELAY_MS. */
-  const [scoreMatch, setScoreMatch] = useState<MatchState>(INITIAL_MATCH);
+  /**
+   * Score shown on /live. null until first Firebase snapshot (avoids INITIAL_MATCH flash).
+   * First snapshot applies immediately; later snapshots lag by LIVE_SCORE_DELAY_MS.
+   */
+  const [scoreMatch, setScoreMatch] = useState<MatchState | null>(null);
   const [settingsYoutubeUrl, setSettingsYoutubeUrl] = useState('');
   const [heldResult, setHeldResult] = useState<HeldResult | null>(null);
   const [latestCompleted, setLatestCompleted] = useState<HeldResult | null>(null);
@@ -325,27 +328,15 @@ export const StreamOverlay: React.FC = () => {
   const cssImmersiveRef = useRef(false);
   const winCelebKeyRef = useRef<string | null>(null);
   const scoreDelayTimersRef = useRef<Set<number>>(new Set());
-  /** After first delayed snapshot, we know load/refresh state and won't false-trigger. */
+  /** Count of Firebase match updates received this page session. */
+  const liveUpdateCountRef = useRef(0);
+  /** After first real scoreMatch, we know load/refresh state and won't false-trigger. */
   const celebrateArmedRef = useRef(false);
   const prevSeriesOverRef = useRef(false);
 
   const dismissScoreBurst = useCallback(() => {
     setScoreBurst(false);
   }, []);
-
-  /**
-   * Queue each Firebase score snapshot to appear 7s later (broadcast lag).
-   * Timers are not cancelled on newer updates so intermediate points still show in order.
-   * Concurrency: timer ids tracked in a Set; cleared only on unmount.
-   */
-  useEffect(() => {
-    const snapshot = liveMatch;
-    const id = window.setTimeout(() => {
-      scoreDelayTimersRef.current.delete(id);
-      setScoreMatch(snapshot);
-    }, LIVE_SCORE_DELAY_MS);
-    scoreDelayTimersRef.current.add(id);
-  }, [liveMatch]);
 
   useEffect(() => {
     return () => {
@@ -361,6 +352,8 @@ export const StreamOverlay: React.FC = () => {
    * Never on refresh / already-ended / sticky "last result" alone.
    */
   useEffect(() => {
+    if (!scoreMatch) return;
+
     const seriesOver = hasSeriesWinner(scoreMatch);
     const inProgress = isMatchInProgress(scoreMatch) && !seriesOver;
     const fixtureId =
@@ -371,17 +364,8 @@ export const StreamOverlay: React.FC = () => {
         }`
       : null;
 
-    // First delayed snapshot after open/refresh: arm without celebrating.
+    // First real snapshot after open/refresh: arm without celebrating.
     if (!celebrateArmedRef.current) {
-      // Ignore pristine INITIAL until a real delayed update arrives (or stay empty).
-      const looksPristine =
-        !fixtureId &&
-        (scoreMatch.score1 ?? 0) === 0 &&
-        (scoreMatch.score2 ?? 0) === 0 &&
-        !seriesOver &&
-        !isMatchInProgress(scoreMatch);
-      if (looksPristine) return;
-
       celebrateArmedRef.current = true;
       prevSeriesOverRef.current = seriesOver;
       if (endKey) winCelebKeyRef.current = endKey;
@@ -452,7 +436,24 @@ export const StreamOverlay: React.FC = () => {
     const matchRef = ref(db, 'currentMatch');
     const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setLiveMatch(normalizeMatchState(data));
+      if (!data || typeof data !== 'object') return;
+      const next = normalizeMatchState(data);
+      setLiveMatch(next);
+      liveUpdateCountRef.current += 1;
+      const updateN = liveUpdateCountRef.current;
+
+      // First Firebase snapshot: show current match immediately (no INITIAL_MATCH flash).
+      if (updateN === 1) {
+        setScoreMatch(next);
+        return;
+      }
+
+      // Later updates: broadcast lag so stream and score stay in sync.
+      const id = window.setTimeout(() => {
+        scoreDelayTimersRef.current.delete(id);
+        setScoreMatch(next);
+      }, LIVE_SCORE_DELAY_MS);
+      scoreDelayTimersRef.current.add(id);
     });
     return () => unsubscribe();
   }, []);
@@ -479,16 +480,18 @@ export const StreamOverlay: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!scoreMatch) return;
     const snap = heldFromMatch(scoreMatch);
     if (snap) setHeldResult(snap);
   }, [scoreMatch]);
 
   useEffect(() => {
+    if (!scoreMatch) return;
     const id =
       typeof scoreMatch.currentMatchId === 'string' ? scoreMatch.currentMatchId.trim() : '';
     if (!id) return;
     setHeldResult((prev) => (prev && prev.fixtureId !== id ? null : prev));
-  }, [scoreMatch.currentMatchId]);
+  }, [scoreMatch]);
 
   // YouTube URL updates immediately (not delayed) so the stream link stays current.
   const videoId = parseYouTubeVideoId(
@@ -773,34 +776,35 @@ export const StreamOverlay: React.FC = () => {
     void enterLiveFullscreen();
   };
 
-  // Score bug + win chrome use delayed scoreMatch only (7s lag).
+  // Score bug uses scoreMatch (first load immediate; later updates lag 7s).
+  const scoreReady = scoreMatch !== null;
   let phase: OverlayPhase = 'live';
   let display = {
-    category: scoreMatch.category || 'Match',
-    stage: scoreMatch.stage || '',
-    teamA: scoreMatch.teamA || 'Team A',
-    teamB: scoreMatch.teamB || 'Team B',
-    player1: scoreMatch.player1 || 'Player 1',
-    player2: scoreMatch.player2 || 'Player 2',
-    score1: scoreMatch.score1 ?? 0,
-    score2: scoreMatch.score2 ?? 0,
-    maxPoints: scoreMatch.maxPoints ?? 11,
-    server: (scoreMatch.server === 2 ? 2 : 1) as 1 | 2,
+    category: scoreMatch?.category || 'Match',
+    stage: scoreMatch?.stage || '',
+    teamA: scoreMatch?.teamA || '—',
+    teamB: scoreMatch?.teamB || '—',
+    player1: scoreMatch?.player1 || '—',
+    player2: scoreMatch?.player2 || '—',
+    score1: scoreMatch?.score1 ?? 0,
+    score2: scoreMatch?.score2 ?? 0,
+    maxPoints: scoreMatch?.maxPoints ?? 11,
+    server: (scoreMatch?.server === 2 ? 2 : 1) as 1 | 2,
     winnerSide: null as 1 | 2 | null,
-    deuceActive: !!scoreMatch.deuceActive,
-    goldenPoint: isGoldenPoint(scoreMatch)
+    deuceActive: !!scoreMatch?.deuceActive,
+    goldenPoint: scoreMatch ? isGoldenPoint(scoreMatch) : false
   };
 
   const currentFixtureId =
-    typeof scoreMatch.currentMatchId === 'string' ? scoreMatch.currentMatchId.trim() : '';
+    typeof scoreMatch?.currentMatchId === 'string' ? scoreMatch.currentMatchId.trim() : '';
 
-  if (hasSeriesWinner(scoreMatch)) {
+  if (scoreMatch && hasSeriesWinner(scoreMatch)) {
     phase = 'final';
     display = {
       ...display,
       winnerSide: scoreMatch.matchWinner === 2 ? 2 : 1
     };
-  } else if (!isMatchInProgress(scoreMatch) && currentFixtureId) {
+  } else if (scoreMatch && !isMatchInProgress(scoreMatch) && currentFixtureId) {
     const sticky = heldResult || latestCompleted;
     if (sticky && sticky.fixtureId === currentFixtureId) {
       phase = 'last';
@@ -866,7 +870,16 @@ export const StreamOverlay: React.FC = () => {
   const label1 = shortName(display.player1 || display.teamA, nameBudget);
   const label2 = shortName(display.player2 || display.teamB, nameBudget);
 
-  const scoreBug = (
+  const scoreBug = !scoreReady ? (
+    <div
+      className="pointer-events-auto font-sans rounded-lg bg-black/85 border border-white/25 px-3 py-2 shadow-lg"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading live score"
+    >
+      <p className="text-[11px] font-bold text-white/80">Loading score…</p>
+    </div>
+  ) : (
     <div
       className={`pointer-events-auto font-sans${matchEnded ? ' npl-live-match-end' : ''}`}
       role="status"
