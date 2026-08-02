@@ -453,11 +453,16 @@ export const ScoreControl: React.FC = () => {
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
           {hasWinner ? (
             <>
-              <span className="text-xs sm:text-sm font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1 rounded-full whitespace-nowrap">
-                {seriesOver ? 'MATCH' : 'GAME'} WIN {winnerName}
-                <span className="font-bold text-emerald-400/70"> def. {opponentName}</span>
-                {' · '}
-                {score1}-{score2}
+              <span className="text-sm sm:text-base font-black text-emerald-200 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1.5 rounded-xl text-center leading-snug max-w-[min(92vw,40rem)]">
+                <span className="block whitespace-nowrap truncate">
+                  {seriesOver ? 'MATCH' : 'GAME'} WIN {winnerName}
+                </span>
+                <span className="block text-white font-black truncate">
+                  def. {opponentName}
+                </span>
+                <span className="block text-emerald-300/90 text-[0.85em]">
+                  {score1}-{score2}
+                </span>
               </span>
               {!celebration && !showNewMatchForm && !seriesOver && isBo3 && (
                 <button

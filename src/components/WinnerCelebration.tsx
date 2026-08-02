@@ -127,10 +127,16 @@ export function WinnerCelebration({
     ? 'clamp(1rem, 3.5vw, 2rem)'
     : 'clamp(0.85rem, 2.5vw, 1.25rem)';
   const nameSize = audience
-    ? 'clamp(4.5rem, min(24vw, 40dvh), 20rem)'
+    ? 'clamp(4rem, min(22vw, 34dvh), 16rem)'
     : showBo3Games
-      ? 'clamp(4rem, min(22vw, 30dvh), 14rem)'
-      : 'clamp(4.5rem, min(24vw, 36dvh), 16rem)';
+      ? 'clamp(3.5rem, min(20vw, 26dvh), 12rem)'
+      : 'clamp(4rem, min(22vw, 32dvh), 14rem)';
+  /** Opponent must read from distance — ~55% of winner size, high contrast. */
+  const opponentSize = audience
+    ? 'clamp(2.25rem, min(12vw, 16dvh), 8rem)'
+    : showBo3Games
+      ? 'clamp(1.75rem, min(9vw, 12dvh), 5rem)'
+      : 'clamp(2rem, min(10vw, 14dvh), 6rem)';
   const scoreSize = audience
     ? 'clamp(5rem, min(32vw, 40dvh), 24rem)'
     : 'clamp(3rem, 14vw, 9rem)';
@@ -297,7 +303,7 @@ export function WinnerCelebration({
           id="winner-celebration-title"
           className={
             audience
-              ? 'flex min-h-0 w-full flex-[2] items-center justify-center font-black text-white leading-[0.85] break-words px-2'
+              ? 'flex min-h-0 w-full flex-[1.4] items-center justify-center font-black text-white leading-[0.85] break-words px-2'
               : 'font-black text-white leading-[0.85] break-words max-w-[95vw] shrink-0 py-1'
           }
           style={{
@@ -310,17 +316,24 @@ export function WinnerCelebration({
         </h1>
         {safeOpponent ? (
           <p
-            className={`font-bold text-slate-300 ${audience ? 'shrink-0 -mt-1' : 'shrink-0 -mt-2'}`}
+            className={
+              audience
+                ? 'flex min-h-0 w-full flex-[0.7] items-center justify-center font-black text-emerald-100 leading-[0.95] break-words px-2'
+                : 'font-black text-emerald-100 leading-[0.95] break-words max-w-[95vw] shrink-0'
+            }
             style={{
-              fontSize: audience
-                ? 'clamp(1rem, 2.8vw, 1.75rem)'
-                : 'clamp(0.85rem, 2.2vw, 1.25rem)'
+              fontSize: opponentSize,
+              textShadow: '0 0 28px rgba(16,185,129,0.45), 0 4px 18px rgba(0,0,0,0.7)'
             }}
           >
-            <span className="text-slate-500 uppercase tracking-[0.2em] text-[0.7em] font-black mr-2">
-              def.
+            <span className="block w-full">
+              <span className="inline-block uppercase tracking-[0.18em] text-amber-300/90 font-black mr-2 align-middle"
+                style={{ fontSize: '0.45em' }}
+              >
+                def.
+              </span>
+              <span className="align-middle">{safeOpponent}</span>
             </span>
-            {safeOpponent}
           </p>
         ) : null}
         {showBo3Games ? (

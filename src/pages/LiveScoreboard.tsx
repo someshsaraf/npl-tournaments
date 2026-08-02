@@ -220,13 +220,21 @@ export const LiveScoreboard: React.FC = () => {
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
           {hasWinner ? (
             <span
-              className="font-black text-emerald-300 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-6 py-2 rounded-2xl text-center leading-tight max-w-[min(92vw,48rem)]"
-              style={{ fontSize: 'clamp(1.25rem, 4vw, 3rem)' }}
+              className="font-black text-emerald-200 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-6 py-2.5 rounded-2xl text-center leading-snug max-w-[min(94vw,52rem)]"
+              style={{ fontSize: 'clamp(1.35rem, 4.5vw, 3.25rem)' }}
             >
-              {seriesOver ? 'MATCH' : 'GAME'} WIN · {winnerLabel}
-              <span className="font-bold text-emerald-400/75"> def. {opponentLabel}</span>
-              {' · '}
-              {score1}-{score2}
+              <span className="block">
+                {seriesOver ? 'MATCH' : 'GAME'} WIN · {winnerLabel}
+              </span>
+              <span
+                className="block font-black text-white mt-0.5"
+                style={{ fontSize: '0.85em' }}
+              >
+                def. {opponentLabel}
+              </span>
+              <span className="block text-emerald-300/90 mt-0.5" style={{ fontSize: '0.75em' }}>
+                {score1}-{score2}
+              </span>
             </span>
           ) : isGoldenPoint(match) ? (
             <span className="text-sm sm:text-base font-black text-amber-300 bg-amber-500/20 border border-amber-400/50 px-4 py-1.5 rounded-full animate-pulse">
