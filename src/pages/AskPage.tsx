@@ -22,6 +22,10 @@ import {
   answerTournamentQuestion,
   type ChatAnswer
 } from '../utils/tournamentChat';
+import {
+  getPlayerNameAliases,
+  renamePlayerInTeams
+} from '../utils/playerRename';
 
 type ChatMessage = {
   id: string;
@@ -40,7 +44,12 @@ function normalizeTeams(raw: unknown): Team[] {
       typeof (t as Team).name === 'string' &&
       Array.isArray((t as Team).players)
   );
-  return cleaned.length > 0 ? cleaned : TEAMS;
+  const base = cleaned.length > 0 ? cleaned : TEAMS;
+  let withAliases = base;
+  for (const [from, to] of Object.entries(getPlayerNameAliases())) {
+    withAliases = renamePlayerInTeams(withAliases, from, to);
+  }
+  return withAliases;
 }
 
 function newId(): string {

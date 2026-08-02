@@ -1,6 +1,10 @@
 import type { CompletedMatch, Fixture, MatchState } from '../data/tournamentData';
 import { isBestOf, isMaxPoints } from '../data/tournamentData';
 import { formatGameScoresLine, hasSeriesWinner } from './matchState';
+import {
+  applyPlayerNameAliasesToCompletedMatch,
+  applyPlayerNameAliasesToFixture
+} from './playerRename';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
@@ -145,12 +149,13 @@ export function mergeFixturesWithResults(
   const map = completedById && typeof completedById === 'object' ? completedById : {};
 
   return fixtures.map((fixture) => {
+    const aliased = applyPlayerNameAliasesToFixture(fixture);
     const done = map[fixture.id];
     if (!done || done.status !== 'completed') {
-      return { ...fixture, status: 'scheduled' as const };
+      return { ...aliased, status: 'scheduled' as const };
     }
     return {
-      ...fixture,
+      ...aliased,
       status: 'completed' as const,
       result: done.result,
       winnerName: done.winnerName,
@@ -158,7 +163,11 @@ export function mergeFixturesWithResults(
       completedDate: done.completedDate,
       completedTime: done.completedTime,
       finalScore1: done.score1,
-      finalScore2: done.score2
+      finalScore2: done.score2,
+      // Prefer completed-match sides (already alias-applied) for display consistency.
+      details: done.details || aliased.details,
+      teamA: done.teamA || aliased.teamA,
+      teamB: done.teamB || aliased.teamB
     };
   });
 }
@@ -196,7 +205,8 @@ export function completedMatchesFromFirebase(
       base.completedDate = formatMatchDate(when);
       base.completedTime = formatMatchTime(when);
     }
-    out[id] = base;
+    // Display renamed players even before Firebase rows are rewritten.
+    out[id] = applyPlayerNameAliasesToCompletedMatch(base);
   }
   return out;
 }

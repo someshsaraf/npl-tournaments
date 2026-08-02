@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { TEAMS, type Team } from '../data/tournamentData';
+import {
+  getPlayerNameAliases,
+  renamePlayerInTeams
+} from '../utils/playerRename';
 
 function normalizeTeams(raw: unknown): Team[] {
   if (!Array.isArray(raw)) return TEAMS;
@@ -13,7 +17,12 @@ function normalizeTeams(raw: unknown): Team[] {
       typeof (t as Team).name === 'string' &&
       Array.isArray((t as Team).players)
   );
-  return cleaned.length > 0 ? cleaned : TEAMS;
+  const base = cleaned.length > 0 ? cleaned : TEAMS;
+  let withAliases = base;
+  for (const [from, to] of Object.entries(getPlayerNameAliases())) {
+    withAliases = renamePlayerInTeams(withAliases, from, to);
+  }
+  return withAliases;
 }
 
 /**

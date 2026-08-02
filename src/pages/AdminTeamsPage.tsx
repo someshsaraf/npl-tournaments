@@ -1,15 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ref, onValue, set } from 'firebase/database';
 import { db } from '../firebase';
 import { TEAMS, type Team } from '../data/tournamentData';
 import { AdminNav } from '../components/AdminNav';
+import { propagatePlayerRename } from '../utils/playerRename';
 
 /**
  * Admin team roster editor. Moved off the main /admin schedule page.
- * Writes to Firebase `teams`; validates array shape before update.
+ * Writes to Firebase `teams`; player renames also cascade to completed matches
+ * and the live currentMatch so Results / Ask / overlays stay in sync.
  */
 export default function AdminTeamsPage() {
   const [teams, setTeams] = useState<Team[]>(TEAMS);
+  const [renameStatus, setRenameStatus] = useState<string | null>(null);
+  const [isPropagating, setIsPropagating] = useState(false);
+  /** Name captured on focus so blur can cascade old → new. */
+  const focusNameRef = useRef<{ teamId: string; index: number; name: string } | null>(null);
 
   useEffect(() => {
     const teamsRef = ref(db, 'teams');
@@ -52,6 +58,52 @@ export default function AdminTeamsPage() {
     );
   };
 
+  const handlePlayerFocus = (teamId: string, playerIndex: number, name: string) => {
+    if (typeof teamId !== 'string' || !Number.isInteger(playerIndex) || playerIndex < 0) return;
+    focusNameRef.current = {
+      teamId,
+      index: playerIndex,
+      name: typeof name === 'string' ? name.trim() : ''
+    };
+  };
+
+  /**
+   * On blur: if the player name changed, rewrite that name across completed matches,
+   * currentMatch, and any other roster occurrences.
+   */
+  const handlePlayerBlur = async (teamId: string, playerIndex: number, rawName: string) => {
+    const focused = focusNameRef.current;
+    focusNameRef.current = null;
+    if (!focused || focused.teamId !== teamId || focused.index !== playerIndex) return;
+
+    const oldName = focused.name;
+    const newName = typeof rawName === 'string' ? rawName.trim().slice(0, 80) : '';
+    if (!oldName || !newName || oldName === newName) return;
+
+    setIsPropagating(true);
+    setRenameStatus(null);
+    try {
+      const result = await propagatePlayerRename(db, oldName, newName);
+      const bits = [
+        result.completedUpdated > 0
+          ? `${result.completedUpdated} completed match${result.completedUpdated === 1 ? '' : 'es'}`
+          : null,
+        result.currentMatchUpdated ? 'live match' : null,
+        result.teamsUpdated ? 'rosters' : null
+      ].filter(Boolean);
+      setRenameStatus(
+        bits.length > 0
+          ? `Renamed “${oldName}” → “${newName}” in ${bits.join(', ')}.`
+          : `Saved “${newName}” (no other records needed updating).`
+      );
+    } catch (err) {
+      console.error('Failed to propagate player rename:', err);
+      setRenameStatus('Failed to update completed matches. Check connection and try again.');
+    } finally {
+      setIsPropagating(false);
+    }
+  };
+
   const handleAddPlayer = (teamId: string) => {
     if (typeof teamId !== 'string' || !teamId.trim()) return;
     updateTeamsState(
@@ -76,10 +128,22 @@ export default function AdminTeamsPage() {
       <AdminNav subtitle="Teams" />
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-slate-800 pb-3">
           <h1 className="text-lg font-bold text-indigo-300">Editable Teams &amp; Rosters</h1>
-          <span className="text-xs text-slate-400">Click any name to edit</span>
+          <span className="text-xs text-slate-400">
+            Edit a name, then leave the field — updates Results &amp; live score too
+          </span>
         </div>
+
+        {(isPropagating || renameStatus) && (
+          <p
+            className={`text-[11px] ${
+              renameStatus?.startsWith('Failed') ? 'text-red-400' : 'text-emerald-400'
+            }`}
+          >
+            {isPropagating ? 'Updating completed matches and live score…' : renameStatus}
+          </p>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
           {teams.map((team) => (
@@ -103,6 +167,8 @@ export default function AdminTeamsPage() {
                       type="text"
                       value={player}
                       onChange={(e) => handlePlayerNameChange(team.id, idx, e.target.value)}
+                      onFocus={() => handlePlayerFocus(team.id, idx, player)}
+                      onBlur={(e) => void handlePlayerBlur(team.id, idx, e.target.value)}
                       maxLength={80}
                       className="w-full bg-slate-900/60 border border-slate-800 text-xs text-slate-200 px-2 py-1 rounded focus:outline-none focus:border-indigo-500"
                       placeholder={`Player ${idx + 1}`}

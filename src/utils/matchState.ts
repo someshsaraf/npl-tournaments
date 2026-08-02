@@ -1,5 +1,9 @@
 import { INITIAL_MATCH, isBestOf, isMaxPoints } from '../data/tournamentData';
 import type { GameScore, MatchState } from '../data/tournamentData';
+import {
+  applyPlayerNameAliasesToText,
+  getPlayerNameAliases
+} from './playerRename';
 
 function normalizeGameScores(raw: unknown): GameScore[] {
   if (!Array.isArray(raw)) return [];
@@ -62,6 +66,7 @@ export function normalizeMatchState(data: unknown): MatchState {
   const gamesWon2 =
     Number.isFinite(gamesWon2Raw) && gamesWon2Raw >= 0 ? Math.trunc(gamesWon2Raw) : 0;
 
+  const aliases = getPlayerNameAliases();
   return {
     ...INITIAL_MATCH,
     ...(raw as Partial<MatchState>),
@@ -75,7 +80,23 @@ export function normalizeMatchState(data: unknown): MatchState {
     gamesWon1,
     gamesWon2,
     gameWinner,
-    matchWinner
+    matchWinner,
+    teamA: applyPlayerNameAliasesToText(
+      typeof raw.teamA === 'string' ? raw.teamA : INITIAL_MATCH.teamA,
+      aliases
+    ),
+    teamB: applyPlayerNameAliasesToText(
+      typeof raw.teamB === 'string' ? raw.teamB : INITIAL_MATCH.teamB,
+      aliases
+    ),
+    player1: applyPlayerNameAliasesToText(
+      typeof raw.player1 === 'string' ? raw.player1 : INITIAL_MATCH.player1,
+      aliases
+    ),
+    player2: applyPlayerNameAliasesToText(
+      typeof raw.player2 === 'string' ? raw.player2 : INITIAL_MATCH.player2,
+      aliases
+    )
   };
 }
 

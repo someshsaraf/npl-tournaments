@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { PublicLayout } from './components/PublicLayout';
 import HomePage from './pages/HomePage';
@@ -13,6 +14,11 @@ import AdminTeamsPage from './pages/AdminTeamsPage';
 import LiveScoreboard from './pages/LiveScoreboard';
 import StreamOverlay from './pages/StreamOverlay';
 import ScoreControl from './pages/ScoreControl';
+import { db } from './firebase';
+import {
+  migrateLegacyPlayerNames,
+  subscribePlayerNameAliases
+} from './utils/playerRename';
 
 /**
  * Public portal routes sit under PublicLayout (nav visible).
@@ -20,6 +26,14 @@ import ScoreControl from './pages/ScoreControl';
  * /live is linked from portal; /score remains available by direct URL for displays.
  */
 export default function App() {
+  useEffect(() => {
+    const unsubAliases = subscribePlayerNameAliases(db);
+    void migrateLegacyPlayerNames(db).catch((err) => {
+      console.error('Player name migration failed:', err);
+    });
+    return () => unsubAliases();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
