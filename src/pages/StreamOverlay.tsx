@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
@@ -23,6 +23,13 @@ import {
   subscribeFullscreenChange
 } from '../utils/fullscreen';
 import { ServeRacket } from '../components/ServeRacket';
+import { LiveWinCelebration } from '../components/LiveWinCelebration';
+
+type WinCelebrationState = {
+  winnerName: string;
+  opponentName: string;
+  scoreLabel: string;
+};
 
 /** Snapshot shown on /live between matches. */
 type HeldResult = {
@@ -306,6 +313,7 @@ export const StreamOverlay: React.FC = () => {
   });
   const [isStandalone, setIsStandalone] = useState(() => isStandaloneDisplayMode());
   const [showHomeScreenTip, setShowHomeScreenTip] = useState(false);
+  const [winCelebration, setWinCelebration] = useState<WinCelebrationState | null>(null);
 
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
@@ -313,6 +321,70 @@ export const StreamOverlay: React.FC = () => {
   const soundOnRef = useRef(true);
   const userStartedRef = useRef(false);
   const cssImmersiveRef = useRef(false);
+  const winCelebKeyRef = useRef<string | null>(null);
+
+  const dismissWinCelebration = useCallback(() => {
+    setWinCelebration(null);
+  }, []);
+
+  /**
+   * Fire stream celebration once per completed result key.
+   * Clears when a new in-progress match starts so the next win can celebrate again.
+   */
+  useEffect(() => {
+    if (isMatchInProgress(match) && !hasSeriesWinner(match)) {
+      winCelebKeyRef.current = null;
+      setWinCelebration(null);
+      return;
+    }
+
+    let ended = false;
+    let winnerSide: 1 | 2 | null = null;
+    let score1 = 0;
+    let score2 = 0;
+    let fixtureId = '';
+    let winnerName = '';
+    let opponentName = '';
+
+    if (hasSeriesWinner(match)) {
+      ended = true;
+      winnerSide = match.matchWinner === 2 ? 2 : 1;
+      score1 = match.score1 ?? 0;
+      score2 = match.score2 ?? 0;
+      fixtureId =
+        typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+      const p1 = match.player1 || match.teamA || 'Side A';
+      const p2 = match.player2 || match.teamB || 'Side B';
+      winnerName = winnerSide === 1 ? p1 : p2;
+      opponentName = winnerSide === 1 ? p2 : p1;
+    } else {
+      const currentId =
+        typeof match.currentMatchId === 'string' ? match.currentMatchId.trim() : '';
+      const sticky = heldResult || latestCompleted;
+      if (sticky && sticky.fixtureId === currentId) {
+        ended = true;
+        winnerSide = sticky.winnerSide === 2 ? 2 : 1;
+        score1 = sticky.score1 ?? 0;
+        score2 = sticky.score2 ?? 0;
+        fixtureId = sticky.fixtureId;
+        const p1 = sticky.player1 || sticky.teamA || 'Side A';
+        const p2 = sticky.player2 || sticky.teamB || 'Side B';
+        winnerName = winnerSide === 1 ? p1 : p2;
+        opponentName = winnerSide === 1 ? p2 : p1;
+      }
+    }
+
+    if (!ended || !winnerSide) return;
+
+    const key = `${fixtureId || 'unknown'}:${score1}-${score2}:w${winnerSide}`;
+    if (winCelebKeyRef.current === key) return;
+    winCelebKeyRef.current = key;
+    setWinCelebration({
+      winnerName,
+      opponentName,
+      scoreLabel: `${score1}-${score2}`
+    });
+  }, [match, heldResult, latestCompleted]);
   const iosLike = isIosLikeDevice();
   const iphone = isIphoneDevice();
 
@@ -1062,6 +1134,15 @@ export const StreamOverlay: React.FC = () => {
         )}
 
         <div className={overlayAnchorClass}>{scoreBug}</div>
+
+        {winCelebration ? (
+          <LiveWinCelebration
+            winnerName={winCelebration.winnerName}
+            opponentName={winCelebration.opponentName}
+            scoreLabel={winCelebration.scoreLabel}
+            onDismiss={dismissWinCelebration}
+          />
+        ) : null}
       </div>
     );
   }
@@ -1098,6 +1179,15 @@ export const StreamOverlay: React.FC = () => {
         Portal
       </Link>
       <div className={overlayAnchorClass}>{scoreBug}</div>
+
+      {winCelebration ? (
+        <LiveWinCelebration
+          winnerName={winCelebration.winnerName}
+          opponentName={winCelebration.opponentName}
+          scoreLabel={winCelebration.scoreLabel}
+          onDismiss={dismissWinCelebration}
+        />
+      ) : null}
     </div>
   );
 };
