@@ -250,11 +250,43 @@ function playWithSound(player: YtPlayer): void {
   }
 }
 
-function shortName(name: string, maxChars: number): string {
+/**
+ * Short label for the compact score bug.
+ * Validates name + maxChars; prefers keeping readable doubles ("A / B").
+ */
+function shortName(name: unknown, maxChars: unknown): string {
   if (typeof name !== 'string' || !name.trim()) return '—';
-  const first = name.trim().split(/\s+/)[0] ?? name.trim();
-  if (first.length <= maxChars) return first;
-  return `${first.slice(0, Math.max(1, maxChars - 1))}…`;
+  const limit =
+    typeof maxChars === 'number' && Number.isFinite(maxChars) && maxChars >= 4
+      ? Math.floor(maxChars)
+      : 10;
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  if (trimmed.length <= limit) return trimmed;
+
+  // Doubles / pairs: keep both sides abbreviated
+  const parts = trimmed.split(/\s*(?:\/|&|vs\.?)\s*/i).filter(Boolean);
+  if (parts.length >= 2) {
+    const a = (parts[0]?.split(/\s+/)[0] ?? '').slice(0, Math.max(3, Math.floor(limit / 2) - 1));
+    const b = (parts[1]?.split(/\s+/)[0] ?? '').slice(0, Math.max(3, Math.floor(limit / 2) - 1));
+    const pair = `${a}/${b}`;
+    return pair.length <= limit ? pair : `${pair.slice(0, limit - 1)}…`;
+  }
+
+  const first = trimmed.split(/\s+/)[0] ?? trimmed;
+  if (first.length <= limit) return first;
+  return `${first.slice(0, Math.max(1, limit - 1))}…`;
+}
+
+/** Characters to show in compact bug — longer names get a wider budget. */
+function compactNameBudget(nameA: unknown, nameB: unknown): number {
+  const len = Math.max(
+    typeof nameA === 'string' ? nameA.trim().length : 0,
+    typeof nameB === 'string' ? nameB.trim().length : 0
+  );
+  if (len <= 8) return 10;
+  if (len <= 16) return 14;
+  if (len <= 28) return 18;
+  return 22;
 }
 
 export const StreamOverlay: React.FC = () => {
@@ -706,6 +738,29 @@ export const StreamOverlay: React.FC = () => {
   const fullOnly =
     'hidden [@media(min-width:1024px)_and_(min-height:600px)]:block';
 
+  // Wider bug + longer labels when player/team names are long (avoids score squeeze).
+  const nameBudget = compactNameBudget(display.player1, display.player2);
+  const longestLabel = Math.max(
+    (display.player1 || '').trim().length,
+    (display.player2 || '').trim().length,
+    (display.teamA || '').trim().length,
+    (display.teamB || '').trim().length
+  );
+  const compactMaxW =
+    longestLabel > 22
+      ? 'max-w-[min(92vw,26rem)] landscape:max-w-[min(72vw,22rem)]'
+      : longestLabel > 12
+        ? 'max-w-[min(88vw,22rem)] landscape:max-w-[min(65vw,19rem)]'
+        : 'max-w-[min(85vw,18rem)] landscape:max-w-[min(58vw,16rem)]';
+  const fullPanelW =
+    longestLabel > 22
+      ? 'w-[min(42vw,26rem)] max-w-[26rem]'
+      : longestLabel > 14
+        ? 'w-[min(36vw,22rem)] max-w-[22rem]'
+        : 'w-[min(30vw,19rem)] max-w-[19rem]';
+  const label1 = shortName(display.player1 || display.teamA, nameBudget);
+  const label2 = shortName(display.player2 || display.teamB, nameBudget);
+
   const scoreBug = (
     <div
       className={`pointer-events-auto font-sans${matchEnded ? ' npl-live-match-end' : ''}`}
@@ -717,48 +772,63 @@ export const StreamOverlay: React.FC = () => {
           : `Last result ${winnerLabel} ${display.score1}-${display.score2}`
       }
     >
+      {/* Mobile / landscape: names above larger scores so digits never get crushed */}
       <div
-        className={`${compactOnly} items-center gap-1 w-max max-w-[min(85vw,18rem)] landscape:max-w-[min(55vw,16rem)] rounded-lg bg-black/85 border border-white/25 px-2 py-1.5 shadow-lg ring-1 ring-black/40${
+        className={`${compactOnly} flex-col gap-0.5 w-max ${compactMaxW} rounded-lg bg-black/85 border border-white/25 px-2 py-1.5 shadow-lg ring-1 ring-black/40${
           matchEnded ? ' border-emerald-400/50' : ''
         }`}
       >
         {matchEnded && (
-          <span className="text-[7px] font-black uppercase tracking-wider text-emerald-300 pr-0.5 border-r border-white/15 npl-live-match-end-winner">
+          <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300 self-start npl-live-match-end-winner">
             {phase === 'final' ? 'Final' : 'Last'}
           </span>
         )}
-        <div className="flex items-center gap-0.5 min-w-0">
-          {showServe && activeServer === 1 && <ServeRacket active size={12} title="Serving" />}
-          <span className="text-[9px] landscape:text-[8px] font-semibold text-white/90 truncate max-w-[3.75rem] landscape:max-w-[2.75rem]">
-            {shortName(display.player1, 8)}
-          </span>
-          <span
-            className={`text-[11px] landscape:text-[10px] font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-indigo-600 min-w-[1.15rem] text-center${
-              matchEnded && display.winnerSide === 1 ? ' npl-live-match-end-score ring-2 ring-emerald-300/80' : ''
-            }`}
-          >
-            {display.score1}
-          </span>
-        </div>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-x-1.5 gap-y-0.5 w-full min-w-[11rem]">
+          <div className="min-w-0 text-center">
+            <div className="flex items-center justify-center gap-0.5 min-w-0 mb-0.5">
+              {showServe && activeServer === 1 && (
+                <ServeRacket active size={12} title="Serving" />
+              )}
+              <span className="text-[10px] landscape:text-[9px] font-semibold text-white/90 truncate">
+                {label1}
+              </span>
+            </div>
+            <span
+              className={`inline-block text-[1.35rem] landscape:text-[1.2rem] font-black font-mono text-white tabular-nums leading-none px-1.5 py-0.5 rounded-md bg-indigo-600 min-w-[1.75rem]${
+                matchEnded && display.winnerSide === 1
+                  ? ' npl-live-match-end-score ring-2 ring-emerald-300/80'
+                  : ''
+              }`}
+            >
+              {display.score1}
+            </span>
+          </div>
 
-        <span className="text-[8px] text-white/35 font-bold leading-none">:</span>
+          <span className="text-sm text-white/40 font-black leading-none pb-1 self-end">:</span>
 
-        <div className="flex items-center gap-0.5 min-w-0">
-          <span
-            className={`text-[11px] landscape:text-[10px] font-black font-mono text-white tabular-nums leading-none px-1 py-0.5 rounded bg-rose-600 min-w-[1.15rem] text-center${
-              matchEnded && display.winnerSide === 2 ? ' npl-live-match-end-score ring-2 ring-emerald-300/80' : ''
-            }`}
-          >
-            {display.score2}
-          </span>
-          <span className="text-[9px] landscape:text-[8px] font-semibold text-white/90 truncate max-w-[3.75rem] landscape:max-w-[2.75rem]">
-            {shortName(display.player2, 8)}
-          </span>
-          {showServe && activeServer === 2 && <ServeRacket active size={12} title="Serving" />}
+          <div className="min-w-0 text-center">
+            <div className="flex items-center justify-center gap-0.5 min-w-0 mb-0.5">
+              <span className="text-[10px] landscape:text-[9px] font-semibold text-white/90 truncate">
+                {label2}
+              </span>
+              {showServe && activeServer === 2 && (
+                <ServeRacket active size={12} title="Serving" />
+              )}
+            </div>
+            <span
+              className={`inline-block text-[1.35rem] landscape:text-[1.2rem] font-black font-mono text-white tabular-nums leading-none px-1.5 py-0.5 rounded-md bg-rose-600 min-w-[1.75rem]${
+                matchEnded && display.winnerSide === 2
+                  ? ' npl-live-match-end-score ring-2 ring-emerald-300/80'
+                  : ''
+              }`}
+            >
+              {display.score2}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className={`${fullOnly} w-[min(28vw,17.5rem)] max-w-[17.5rem]`}>
+      <div className={`${fullOnly} ${fullPanelW}`}>
         <div
           className={`bg-slate-950/92 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md overflow-hidden${
             matchEnded ? ' border-emerald-400/50' : ''
@@ -786,25 +856,31 @@ export const StreamOverlay: React.FC = () => {
                   {phase === 'final' ? 'Final' : 'Last'}
                 </span>
               )}
-              <span className="text-[9px] text-amber-300/90 font-mono font-bold">{display.maxPoints}P</span>
+              <span className="text-[9px] text-amber-300/90 font-mono font-bold">
+                {display.maxPoints}P
+              </span>
             </div>
           </div>
 
           <div className="grid grid-cols-[1fr_auto_1fr] items-stretch">
             <div
-              className={`min-w-0 px-2.5 py-2 text-left ${
+              className={`min-w-0 px-2.5 py-2.5 text-left ${
                 showServe && activeServer === 1 ? 'bg-indigo-950/50' : ''
               } ${display.winnerSide === 1 ? 'bg-emerald-950/40' : ''}`}
             >
-              <div className="flex items-center gap-1 min-w-0">
-                {showServe && activeServer === 1 && <ServeRacket active size={14} title="Serving" />}
-                <span className="text-xs font-bold text-slate-100 truncate uppercase tracking-wide">
+              <div className="flex items-start gap-1 min-w-0">
+                {showServe && activeServer === 1 && (
+                  <ServeRacket active size={14} title="Serving" />
+                )}
+                <span className="text-xs font-bold text-slate-100 uppercase tracking-wide line-clamp-2 break-words leading-snug">
                   {display.teamA}
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 truncate mt-0.5">{display.player1}</p>
+              <p className="text-[11px] text-slate-300 line-clamp-2 break-words mt-0.5 leading-snug">
+                {display.player1}
+              </p>
               <p
-                className={`mt-1 text-3xl font-black font-mono text-indigo-300 leading-none tabular-nums${
+                className={`mt-1.5 text-[2.35rem] font-black font-mono text-indigo-300 leading-none tabular-nums${
                   matchEnded && display.winnerSide === 1 ? ' npl-live-match-end-score' : ''
                 }`}
               >
@@ -817,19 +893,23 @@ export const StreamOverlay: React.FC = () => {
             </div>
 
             <div
-              className={`min-w-0 px-2.5 py-2 text-right ${
+              className={`min-w-0 px-2.5 py-2.5 text-right ${
                 showServe && activeServer === 2 ? 'bg-rose-950/50' : ''
               } ${display.winnerSide === 2 ? 'bg-emerald-950/40' : ''}`}
             >
-              <div className="flex items-center justify-end gap-1 min-w-0">
-                <span className="text-xs font-bold text-slate-100 truncate uppercase tracking-wide">
+              <div className="flex items-start justify-end gap-1 min-w-0">
+                <span className="text-xs font-bold text-slate-100 uppercase tracking-wide line-clamp-2 break-words leading-snug">
                   {display.teamB}
                 </span>
-                {showServe && activeServer === 2 && <ServeRacket active size={14} title="Serving" />}
+                {showServe && activeServer === 2 && (
+                  <ServeRacket active size={14} title="Serving" />
+                )}
               </div>
-              <p className="text-[10px] text-slate-400 truncate mt-0.5">{display.player2}</p>
+              <p className="text-[11px] text-slate-300 line-clamp-2 break-words mt-0.5 leading-snug">
+                {display.player2}
+              </p>
               <p
-                className={`mt-1 text-3xl font-black font-mono text-rose-300 leading-none tabular-nums${
+                className={`mt-1.5 text-[2.35rem] font-black font-mono text-rose-300 leading-none tabular-nums${
                   matchEnded && display.winnerSide === 2 ? ' npl-live-match-end-score' : ''
                 }`}
               >
@@ -840,7 +920,7 @@ export const StreamOverlay: React.FC = () => {
 
           {matchEnded && winnerLabel && (
             <div className="px-2.5 py-1.5 border-t border-emerald-500/40 bg-emerald-500/15 text-center npl-live-match-end-winner">
-              <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide truncate">
+              <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide line-clamp-2 break-words">
                 {phase === 'last' ? 'Last match · ' : ''}Winner: {winnerLabel}
               </p>
             </div>
