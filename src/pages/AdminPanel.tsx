@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ref, set, onValue } from 'firebase/database';
-import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
+import { db, LIVE_SCORE_DELAY_MS_PATH, YOUTUBE_LIVE_URL_PATH } from '../firebase';
 import {
   FIXTURES,
   FIXTURE_DATES,
@@ -17,9 +17,19 @@ import {
   completedMatchesFromFirebase,
   mergeFixturesWithResults
 } from '../utils/completedMatches';
+import {
+  DEFAULT_LIVE_SCORE_DELAY_MS,
+  MAX_LIVE_SCORE_DELAY_MS,
+  MIN_LIVE_SCORE_DELAY_MS,
+  delayMsToSeconds,
+  delaySecondsToMs,
+  parseLiveScoreDelayMs
+} from '../utils/liveScoreDelay';
 import { normalizeMatchState } from '../utils/matchState';
 import { AdminNav } from '../components/AdminNav';
 import { buildCustomMatchState, sanitizeLabel } from '../utils/customMatch';
+
+const LIVE_DELAY_PRESETS_SECONDS = [0, 5, 7, 10, 15] as const;
 
 const CUSTOM_MATCH_STAGES = [
   'Exhibition',
@@ -55,6 +65,11 @@ export const AdminPanel: React.FC = () => {
   const [youtubeDraft, setYoutubeDraft] = useState('');
   const [youtubeSaveMessage, setYoutubeSaveMessage] = useState<string | null>(null);
   const [isSavingYoutube, setIsSavingYoutube] = useState(false);
+  const [delaySecondsDraft, setDelaySecondsDraft] = useState(
+    String(delayMsToSeconds(DEFAULT_LIVE_SCORE_DELAY_MS))
+  );
+  const [delaySaveMessage, setDelaySaveMessage] = useState<string | null>(null);
+  const [isSavingDelay, setIsSavingDelay] = useState(false);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -74,10 +89,16 @@ export const AdminPanel: React.FC = () => {
       setYoutubeDraft(typeof val === 'string' ? val : '');
     });
 
+    const delayRef = ref(db, LIVE_SCORE_DELAY_MS_PATH);
+    const unsubscribeDelay = onValue(delayRef, (snapshot) => {
+      setDelaySecondsDraft(String(delayMsToSeconds(snapshot.val())));
+    });
+
     return () => {
       unsubscribeMatch();
       unsubscribeCompleted();
       unsubscribeYoutube();
+      unsubscribeDelay();
     };
   }, []);
 
@@ -201,6 +222,47 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  /**
+   * Persist /live score broadcast delay (seconds in UI → ms in Firebase).
+   * Validation: finite number in [0, 30] seconds.
+   */
+  const handleSaveLiveScoreDelay = async (secondsOverride?: number) => {
+    const seconds =
+      typeof secondsOverride === 'number' && Number.isFinite(secondsOverride)
+        ? secondsOverride
+        : Number(delaySecondsDraft);
+    if (!Number.isFinite(seconds)) {
+      setDelaySaveMessage('Enter a delay between 0 and 30 seconds.');
+      return;
+    }
+    const ms = delaySecondsToMs(seconds);
+    const clampedSeconds = delayMsToSeconds(ms);
+    if (
+      seconds < MIN_LIVE_SCORE_DELAY_MS / 1000 ||
+      seconds > MAX_LIVE_SCORE_DELAY_MS / 1000
+    ) {
+      setDelaySaveMessage('Enter a delay between 0 and 30 seconds.');
+      return;
+    }
+
+    setIsSavingDelay(true);
+    setDelaySaveMessage(null);
+    try {
+      await set(ref(db, LIVE_SCORE_DELAY_MS_PATH), parseLiveScoreDelayMs(ms));
+      setDelaySecondsDraft(String(clampedSeconds));
+      setDelaySaveMessage(
+        clampedSeconds === 0
+          ? 'Live score delay cleared (instant updates on /live).'
+          : `Live score delay set to ${clampedSeconds}s for /live.`
+      );
+    } catch (err) {
+      console.error('Failed to save live score delay:', err);
+      setDelaySaveMessage('Failed to save delay. Check connection.');
+    } finally {
+      setIsSavingDelay(false);
+    }
+  };
+
   const categories = ['All', ...fixtureCategories];
   const dates = ['All', ...FIXTURE_DATES];
 
@@ -222,6 +284,11 @@ export const AdminPanel: React.FC = () => {
   const isCustomLiveMatch = isCustomMatchId(match.currentMatchId);
   const youtubeDraftValid = isValidYouTubeLiveUrl(youtubeDraft);
   const youtubeConfigured = !!parseYouTubeVideoId(youtubeDraft);
+  const delaySecondsParsed = Number(delaySecondsDraft);
+  const delayDraftValid =
+    Number.isFinite(delaySecondsParsed) &&
+    delaySecondsParsed >= MIN_LIVE_SCORE_DELAY_MS / 1000 &&
+    delaySecondsParsed <= MAX_LIVE_SCORE_DELAY_MS / 1000;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
@@ -294,6 +361,84 @@ export const AdminPanel: React.FC = () => {
             }`}
           >
             {youtubeSaveMessage}
+          </p>
+        )}
+      </div>
+
+      {/* /live score broadcast delay */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <label htmlFor="live-score-delay" className="text-sm font-semibold text-slate-200">
+            Live Score Delay
+          </label>
+          <span className="text-[11px] text-slate-500">
+            Broadcast lag for <code className="text-indigo-300">/live</code> only · 0–30s
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          Score Desk and <code className="text-slate-400">/score</code> stay instant. Use this to
+          align the overlay with stream latency.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <div className="flex items-center gap-2">
+            <input
+              id="live-score-delay"
+              type="number"
+              min={0}
+              max={30}
+              step={1}
+              value={delaySecondsDraft}
+              onChange={(e) => {
+                setDelaySecondsDraft(e.target.value);
+                setDelaySaveMessage(null);
+              }}
+              className={`w-24 bg-slate-950 border rounded-lg p-2.5 text-sm text-white focus:outline-none ${
+                delaySecondsDraft !== '' && !delayDraftValid
+                  ? 'border-red-500 focus:border-red-400'
+                  : 'border-slate-700 focus:border-indigo-500'
+              }`}
+              inputMode="numeric"
+            />
+            <span className="text-sm text-slate-400">seconds</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleSaveLiveScoreDelay()}
+            disabled={isSavingDelay || !delayDraftValid}
+            className="text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition-colors"
+          >
+            {isSavingDelay ? 'Saving…' : 'Save Delay'}
+          </button>
+          <div className="flex flex-wrap gap-1.5">
+            {LIVE_DELAY_PRESETS_SECONDS.map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => void handleSaveLiveScoreDelay(sec)}
+                disabled={isSavingDelay}
+                className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${
+                  delayDraftValid && delaySecondsParsed === sec
+                    ? 'border-indigo-400 bg-indigo-500/20 text-indigo-200'
+                    : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500'
+                }`}
+              >
+                {sec === 0 ? '0s (off)' : `${sec}s`}
+              </button>
+            ))}
+          </div>
+        </div>
+        {delaySecondsDraft !== '' && !delayDraftValid && (
+          <p className="text-[11px] text-red-400">Enter a delay between 0 and 30 seconds.</p>
+        )}
+        {delaySaveMessage && (
+          <p
+            className={`text-[11px] ${
+              delaySaveMessage.startsWith('Failed') || delaySaveMessage.startsWith('Enter')
+                ? 'text-red-400'
+                : 'text-emerald-400'
+            }`}
+          >
+            {delaySaveMessage}
           </p>
         )}
       </div>

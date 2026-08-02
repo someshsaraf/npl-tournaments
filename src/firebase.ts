@@ -20,3 +20,6 @@ export const storage = getStorage(app);
 
 /** RTDB path for persistent YouTube live URL (shared across admin sessions). */
 export const YOUTUBE_LIVE_URL_PATH = 'settings/youtubeLiveUrl';
+
+/** RTDB path for /live score broadcast delay in milliseconds. */
+export const LIVE_SCORE_DELAY_MS_PATH = 'settings/liveScoreDelayMs';

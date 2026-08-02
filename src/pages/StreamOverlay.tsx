@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
-import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
+import { db, LIVE_SCORE_DELAY_MS_PATH, YOUTUBE_LIVE_URL_PATH } from '../firebase';
 import { INITIAL_MATCH, isMaxPoints } from '../data/tournamentData';
 import type { CompletedMatch, MatchState, MaxPoints } from '../data/tournamentData';
 import { parseYouTubeVideoId } from '../utils/youtube';
@@ -10,6 +10,10 @@ import {
   completedMatchesFromFirebase,
   sortCompletedMatches
 } from '../utils/completedMatches';
+import {
+  DEFAULT_LIVE_SCORE_DELAY_MS,
+  parseLiveScoreDelayMs
+} from '../utils/liveScoreDelay';
 import { isGoldenPoint } from '../utils/scoring';
 import {
   enterNativeFullscreen,
@@ -24,9 +28,6 @@ import {
 } from '../utils/fullscreen';
 import { ServeRacket } from '../components/ServeRacket';
 import { LiveWinCelebration } from '../components/LiveWinCelebration';
-
-/** Broadcast lag for /live score bug only — does not affect Score Desk or /score. */
-const LIVE_SCORE_DELAY_MS = 7000;
 
 
 /** Snapshot shown on /live between matches. */
@@ -328,6 +329,8 @@ export const StreamOverlay: React.FC = () => {
   const cssImmersiveRef = useRef(false);
   const winCelebKeyRef = useRef<string | null>(null);
   const scoreDelayTimersRef = useRef<Set<number>>(new Set());
+  /** Broadcast lag for /live score bug — synced from admin settings. */
+  const liveScoreDelayMsRef = useRef(DEFAULT_LIVE_SCORE_DELAY_MS);
   /** Count of Firebase match updates received this page session. */
   const liveUpdateCountRef = useRef(0);
   /** After first real scoreMatch, we know load/refresh state and won't false-trigger. */
@@ -449,11 +452,24 @@ export const StreamOverlay: React.FC = () => {
       }
 
       // Later updates: broadcast lag so stream and score stay in sync.
+      const delayMs = liveScoreDelayMsRef.current;
+      if (delayMs <= 0) {
+        setScoreMatch(next);
+        return;
+      }
       const id = window.setTimeout(() => {
         scoreDelayTimersRef.current.delete(id);
         setScoreMatch(next);
-      }, LIVE_SCORE_DELAY_MS);
+      }, delayMs);
       scoreDelayTimersRef.current.add(id);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const delayRef = ref(db, LIVE_SCORE_DELAY_MS_PATH);
+    const unsubscribe = onValue(delayRef, (snapshot) => {
+      liveScoreDelayMsRef.current = parseLiveScoreDelayMs(snapshot.val());
     });
     return () => unsubscribe();
   }, []);
