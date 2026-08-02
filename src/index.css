@@ -1,27 +1,40 @@
 @import "tailwindcss";
 
 :root {
-  /* Pine Court — public portal (light) */
-  --pine-mist: #eef3ec;
-  --pine-paper: #f7faf6;
-  --pine-deep: #0a2f24;
-  --pine-ink: #142820;
-  --pine-muted: #5a6f64;
-  --pine-line: #d5e0d4;
-  --pine-leaf: #1b8a62;
-  --pine-lime: #d4e85a;
-  --pine-clay: #e4572e;
-  --pine-sky: #2a6f7a;
+  /* Goalkick-inspired dark sports theme */
+  --gk-bg: #0a0a10;
+  --gk-surface: #12121a;
+  --gk-surface-2: #1a1a26;
+  --gk-surface-3: #222230;
+  --gk-ink: #f2f2f8;
+  --gk-muted: #8b8b9e;
+  --gk-line: #2a2a3c;
+  --gk-red: #e5242b;
+  --gk-red-dark: #b91c22;
+  --gk-gold: #f5c518;
+  --gk-green: #22c55e;
 
-  /* Ops room — admin (dark pine) */
-  --admin-bg: #061a14;
-  --admin-panel: #0c2a20;
-  --admin-ink: #e8f2ea;
-  --admin-muted: #8aa396;
-  --admin-line: #1e4034;
-  --admin-lime: #c8e04a;
-  --admin-clay: #ff6b45;
-  --admin-teal: #3ecf9a;
+  /* Legacy aliases mapped to Goalkick palette */
+  --pine-mist: var(--gk-bg);
+  --pine-paper: var(--gk-surface);
+  --pine-deep: var(--gk-ink);
+  --pine-ink: var(--gk-ink);
+  --pine-muted: var(--gk-muted);
+  --pine-line: var(--gk-line);
+  --pine-leaf: var(--gk-green);
+  --pine-lime: var(--gk-gold);
+  --pine-clay: var(--gk-red);
+  --pine-sky: #60a5fa;
+
+  /* Admin — keep dark ops room */
+  --admin-bg: #06060c;
+  --admin-panel: #101018;
+  --admin-ink: #f0f0f5;
+  --admin-muted: #7a7a8e;
+  --admin-line: #252535;
+  --admin-lime: var(--gk-gold);
+  --admin-clay: var(--gk-red);
+  --admin-teal: var(--gk-green);
 }
 
 @layer base {
@@ -34,28 +47,123 @@
 
   body {
     @apply antialiased;
-    font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
-    background: var(--pine-mist);
-    color: var(--pine-ink);
+    font-family: "Barlow", ui-sans-serif, system-ui, sans-serif;
+    background: var(--gk-bg);
+    color: var(--gk-ink);
   }
 }
 
-/* Public portal */
+/* Public portal — Goalkick dark */
 .npl-portal {
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(212, 232, 90, 0.22), transparent 55%),
-    radial-gradient(900px 420px at 100% 0%, rgba(27, 138, 98, 0.12), transparent 50%),
-    var(--pine-mist);
+  background: var(--gk-bg);
+  color: var(--gk-ink);
 }
 
 .npl-portal .portal-display {
-  font-family: "Syne", "Arial Narrow", Impact, sans-serif;
+  font-family: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .npl-portal .portal-page {
-  @apply mx-auto w-full max-w-6xl px-3 sm:px-5 py-6 sm:py-8;
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 py-8 sm:py-10;
+}
+
+.npl-portal .portal-card {
+  @apply rounded-sm border border-[var(--gk-line)] bg-[var(--gk-surface)] shadow-lg;
+}
+
+.npl-portal .portal-section-title {
+  font-family: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  @apply text-2xl sm:text-3xl text-[var(--gk-ink)];
+}
+
+.npl-portal .portal-section-label {
+  @apply text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--gk-red)];
+}
+
+.npl-portal .portal-list {
+  @apply rounded-sm border border-[var(--gk-line)] overflow-hidden divide-y divide-[var(--gk-line)] bg-[var(--gk-surface)];
+}
+
+.npl-portal .portal-list-item {
+  @apply px-4 py-4 text-sm hover:bg-[var(--gk-surface-2)] transition-colors;
+}
+
+.npl-portal .portal-btn-primary {
+  @apply inline-flex items-center justify-center rounded-sm bg-[var(--gk-red)] text-white font-bold text-sm uppercase tracking-wider px-6 py-3 hover:bg-[var(--gk-red-dark)] transition-colors;
+}
+
+.npl-portal .portal-btn-secondary {
+  @apply inline-flex items-center justify-center rounded-sm border border-[var(--gk-line)] bg-transparent text-[var(--gk-ink)] font-bold text-sm uppercase tracking-wider px-6 py-3 hover:border-[var(--gk-red)] hover:text-[var(--gk-red)] transition-colors;
+}
+
+.npl-portal .portal-main-with-nav {
+  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .npl-portal .portal-main-with-nav {
+    padding-bottom: 0;
+  }
+}
+
+/* Goalkick diagonal accent stripe */
+.gk-stripe {
+  position: relative;
+}
+
+.gk-stripe::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--gk-red) 0%, var(--gk-red) 40%, transparent 40%);
+}
+
+/* Match card VS layout */
+.gk-match-card {
+  @apply rounded-sm border border-[var(--gk-line)] bg-[var(--gk-surface)] shadow-lg p-5 sm:p-6 relative overflow-hidden;
+}
+
+.gk-match-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--gk-red);
+}
+
+.gk-vs {
+  font-family: "Barlow Condensed", sans-serif;
+  @apply text-xs font-bold uppercase tracking-[0.3em] text-[var(--gk-muted)];
+}
+
+.gk-score {
+  font-family: "Barlow Condensed", sans-serif;
+  @apply text-4xl sm:text-5xl font-extrabold tabular-nums text-[var(--gk-ink)] leading-none;
+}
+
+/* Date badge */
+.gk-date-badge {
+  @apply inline-flex flex-col items-center justify-center size-14 sm:size-16 rounded-sm bg-[var(--gk-surface-2)] border border-[var(--gk-line)] shrink-0;
+}
+
+.gk-date-badge .day {
+  font-family: "Barlow Condensed", sans-serif;
+  @apply text-xl sm:text-2xl font-extrabold text-[var(--gk-red)] leading-none;
+}
+
+.gk-date-badge .month {
+  @apply text-[9px] font-bold uppercase tracking-wider text-[var(--gk-muted)] mt-0.5;
 }
 
 @keyframes npl-hero-rise {
@@ -90,29 +198,30 @@
 .npl-admin {
   background: var(--admin-bg);
   color: var(--admin-ink);
-  font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Barlow", ui-sans-serif, system-ui, sans-serif;
 }
 
 .npl-admin .admin-mesh {
   background:
-    radial-gradient(900px 400px at 0% 0%, rgba(200, 224, 74, 0.08), transparent 55%),
-    radial-gradient(700px 360px at 100% 0%, rgba(62, 207, 154, 0.07), transparent 50%),
+    radial-gradient(900px 400px at 0% 0%, rgba(229, 36, 43, 0.06), transparent 55%),
+    radial-gradient(700px 360px at 100% 0%, rgba(245, 197, 24, 0.04), transparent 50%),
     var(--admin-bg);
 }
 
 .npl-admin .admin-panel {
   background: color-mix(in srgb, var(--admin-panel) 92%, black);
   border: 1px solid var(--admin-line);
-  border-radius: 1.1rem;
+  border-radius: 0.25rem;
 }
 
 .npl-admin .admin-display {
-  font-family: "Syne", sans-serif;
+  font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
-/* /live CSS immersive / iOS cinema when native Fullscreen API is unavailable. */
+/* /live immersive */
 .npl-live-immersive {
   position: fixed !important;
   inset: 0 !important;
@@ -133,7 +242,6 @@
   height: 100% !important;
 }
 
-/* Prevent rubber-band scroll under the /live cinema shell (iOS Safari/Chrome). */
 html.npl-live-body-lock,
 html.npl-live-body-lock body {
   overflow: hidden !important;
@@ -144,10 +252,6 @@ html.npl-live-body-lock body {
   background: #000 !important;
 }
 
-/*
- * iOS Safari only collapses the address/toolbar after a document scroll.
- * Fixed /live content stays on screen; body is slightly taller so we can nudge scroll.
- */
 html.npl-live-ios-chrome-collapse {
   height: auto !important;
   overflow-x: hidden !important;
@@ -164,7 +268,7 @@ html.npl-live-ios-chrome-collapse body {
   touch-action: pan-y;
 }
 
-/* NPL brand banner — entrance + continuous attention motion */
+/* Brand banner */
 @keyframes npl-brand-enter {
   from {
     opacity: 0;
@@ -179,10 +283,10 @@ html.npl-live-ios-chrome-collapse body {
 @keyframes npl-brand-glow {
   0%,
   100% {
-    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.35));
+    filter: drop-shadow(0 0 6px rgba(245, 197, 24, 0.35));
   }
   50% {
-    filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.75));
+    filter: drop-shadow(0 0 16px rgba(245, 197, 24, 0.75));
   }
 }
 
@@ -220,11 +324,11 @@ html.npl-live-ios-chrome-collapse body {
 .npl-brand-title {
   background: linear-gradient(
     90deg,
-    #fbbf24 0%,
+    var(--gk-gold) 0%,
     #fde68a 25%,
     #ffffff 50%,
     #fde68a 75%,
-    #fbbf24 100%
+    var(--gk-gold) 100%
   );
   background-size: 200% 100%;
   -webkit-background-clip: text;
@@ -233,7 +337,7 @@ html.npl-live-ios-chrome-collapse body {
   animation: npl-brand-shimmer 2.8s linear infinite;
 }
 
-/* /live match-end celebrate — motion only, no layout change */
+/* Live match-end */
 @keyframes npl-live-end-enter {
   from {
     opacity: 0.55;
@@ -249,13 +353,13 @@ html.npl-live-ios-chrome-collapse body {
   0%,
   100% {
     box-shadow:
-      0 0 0 1px rgba(52, 211, 153, 0.35),
-      0 8px 28px rgba(16, 185, 129, 0.22);
+      0 0 0 1px rgba(229, 36, 43, 0.35),
+      0 8px 28px rgba(229, 36, 43, 0.22);
   }
   50% {
     box-shadow:
-      0 0 0 2px rgba(110, 231, 183, 0.7),
-      0 10px 36px rgba(52, 211, 153, 0.45);
+      0 0 0 2px rgba(229, 36, 43, 0.7),
+      0 10px 36px rgba(229, 36, 43, 0.45);
   }
 }
 

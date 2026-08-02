@@ -1,13 +1,14 @@
 import { NavLink } from 'react-router-dom';
+import { CalendarDays, Monitor, Trophy, Users, BookOpen } from 'lucide-react';
 
 const LOGO_SRC = '/nature-walk-logo-1.png';
 
 const LINKS = [
-  { to: '/admin', label: 'Schedule', end: true, accent: false },
-  { to: '/admin/score', label: 'Score Desk', end: false, accent: true },
-  { to: '/admin/results', label: 'Results', end: false, accent: false },
-  { to: '/admin/teams', label: 'Teams', end: false, accent: false },
-  { to: '/rules', label: 'Rules', end: false, accent: false }
+  { to: '/admin', label: 'Schedule', end: true, accent: false, icon: CalendarDays },
+  { to: '/admin/score', label: 'Score Desk', end: false, accent: true, icon: Monitor },
+  { to: '/admin/results', label: 'Results', end: false, accent: false, icon: Trophy },
+  { to: '/admin/teams', label: 'Teams', end: false, accent: false, icon: Users },
+  { to: '/rules', label: 'Rules', end: false, accent: false, icon: BookOpen }
 ] as const;
 
 /**
@@ -50,25 +51,29 @@ export function AdminNav({ subtitle = 'Tournament Control' }: { subtitle?: strin
         className="flex flex-wrap items-center gap-1.5"
         aria-label="Admin navigation"
       >
-        {LINKS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) =>
-              [
-                'rounded-lg text-[11px] sm:text-xs font-bold uppercase tracking-wide px-3 py-2 transition-colors',
-                item.accent
-                  ? 'bg-[var(--admin-lime)] text-[var(--admin-bg)] hover:brightness-110'
-                  : isActive
-                    ? 'bg-[var(--admin-teal)] text-[var(--admin-bg)]'
-                    : 'border border-[var(--admin-line)] bg-black/20 text-[var(--admin-ink)] hover:bg-white/5'
-              ].join(' ')
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
+        {LINKS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-1.5 rounded-lg text-[11px] sm:text-xs font-bold uppercase tracking-wide px-3 py-2 transition-colors',
+                  item.accent
+                    ? 'bg-[var(--admin-lime)] text-[var(--admin-bg)] hover:brightness-110'
+                    : isActive
+                      ? 'bg-[var(--admin-teal)] text-[var(--admin-bg)]'
+                      : 'border border-[var(--admin-line)] bg-black/20 text-[var(--admin-ink)] hover:bg-white/5'
+                ].join(' ')
+              }
+            >
+              <Icon className="size-3.5 shrink-0" aria-hidden />
+              {item.label}
+            </NavLink>
+          );
+        })}
       </nav>
     </header>
   );
