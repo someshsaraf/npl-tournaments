@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { toYouTubeNocookieEmbedFromId } from '../utils/youtube';
+import { RecordingsInPagePlayer } from '../components/RecordingsInPagePlayer';
 import {
   FetchPastRecordingsError,
   fetchPastRecordings,
@@ -40,13 +40,14 @@ function optionLabel(row: YouTubeRecording): string {
   const date = formatStreamDate(row.publishedAt);
   const title =
     typeof row.title === 'string' && row.title.trim() ? row.title.trim() : 'Recording';
-  // Keep option text readable in native <select>.
   const shortTitle = title.length > 72 ? `${title.slice(0, 71)}…` : title;
   return `${date} · ${shortTitle}`;
 }
 
 /**
- * Public VOD page: large player + dropdown of streams (date · title).
+ * Public VOD page: large in-page player + dropdown (date · title).
+ * Clicks never go to youtube.com — Play/Pause is portal-owned via IFrame API.
+ *
  * Concurrency: component-local fetch/abort only.
  * Security: embeds only validated video IDs from the API response.
  */
@@ -98,7 +99,6 @@ export default function RecordingsPage() {
     setSelectedId(videoId);
   };
 
-  const embedSrc = selectedId ? toYouTubeNocookieEmbedFromId(selectedId) : null;
   const selected = items.find((r) => r.videoId === selectedId) ?? null;
 
   return (
@@ -196,39 +196,13 @@ export default function RecordingsPage() {
             ) : null}
           </div>
 
-          {embedSrc && selected ? (
-            <section
-              className="rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-xl shadow-black/40"
-              aria-label="Selected recording"
-            >
-              <div className="relative aspect-video w-full bg-black">
-                <iframe
-                  key={selected.videoId}
-                  title={selected.title}
-                  src={embedSrc}
-                  className="h-full w-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-                {/*
-                  YouTube’s embed title/logo open youtube.com. Block that chrome;
-                  leave the lower control bar clickable for play/pause/seek.
-                */}
-                <div
-                  className="absolute inset-x-0 top-0 z-10 h-[22%] sm:h-[18%]"
-                  aria-hidden
-                />
-              </div>
-              <div className="px-4 py-3 sm:px-5 sm:py-4 bg-slate-900/95 border-t border-slate-800">
-                <p className="font-bold text-white text-base sm:text-lg leading-snug">
-                  {selected.title}
-                </p>
-                <p className="text-sm text-slate-400 mt-1">
-                  Streamed {formatStreamedAt(selected.publishedAt)}
-                </p>
-              </div>
-            </section>
+          {selected ? (
+            <RecordingsInPagePlayer
+              key={selected.videoId}
+              videoId={selected.videoId}
+              title={selected.title}
+              thumbnailUrl={selected.thumbnailUrl}
+            />
           ) : null}
         </div>
       ) : null}
