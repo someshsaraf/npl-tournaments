@@ -1,0 +1,16 @@
+src/components/RecordingsInPagePlayer.tsx
+  h_d39e845a5ebfa7 1-351
+src/pages/RecordingsPage.tsx
+  h_d39e845a5ebfa7 3,48-50,199-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "f1a22606e7a7ef9cce6159e5ec3dcfd1131212a3",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
