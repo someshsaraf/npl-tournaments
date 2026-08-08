@@ -53,17 +53,18 @@ export function pickRandomVictoryJingleId(excludeId?: string | null): string | n
 export function toVictoryJingleEmbedUrl(videoId: unknown): string | null {
   if (typeof videoId !== 'string' || !ALLOWED_IDS.includes(videoId)) return null;
 
-  // Audio-only surface: hide player chrome (iframe is visually hidden in UI).
+  // Start muted so autoplay is allowed; player unmutes via API / Sound tap.
   const params = new URLSearchParams({
     autoplay: '1',
-    mute: '0',
+    mute: '1',
     controls: '0',
     disablekb: '1',
     fs: '0',
     modestbranding: '1',
     playsinline: '1',
     rel: '0',
-    iv_load_policy: '3'
+    iv_load_policy: '3',
+    enablejsapi: '1'
   });
 
   if (typeof window !== 'undefined' && window.location?.origin) {

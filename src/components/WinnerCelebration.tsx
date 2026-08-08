@@ -36,7 +36,11 @@ type WinnerCelebrationProps = {
 
 /**
  * Full-viewport winner banner with canvas fireworks.
- * Animation runs only while mounted; cleaned up on unmount (no shared globals).
+ * Audience variant: single vertical stack (label → winner → def. → score → actions)
+ * so text never overlaps; opaque backdrop hides the live scoreboard.
+ *
+ * Concurrency: mount-local only; fireworks cleaned up on unmount.
+ * Input validation: trims strings; ignores malformed game score entries.
  */
 export function WinnerCelebration({
   winnerName,
@@ -78,40 +82,38 @@ export function WinnerCelebration({
   const canNewMatch = typeof onNewMatch === 'function';
   const canNextGame = typeof onNextGame === 'function';
   const audience = variant === 'audience';
+
+  // Audience: capped sizes so long doubles names + score fit one viewport without overlap.
   const titleSize = audience
-    ? 'clamp(1rem, 3.5vw, 2rem)'
+    ? 'clamp(0.85rem, 2.4vw, 1.35rem)'
     : 'clamp(0.85rem, 2.5vw, 1.25rem)';
   const nameSize = audience
-    ? 'clamp(5.5rem, min(28vw, 42dvh), 20rem)'
+    ? 'clamp(2.25rem, min(8.5vw, 11dvh), 5.5rem)'
     : showBo3Games
       ? 'clamp(3.5rem, min(20vw, 26dvh), 12rem)'
       : 'clamp(4rem, min(22vw, 32dvh), 14rem)';
-  /** Opponent must read from distance — high contrast, smaller than winner. */
   const opponentSize = audience
-    ? 'clamp(2.5rem, min(13vw, 18dvh), 9rem)'
+    ? 'clamp(1.15rem, min(4.2vw, 5.5dvh), 2.25rem)'
     : showBo3Games
       ? 'clamp(1.75rem, min(9vw, 12dvh), 5rem)'
       : 'clamp(2rem, min(10vw, 14dvh), 6rem)';
   const scoreSize = audience
-    ? 'clamp(6.5rem, min(36vw, 44dvh), 28rem)'
+    ? 'clamp(3.5rem, min(16vw, 18dvh), 9rem)'
     : 'clamp(3rem, 14vw, 9rem)';
   const gameScoreSize = audience
-    ? 'clamp(2.5rem, min(16vw, 18dvh), 7rem)'
+    ? 'clamp(1.5rem, min(8vw, 9dvh), 3.5rem)'
     : 'clamp(1.75rem, min(11vw, 12dvh), 4.5rem)';
   const gameLabelSize = audience
-    ? 'clamp(0.7rem, 1.8vw, 1.1rem)'
+    ? 'clamp(0.65rem, 1.5vw, 0.95rem)'
     : 'clamp(0.65rem, 1.5vw, 0.9rem)';
 
   return (
     <div
-      className={
-        audience
-          ? 'fixed inset-0 z-[60] flex flex-col overflow-hidden'
-          : 'fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden'
-      }
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden"
       style={{
-        background:
-          'radial-gradient(ellipse at center, rgba(15,23,42,0.72) 0%, rgba(2,6,23,0.94) 70%)'
+        background: audience
+          ? 'rgba(2, 6, 23, 0.97)'
+          : 'radial-gradient(ellipse at center, rgba(15,23,42,0.72) 0%, rgba(2,6,23,0.94) 70%)'
       }}
       role="dialog"
       aria-modal="true"
@@ -122,12 +124,12 @@ export function WinnerCelebration({
       <div
         className={
           audience
-            ? 'relative z-10 flex h-full w-full max-w-none flex-col items-center justify-between px-3 py-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] text-center'
+            ? 'relative z-10 flex h-full w-full max-w-[min(96vw,56rem)] flex-col items-center justify-center gap-3 sm:gap-4 px-4 py-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-center'
             : 'relative z-10 flex flex-col items-center justify-center gap-4 sm:gap-6 px-4 text-center max-w-[96vw]'
         }
       >
         <p
-          className={`font-black uppercase tracking-[0.35em] text-amber-300 ${audience ? 'shrink-0' : ''}`}
+          className="shrink-0 font-black uppercase tracking-[0.35em] text-amber-300"
           style={{
             fontSize: titleSize,
             animation: 'winner-pulse 1.4s ease-in-out infinite'
@@ -135,59 +137,52 @@ export function WinnerCelebration({
         >
           Winner
         </p>
+
         <h1
           id="winner-celebration-title"
-          className={
-            audience
-              ? 'flex min-h-0 w-full flex-[1.4] items-center justify-center font-black text-white leading-[0.85] break-words px-2'
-              : 'font-black text-white leading-[0.85] break-words max-w-[95vw] shrink-0 py-1'
-          }
+          className="shrink-0 w-full font-black text-white leading-[1.05] px-1"
           style={{
             fontSize: nameSize,
             textShadow: '0 0 48px rgba(52,211,153,0.55), 0 6px 28px rgba(0,0,0,0.65)',
-            animation: 'winner-pop 0.7s cubic-bezier(0.22, 1.2, 0.36, 1) both'
+            animation: 'winner-pop 0.7s cubic-bezier(0.22, 1.2, 0.36, 1) both',
+            display: '-webkit-box',
+            WebkitLineClamp: audience ? 3 : undefined,
+            WebkitBoxOrient: audience ? ('vertical' as const) : undefined,
+            overflow: audience ? 'hidden' : undefined
           }}
         >
           {safeName}
         </h1>
+
         {safeOpponent ? (
           <p
-            className={
-              audience
-                ? 'flex min-h-0 w-full flex-[0.7] items-center justify-center font-black text-emerald-100 leading-[0.95] break-words px-2'
-                : 'font-black text-emerald-100 leading-[0.95] break-words max-w-[95vw] shrink-0'
-            }
+            className="shrink-0 w-full max-w-[95vw] font-bold text-emerald-100/95 leading-snug px-1"
             style={{
               fontSize: opponentSize,
-              textShadow: '0 0 28px rgba(16,185,129,0.45), 0 4px 18px rgba(0,0,0,0.7)'
+              textShadow: '0 0 28px rgba(16,185,129,0.45), 0 4px 18px rgba(0,0,0,0.7)',
+              display: '-webkit-box',
+              WebkitLineClamp: audience ? 2 : undefined,
+              WebkitBoxOrient: audience ? ('vertical' as const) : undefined,
+              overflow: audience ? 'hidden' : undefined
             }}
           >
-            <span className="block w-full">
-              <span className="inline-block uppercase tracking-[0.18em] text-amber-300/90 font-black mr-2 align-middle"
-                style={{ fontSize: '0.45em' }}
-              >
-                def.
-              </span>
-              <span className="align-middle">{safeOpponent}</span>
+            <span className="uppercase tracking-[0.18em] text-amber-300/90 font-black mr-2">
+              def.
             </span>
+            {safeOpponent}
           </p>
         ) : null}
+
         {showBo3Games ? (
           <div
-            className={
-              audience
-                ? 'flex min-h-0 w-full flex-[0.9] items-center justify-center gap-2 sm:gap-4 px-1'
-                : 'flex w-full max-w-[96vw] items-center justify-center gap-2 sm:gap-4'
-            }
+            className="shrink-0 flex w-full max-w-[96vw] items-center justify-center gap-2 sm:gap-3"
             aria-label={`Game scores ${bo3Scores.map((g, i) => `G${i + 1} ${g.score1}-${g.score2}`).join(', ')}`}
           >
             {[0, 1, 2].map((i) => {
               const g = bo3Scores[i];
               const filled = !!g;
               const winnerSide =
-                matchWinner === 1 || matchWinner === 2
-                  ? matchWinner
-                  : null;
+                matchWinner === 1 || matchWinner === 2 ? matchWinner : null;
               const wonByMatchWinner =
                 filled && winnerSide !== null && g.winner === winnerSide;
               const wonByOther =
@@ -247,11 +242,7 @@ export function WinnerCelebration({
           </div>
         ) : (
           <p
-            className={
-              audience
-                ? 'flex min-h-0 w-full flex-1 items-center justify-center font-black font-mono tabular-nums text-amber-300 leading-none'
-                : 'font-black font-mono tabular-nums text-amber-300 leading-none'
-            }
+            className="shrink-0 font-black font-mono tabular-nums text-amber-300 leading-none"
             style={{
               fontSize: scoreSize,
               textShadow: '0 0 40px rgba(251,191,36,0.5), 0 4px 20px rgba(0,0,0,0.5)',
@@ -261,16 +252,18 @@ export function WinnerCelebration({
             {safeScore}
           </p>
         )}
+
         {safeSeries ? (
-          <p className="text-sm sm:text-base font-black text-emerald-300 tracking-wide">
+          <p className="shrink-0 text-sm sm:text-base font-black text-emerald-300 tracking-wide">
             Games {safeSeries}
           </p>
         ) : null}
         {safeSubtitle && !showBo3Games ? (
-          <p className="text-xs sm:text-sm font-bold text-slate-300 max-w-[92vw] text-center px-2">
+          <p className="shrink-0 text-xs sm:text-sm font-bold text-slate-300 max-w-[92vw] text-center px-2">
             {safeSubtitle}
           </p>
         ) : null}
+
         <div
           className={
             audience
