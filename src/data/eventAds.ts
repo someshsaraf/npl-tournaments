@@ -1,17 +1,26 @@
 /**
- * Community event ads for home + between-match overlays.
+ * Community event ads for home + between-match overlays + /live rail.
  * Date windows use the viewer's local calendar day (YYYY-MM-DD).
+ * Optional activeUntilTime (HH:mm local) ends an ad mid-day on its last active day.
  *
  * Concurrency: pure functions; no shared mutable state.
  * Security: poster paths are fixed same-origin constants only.
  */
 
-export type EventAdId = 'friends-kitchen' | 'drawing-competition' | 'hindustan-carpet';
+export type EventAdId =
+  | 'friends-kitchen'
+  | 'gol-gappe'
+  | 'drawing-competition'
+  | 'hindustan-carpet';
 
-export type EventAdAccent = 'amber' | 'saffron' | 'gold';
+export type EventAdAccent = 'amber' | 'saffron' | 'gold' | 'tangy';
 
 /** Visual treatment for the home spotlight carousel. */
-export type EventAdTemplate = 'kitchen-marquee' | 'festival-spotlight' | 'exhibition-spot';
+export type EventAdTemplate =
+  | 'kitchen-marquee'
+  | 'festival-spotlight'
+  | 'exhibition-spot'
+  | 'street-food';
 
 export type EventAd = {
   id: EventAdId;
@@ -26,6 +35,11 @@ export type EventAd = {
   activeFrom: string;
   /** Inclusive local calendar end YYYY-MM-DD */
   activeTo: string;
+  /**
+   * Optional local end time HH:mm on activeTo (and any day in range).
+   * Ad is inactive at/after this clock time (e.g. Drawing ends at 14:00).
+   */
+  activeUntilTime?: string;
   accent: EventAdAccent;
   template: EventAdTemplate;
   /** Punchy ribbon text on the spotlight */
@@ -49,7 +63,24 @@ const FRIENDS_KITCHEN: EventAd = {
   shortTag: 'Tonight only'
 };
 
-/** Independence Day drawing competition — Saturday 8 Aug 2026, 2:00 PM. */
+/** Flirting Flavors Gol Gappe — NPL court food on 9 Aug 2026 (promo from 8 Aug). */
+const GOL_GAPPE: EventAd = {
+  id: 'gol-gappe',
+  title: 'Flirting Flavors · Gol Gappe',
+  eyebrow: 'NPL court · 9 Aug',
+  blurb:
+    'Keeping Gol Gappe for NPL Badminton on 9th Aug — crispy, spicy, tangy. See you at the court for great shots & greater bites!',
+  ctaLabel: 'View Gol Gappe poster',
+  posterSrc: '/Gol-Gappe.jpeg',
+  alt: 'Flirting Flavors Gol Gappe at NPL Badminton Nature Walk Premier League on 9th August. Crispy, spicy, tangy.',
+  activeFrom: '2026-08-08',
+  activeTo: '2026-08-09',
+  accent: 'tangy',
+  template: 'street-food',
+  shortTag: '9th Aug'
+};
+
+/** Independence Day drawing competition — ends at 2:00 PM local on 8 Aug 2026. */
 const DRAWING_COMPETITION: EventAd = {
   id: 'drawing-competition',
   title: 'Independence Day Drawing Competition',
@@ -61,6 +92,7 @@ const DRAWING_COMPETITION: EventAd = {
   alt: 'Independence Day 2026 Drawing Competition at Society Clubhouse — Saturday 8 August, 2:00 to 3:30 PM.',
   activeFrom: '2026-08-08',
   activeTo: '2026-08-08',
+  activeUntilTime: '14:00',
   accent: 'saffron',
   template: 'festival-spotlight',
   shortTag: 'Today 2:00 PM'
@@ -83,14 +115,16 @@ const HINDUSTAN_CARPET: EventAd = {
   shortTag: '8 & 9 Aug'
 };
 
+/** Display order: Friends' Kitchen, Gol Gappe (2nd), Drawing, Carpet. */
 const EVENT_ADS: readonly EventAd[] = Object.freeze([
   FRIENDS_KITCHEN,
+  GOL_GAPPE,
   DRAWING_COMPETITION,
   HINDUSTAN_CARPET
 ]);
 
 /**
- * All community posters (no date filter). Used by /live rail so promos stay visible.
+ * Full catalog (no date/time filter). Used for path allowlisting.
  * Returns a shallow copy so callers cannot mutate the frozen catalog.
  */
 export function getAllEventAds(): EventAd[] {
@@ -98,6 +132,7 @@ export function getAllEventAds(): EventAd[] {
 }
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_HM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /**
  * Local calendar date as YYYY-MM-DD (not UTC).
@@ -115,25 +150,46 @@ function isDateKey(value: unknown): value is string {
   return typeof value === 'string' && DATE_KEY_RE.test(value);
 }
 
-function isAdActiveOn(ad: EventAd, dateKey: string): boolean {
+/** Parses HH:mm to minutes from midnight; null if invalid. */
+function parseLocalTimeToMinutes(value: unknown): number | null {
+  if (typeof value !== 'string' || !TIME_HM_RE.test(value)) return null;
+  const match = TIME_HM_RE.exec(value);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const mins = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(mins)) return null;
+  return hours * 60 + mins;
+}
+
+function isAdActiveAt(ad: EventAd, now: Date): boolean {
+  const dateKey = getLocalDateKey(now);
   if (!isDateKey(dateKey) || !isDateKey(ad.activeFrom) || !isDateKey(ad.activeTo)) {
     return false;
   }
-  return dateKey >= ad.activeFrom && dateKey <= ad.activeTo;
+  if (dateKey < ad.activeFrom || dateKey > ad.activeTo) {
+    return false;
+  }
+  if (ad.activeUntilTime) {
+    const untilMins = parseLocalTimeToMinutes(ad.activeUntilTime);
+    if (untilMins === null) return false;
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    if (nowMins >= untilMins) return false;
+  }
+  return true;
 }
 
 /**
- * Ads eligible for the given local calendar day.
- * Friends' Kitchen is only included on 2026-08-08.
+ * Ads eligible for the given local date/time.
+ * Drawing Competition drops at/after 14:00 on 2026-08-08.
  */
 export function getActiveEventAds(now: Date = new Date()): EventAd[] {
-  const dateKey = getLocalDateKey(now);
-  return EVENT_ADS.filter((ad) => isAdActiveOn(ad, dateKey));
+  const d = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
+  return EVENT_ADS.filter((ad) => isAdActiveAt(ad, d));
 }
 
 /**
  * Uniform random pick among active ads. Returns null when none are active.
- * Uses crypto.getRandomValues when available (secure, no Math.random bias concerns for small n).
+ * Uses crypto.getRandomValues when available.
  */
 export function pickRandomEventAd(
   now: Date = new Date(),

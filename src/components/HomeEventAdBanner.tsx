@@ -78,47 +78,64 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
   const template = ad.template;
   const isKitchen = template === 'kitchen-marquee';
   const isExhibition = template === 'exhibition-spot';
+  const isStreet = template === 'street-food';
 
   const accentBar = isKitchen
     ? 'from-amber-400 via-orange-500 to-amber-600'
     : isExhibition
       ? 'from-amber-200 via-yellow-600 to-amber-800'
-      : 'from-orange-400 via-white to-emerald-500';
+      : isStreet
+        ? 'from-lime-400 via-yellow-400 to-rose-500'
+        : 'from-orange-400 via-white to-emerald-500';
   const glow = isKitchen
     ? 'shadow-[0_0_40px_-8px_rgba(251,191,36,0.45)]'
     : isExhibition
       ? 'shadow-[0_0_40px_-8px_rgba(202,138,4,0.5)]'
-      : 'shadow-[0_0_40px_-8px_rgba(249,115,22,0.4)]';
+      : isStreet
+        ? 'shadow-[0_0_40px_-8px_rgba(132,204,22,0.45)]'
+        : 'shadow-[0_0_40px_-8px_rgba(249,115,22,0.4)]';
   const ctaClass = isKitchen
     ? 'bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-amber-400/25'
     : isExhibition
       ? 'bg-yellow-600 text-slate-950 hover:bg-yellow-500 shadow-yellow-600/25'
-      : 'bg-orange-400 text-slate-950 hover:bg-orange-300 shadow-orange-400/25';
+      : isStreet
+        ? 'bg-lime-400 text-slate-950 hover:bg-lime-300 shadow-lime-400/25'
+        : 'bg-orange-400 text-slate-950 hover:bg-orange-300 shadow-orange-400/25';
   const tagClass = isKitchen
     ? 'bg-amber-400/95 text-slate-950'
     : isExhibition
       ? 'bg-gradient-to-r from-amber-200 via-yellow-500 to-amber-700 text-slate-950'
-      : 'bg-gradient-to-r from-orange-500 via-white to-emerald-500 text-slate-950';
+      : isStreet
+        ? 'bg-gradient-to-r from-lime-400 via-yellow-300 to-rose-500 text-slate-950'
+        : 'bg-gradient-to-r from-orange-500 via-white to-emerald-500 text-slate-950';
   const eyebrowLabel = isKitchen
     ? 'Clubhouse kitchen'
     : isExhibition
       ? 'RNW exhibition'
-      : 'Kids · Clubhouse';
+      : isStreet
+        ? 'Court snacks'
+        : 'Kids · Clubhouse';
   const kenburnsClass = isKitchen
     ? 'npl-promo-kenburns object-[center_20%]'
     : isExhibition
       ? 'npl-promo-kenburns-exhibition object-[center_25%]'
-      : 'npl-promo-kenburns-alt object-[center_15%]';
+      : isStreet
+        ? 'npl-promo-kenburns-street object-[center_30%]'
+        : 'npl-promo-kenburns-alt object-[center_15%]';
   const tiltClass = isKitchen
     ? 'npl-promo-card-tilt-kitchen'
     : isExhibition
       ? 'npl-promo-card-tilt-exhibition'
-      : 'npl-promo-card-tilt-festival';
+      : isStreet
+        ? 'npl-promo-card-tilt-street'
+        : 'npl-promo-card-tilt-festival';
   const dotActiveClass = isKitchen
     ? 'w-5 bg-amber-400'
     : isExhibition
       ? 'w-5 bg-yellow-500'
-      : 'w-5 bg-orange-400';
+      : isStreet
+        ? 'w-5 bg-lime-400'
+        : 'w-5 bg-orange-400';
 
   return (
     <section
@@ -166,6 +183,16 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
               aria-hidden
             />
             <div className="pointer-events-none absolute right-8 bottom-4 h-28 w-28 rounded-full bg-yellow-600/20 blur-3xl npl-promo-pulse" />
+          </>
+        ) : isStreet ? (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_68%_40%,transparent_16%,rgba(2,6,23,0.52)_66%,rgba(2,6,23,0.93)_100%)]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-emerald-950/70 to-transparent w-[74%] sm:w-[60%]" />
+            <div
+              className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-lime-400 via-yellow-400 to-rose-500"
+              aria-hidden
+            />
+            <div className="pointer-events-none absolute right-6 top-2 h-24 w-24 rounded-full bg-lime-400/20 blur-2xl npl-promo-pulse" />
           </>
         ) : (
           <>
@@ -274,6 +301,10 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
           from { transform: scale(1.06) translate3d(0, 0, 0); }
           to { transform: scale(1.16) translate3d(1.5%, -1%, 0); }
         }
+        @keyframes npl-promo-kenburns-street {
+          from { transform: scale(1.05) translate3d(0, 0, 0); }
+          to { transform: scale(1.14) translate3d(-1%, 1.5%, 0); }
+        }
         @keyframes npl-promo-pulse {
           0%, 100% { opacity: 0.45; transform: scale(1); }
           50% { opacity: 0.8; transform: scale(1.08); }
@@ -299,6 +330,9 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
         .npl-promo-kenburns-exhibition {
           animation: npl-promo-kenburns-exhibition ${ROTATE_MS}ms ease-out both;
         }
+        .npl-promo-kenburns-street {
+          animation: npl-promo-kenburns-street ${ROTATE_MS}ms ease-out both;
+        }
         .npl-promo-pulse {
           animation: npl-promo-pulse 3.2s ease-in-out infinite;
         }
@@ -321,10 +355,14 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
         .npl-promo-card-tilt-exhibition {
           transform: rotate(1.5deg);
         }
+        .npl-promo-card-tilt-street {
+          transform: rotate(-1.75deg);
+        }
         @media (prefers-reduced-motion: reduce) {
           .npl-promo-kenburns,
           .npl-promo-kenburns-alt,
           .npl-promo-kenburns-exhibition,
+          .npl-promo-kenburns-street,
           .npl-promo-pulse,
           .npl-promo-tag-in,
           .npl-promo-copy-in,
@@ -338,10 +376,19 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
 }
 
 /**
- * Date-active ads for the home page (stable snapshot per mount).
+ * Date/time-active ads for the home page.
+ * Refreshes every minute so mid-day cutoffs (e.g. Drawing at 14:00) apply without reload.
  */
 export function useHomeEventAds(): EventAd[] {
-  const [ads] = useState<EventAd[]>(() => getActiveEventAds());
+  const [ads, setAds] = useState<EventAd[]>(() => getActiveEventAds());
+
+  useEffect(() => {
+    const refresh = () => setAds(getActiveEventAds());
+    refresh();
+    const id = window.setInterval(refresh, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   return ads;
 }
 

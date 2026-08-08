@@ -1,25 +1,43 @@
 import { useEffect, useState } from 'react';
 import type { EventAd } from '../data/eventAds';
-import { getAllEventAds, isSafeAdPosterPath } from '../data/eventAds';
+import { getActiveEventAds, isSafeAdPosterPath } from '../data/eventAds';
 
 const ROTATE_MS = 5500;
+const REFRESH_MS = 60_000;
+
+function loadActiveAds(): EventAd[] {
+  return getActiveEventAds().filter(
+    (ad) => ad && isSafeAdPosterPath(ad.posterSrc) && typeof ad.title === 'string'
+  );
+}
 
 /**
- * Slim left-edge "lobby card" rail for /live — always shows community posters
- * (no date filter). Peek without covering stream center or top-right score.
+ * Slim left-edge lobby rail for /live — date/time-active posters only
+ * (Drawing Competition drops at/after 14:00 local). Peek without covering score.
  *
  * Concurrency: local timers/state only; cleaned up on unmount.
  * Security: allowlisted poster paths only.
  * Input validation: filters invalid ads before render.
  */
 export function LiveEventAdRail() {
-  const [ads] = useState<EventAd[]>(() =>
-    getAllEventAds().filter(
-      (ad) => ad && isSafeAdPosterPath(ad.posterSrc) && typeof ad.title === 'string'
-    )
-  );
+  const [ads, setAds] = useState<EventAd[]>(() => loadActiveAds());
   const [focus, setFocus] = useState(0);
   const [peek, setPeek] = useState<EventAd | null>(null);
+
+  useEffect(() => {
+    const refresh = () => {
+      const next = loadActiveAds();
+      setAds(next);
+      setFocus((i) => (next.length === 0 ? 0 : i % next.length));
+      setPeek((current) => {
+        if (!current) return null;
+        return next.some((ad) => ad.id === current.id) ? current : null;
+      });
+    };
+    refresh();
+    const id = window.setInterval(refresh, REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (ads.length <= 1) return;
@@ -57,13 +75,17 @@ export function LiveEventAdRail() {
                 ? 'border-yellow-600/55'
                 : ad.accent === 'saffron'
                   ? 'border-orange-400/50'
-                  : 'border-amber-400/50';
+                  : ad.accent === 'tangy'
+                    ? 'border-lime-400/55'
+                    : 'border-amber-400/50';
             const tagBg =
               ad.accent === 'gold'
                 ? 'bg-yellow-600/95 text-slate-950'
                 : ad.accent === 'saffron'
                   ? 'bg-orange-400/95 text-slate-950'
-                  : 'bg-amber-400/95 text-slate-950';
+                  : ad.accent === 'tangy'
+                    ? 'bg-lime-400/95 text-slate-950'
+                    : 'bg-amber-400/95 text-slate-950';
             return (
               <li key={ad.id} className="relative">
                 <button

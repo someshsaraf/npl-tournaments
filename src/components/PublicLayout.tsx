@@ -38,22 +38,22 @@ export function PublicLayout() {
       <header className="sticky top-0 z-40 border-b border-emerald-900/40 bg-slate-950/90 backdrop-blur-md">
         <div className="mx-auto w-full max-w-6xl px-3 sm:px-5 pt-3 pb-2 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="shrink-0 rounded-lg bg-white p-0.5 shadow-md ring-1 ring-emerald-400/40 size-10">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="shrink-0 rounded-xl bg-white p-1 shadow-md ring-1 ring-emerald-400/40 size-12 sm:size-14">
                 <img
                   src={LOGO_SRC}
                   alt="Renaissance Nature Walk"
-                  width={40}
-                  height={40}
-                  className="h-full w-full rounded-md object-cover"
+                  width={56}
+                  height={56}
+                  className="h-full w-full rounded-lg object-cover"
                   draggable={false}
                 />
               </span>
               <div className="min-w-0 leading-tight">
-                <p className="portal-display text-2xl sm:text-3xl text-white tracking-wide truncate">
+                <p className="portal-display text-4xl sm:text-5xl text-white tracking-wide truncate">
                   NPL 2026
                 </p>
-                <p className="text-[10px] sm:text-xs text-slate-400 truncate">
+                <p className="text-xs sm:text-sm text-slate-300 font-semibold tracking-wide truncate">
                   Badminton Live Portal
                 </p>
               </div>

@@ -75,27 +75,6 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-slate-800 min-h-[9rem] sm:min-h-[11rem]">
-        <img
-          src="/hero.png"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-40"
-          draggable={false}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-emerald-950/50" />
-        <div className="relative z-10 px-5 sm:px-8 py-7 sm:py-9 max-w-xl">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400 font-bold mb-2">
-            Nature Walk Premier League
-          </p>
-          <h1 className="portal-display text-4xl sm:text-5xl text-white leading-none tracking-wide">
-            NPL 2026
-          </h1>
-          <p className="mt-2 text-sm sm:text-base text-slate-300 max-w-md">
-            Schedule, teams, live scores, and stream — all in one place for residents and guests.
-          </p>
-        </div>
-      </section>
-
       {homeAds.length > 0 ? <HomeEventAdBanner ads={homeAds} /> : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.9fr] gap-4 sm:gap-5">
