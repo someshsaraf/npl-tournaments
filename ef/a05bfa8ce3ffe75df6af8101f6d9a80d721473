@@ -1,0 +1,18 @@
+src/components/VictoryJinglePlayer.tsx
+  h_d39e845a5ebfa7 1-2,4-7,19-61,73,77-111
+src/components/WinnerCelebration.tsx
+  h_d39e845a5ebfa7 39-43,85-86,88,91,96,101,104,107,112,114-116,127,132,140,143,147-151,156,159,162-166,169-170,172,175,178,185,245,255,257,262,266
+src/utils/victoryJingle.ts
+  h_d39e845a5ebfa7 56,59,66-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "efa05bfa8ce3ffe75df6af8101f6d9a80d721473",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
