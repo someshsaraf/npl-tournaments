@@ -6,12 +6,12 @@
  * Security: poster paths are fixed same-origin constants only.
  */
 
-export type EventAdId = 'friends-kitchen' | 'drawing-competition';
+export type EventAdId = 'friends-kitchen' | 'drawing-competition' | 'hindustan-carpet';
 
-export type EventAdAccent = 'amber' | 'saffron';
+export type EventAdAccent = 'amber' | 'saffron' | 'gold';
 
 /** Visual treatment for the home spotlight carousel. */
-export type EventAdTemplate = 'kitchen-marquee' | 'festival-spotlight';
+export type EventAdTemplate = 'kitchen-marquee' | 'festival-spotlight' | 'exhibition-spot';
 
 export type EventAd = {
   id: EventAdId;
@@ -66,7 +66,28 @@ const DRAWING_COMPETITION: EventAd = {
   shortTag: 'Today 2:00 PM'
 };
 
-const EVENT_ADS: readonly EventAd[] = Object.freeze([FRIENDS_KITCHEN, DRAWING_COMPETITION]);
+/** Hindustan Carpet exhibition & exchange — 8 & 9 Aug 2026. */
+const HINDUSTAN_CARPET: EventAd = {
+  id: 'hindustan-carpet',
+  title: 'Hindustan Carpet',
+  eyebrow: 'Marketing Office · RNW',
+  blurb:
+    'Exclusive carpet exhibition & exchange on 8 & 9 Aug, 8 am–9 pm. Exchange old carpets and avail up to 35% off. Contact 8050902880.',
+  ctaLabel: 'View exhibition poster',
+  posterSrc: '/Hindustan-Carpet.jpeg',
+  alt: 'Hindustan Carpet exclusive carpet exhibition and exchange event on 8 and 9 August at Marketing Office, RNW. Up to 35% off. Contact 8050902880.',
+  activeFrom: '2026-08-08',
+  activeTo: '2026-08-09',
+  accent: 'gold',
+  template: 'exhibition-spot',
+  shortTag: '8 & 9 Aug'
+};
+
+const EVENT_ADS: readonly EventAd[] = Object.freeze([
+  FRIENDS_KITCHEN,
+  DRAWING_COMPETITION,
+  HINDUSTAN_CARPET
+]);
 
 /**
  * All community posters (no date filter). Used by /live rail so promos stay visible.

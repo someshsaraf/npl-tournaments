@@ -5,7 +5,7 @@ import { getAllEventAds, isSafeAdPosterPath } from '../data/eventAds';
 const ROTATE_MS = 5500;
 
 /**
- * Slim left-edge "lobby card" rail for /live — always shows both community posters
+ * Slim left-edge "lobby card" rail for /live — always shows community posters
  * (no date filter). Peek without covering stream center or top-right score.
  *
  * Concurrency: local timers/state only; cleaned up on unmount.
@@ -52,7 +52,18 @@ export function LiveEventAdRail() {
         <ul className="flex flex-col gap-2">
           {ads.map((ad, i) => {
             const active = i === focus;
-            const amber = ad.accent !== 'saffron';
+            const borderClass =
+              ad.accent === 'gold'
+                ? 'border-yellow-600/55'
+                : ad.accent === 'saffron'
+                  ? 'border-orange-400/50'
+                  : 'border-amber-400/50';
+            const tagBg =
+              ad.accent === 'gold'
+                ? 'bg-yellow-600/95 text-slate-950'
+                : ad.accent === 'saffron'
+                  ? 'bg-orange-400/95 text-slate-950'
+                  : 'bg-amber-400/95 text-slate-950';
             return (
               <li key={ad.id} className="relative">
                 <button
@@ -60,9 +71,7 @@ export function LiveEventAdRail() {
                   onClick={() => setPeek(ad)}
                   aria-label={`View poster: ${ad.title}`}
                   title={ad.title}
-                  className={`group relative block overflow-hidden rounded-md border shadow-lg transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-                    amber ? 'border-amber-400/50' : 'border-orange-400/50'
-                  } ${
+                  className={`group relative block overflow-hidden rounded-md border shadow-lg transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${borderClass} ${
                     active
                       ? 'w-[3.15rem] sm:w-[3.6rem] opacity-100 scale-100 ring-1 ring-white/30'
                       : 'w-[2.85rem] sm:w-[3.2rem] opacity-95 scale-[0.98] hover:opacity-100'
@@ -83,11 +92,7 @@ export function LiveEventAdRail() {
                     draggable={false}
                   />
                   <span
-                    className={`absolute inset-x-0 bottom-0 px-0.5 py-0.5 text-center text-[7px] sm:text-[8px] font-black uppercase tracking-wide leading-tight ${
-                      amber
-                        ? 'bg-amber-400/95 text-slate-950'
-                        : 'bg-orange-400/95 text-slate-950'
-                    }`}
+                    className={`absolute inset-x-0 bottom-0 px-0.5 py-0.5 text-center text-[7px] sm:text-[8px] font-black uppercase tracking-wide leading-tight ${tagBg}`}
                   >
                     {ad.shortTag || 'Promo'}
                   </span>

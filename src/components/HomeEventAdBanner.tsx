@@ -75,19 +75,50 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
   if (count === 0) return null;
 
   const ad = validAds[Math.min(index, count - 1)]!;
-  const isKitchen = ad.template === 'kitchen-marquee';
+  const template = ad.template;
+  const isKitchen = template === 'kitchen-marquee';
+  const isExhibition = template === 'exhibition-spot';
+
   const accentBar = isKitchen
     ? 'from-amber-400 via-orange-500 to-amber-600'
-    : 'from-orange-400 via-white to-emerald-500';
+    : isExhibition
+      ? 'from-amber-200 via-yellow-600 to-amber-800'
+      : 'from-orange-400 via-white to-emerald-500';
   const glow = isKitchen
     ? 'shadow-[0_0_40px_-8px_rgba(251,191,36,0.45)]'
-    : 'shadow-[0_0_40px_-8px_rgba(249,115,22,0.4)]';
+    : isExhibition
+      ? 'shadow-[0_0_40px_-8px_rgba(202,138,4,0.5)]'
+      : 'shadow-[0_0_40px_-8px_rgba(249,115,22,0.4)]';
   const ctaClass = isKitchen
     ? 'bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-amber-400/25'
-    : 'bg-orange-400 text-slate-950 hover:bg-orange-300 shadow-orange-400/25';
+    : isExhibition
+      ? 'bg-yellow-600 text-slate-950 hover:bg-yellow-500 shadow-yellow-600/25'
+      : 'bg-orange-400 text-slate-950 hover:bg-orange-300 shadow-orange-400/25';
   const tagClass = isKitchen
     ? 'bg-amber-400/95 text-slate-950'
-    : 'bg-gradient-to-r from-orange-500 via-white to-emerald-500 text-slate-950';
+    : isExhibition
+      ? 'bg-gradient-to-r from-amber-200 via-yellow-500 to-amber-700 text-slate-950'
+      : 'bg-gradient-to-r from-orange-500 via-white to-emerald-500 text-slate-950';
+  const eyebrowLabel = isKitchen
+    ? 'Clubhouse kitchen'
+    : isExhibition
+      ? 'RNW exhibition'
+      : 'Kids · Clubhouse';
+  const kenburnsClass = isKitchen
+    ? 'npl-promo-kenburns object-[center_20%]'
+    : isExhibition
+      ? 'npl-promo-kenburns-exhibition object-[center_25%]'
+      : 'npl-promo-kenburns-alt object-[center_15%]';
+  const tiltClass = isKitchen
+    ? 'npl-promo-card-tilt-kitchen'
+    : isExhibition
+      ? 'npl-promo-card-tilt-exhibition'
+      : 'npl-promo-card-tilt-festival';
+  const dotActiveClass = isKitchen
+    ? 'w-5 bg-amber-400'
+    : isExhibition
+      ? 'w-5 bg-yellow-500'
+      : 'w-5 bg-orange-400';
 
   return (
     <section
@@ -115,9 +146,7 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
           key={ad.id}
           src={ad.posterSrc}
           alt={ad.alt}
-          className={`absolute inset-0 h-full w-full object-cover ${
-            isKitchen ? 'npl-promo-kenburns object-[center_20%]' : 'npl-promo-kenburns-alt object-[center_15%]'
-          }`}
+          className={`absolute inset-0 h-full w-full object-cover ${kenburnsClass}`}
           draggable={false}
         />
 
@@ -127,6 +156,16 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_40%,transparent_20%,rgba(2,6,23,0.55)_70%,rgba(2,6,23,0.92)_100%)]" />
             <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent w-[72%] sm:w-[58%]" />
             <div className="pointer-events-none absolute -left-8 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full bg-amber-500/20 blur-3xl npl-promo-pulse" />
+          </>
+        ) : isExhibition ? (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_35%,transparent_18%,rgba(28,25,23,0.55)_68%,rgba(2,6,23,0.94)_100%)]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-stone-950/80 to-transparent w-[74%] sm:w-[60%]" />
+            <div
+              className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-amber-200 via-yellow-600 to-amber-900"
+              aria-hidden
+            />
+            <div className="pointer-events-none absolute right-8 bottom-4 h-28 w-28 rounded-full bg-yellow-600/20 blur-3xl npl-promo-pulse" />
           </>
         ) : (
           <>
@@ -150,7 +189,7 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
         {/* Copy overlay */}
         <div className="absolute inset-0 z-10 flex flex-col justify-end sm:justify-center p-3.5 sm:p-5 pr-16 sm:pr-24 max-w-xl npl-promo-copy-in">
           <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] font-bold text-emerald-300/90 mb-1">
-            {isKitchen ? 'Clubhouse kitchen' : 'Kids · Clubhouse'}
+            {eyebrowLabel}
           </p>
           <h2 className="portal-display text-2xl sm:text-3xl text-white leading-none tracking-wide drop-shadow-lg">
             {ad.title}
@@ -167,9 +206,7 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
 
         {/* Portrait poster peek (desktop) — framed like a lobby card */}
         <div
-          className={`pointer-events-none absolute right-3 sm:right-4 top-1/2 hidden sm:block -translate-y-1/2 w-[5.75rem] md:w-[6.75rem] ${
-            isKitchen ? 'npl-promo-card-tilt-kitchen' : 'npl-promo-card-tilt-festival'
-          }`}
+          className={`pointer-events-none absolute right-3 sm:right-4 top-1/2 hidden sm:block -translate-y-1/2 w-[5.75rem] md:w-[6.75rem] ${tiltClass}`}
           aria-hidden
         >
           <div className="aspect-[2/3] rounded-lg overflow-hidden ring-2 ring-white/25 shadow-2xl npl-promo-card-float">
@@ -216,11 +253,7 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
                   setIndex(i);
                 }}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === index
-                    ? isKitchen
-                      ? 'w-5 bg-amber-400'
-                      : 'w-5 bg-orange-400'
-                    : 'w-1.5 bg-white/35 hover:bg-white/55'
+                  i === index ? dotActiveClass : 'w-1.5 bg-white/35 hover:bg-white/55'
                 }`}
               />
             ))}
@@ -236,6 +269,10 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
         @keyframes npl-promo-kenburns-alt {
           from { transform: scale(1.08) translate3d(0, 0, 0); }
           to { transform: scale(1.2) translate3d(2%, -2%, 0); }
+        }
+        @keyframes npl-promo-kenburns-exhibition {
+          from { transform: scale(1.06) translate3d(0, 0, 0); }
+          to { transform: scale(1.16) translate3d(1.5%, -1%, 0); }
         }
         @keyframes npl-promo-pulse {
           0%, 100% { opacity: 0.45; transform: scale(1); }
@@ -259,6 +296,9 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
         .npl-promo-kenburns-alt {
           animation: npl-promo-kenburns-alt ${ROTATE_MS}ms ease-out both;
         }
+        .npl-promo-kenburns-exhibition {
+          animation: npl-promo-kenburns-exhibition ${ROTATE_MS}ms ease-out both;
+        }
         .npl-promo-pulse {
           animation: npl-promo-pulse 3.2s ease-in-out infinite;
         }
@@ -278,9 +318,13 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
         .npl-promo-card-tilt-festival {
           transform: rotate(-2.5deg);
         }
+        .npl-promo-card-tilt-exhibition {
+          transform: rotate(1.5deg);
+        }
         @media (prefers-reduced-motion: reduce) {
           .npl-promo-kenburns,
           .npl-promo-kenburns-alt,
+          .npl-promo-kenburns-exhibition,
           .npl-promo-pulse,
           .npl-promo-tag-in,
           .npl-promo-copy-in,
