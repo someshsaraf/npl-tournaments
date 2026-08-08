@@ -4,6 +4,7 @@ export const RECORDINGS_PUBLISHED_AFTER = '2026-07-31T00:00:00Z';
 export type YouTubeRecording = {
   videoId: string;
   title: string;
+  /** ISO time the live stream started (actualStartTime), not VOD publish time. */
   publishedAt: string;
   thumbnailUrl: string;
 };

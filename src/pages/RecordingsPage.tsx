@@ -7,7 +7,7 @@ import {
   type YouTubeRecording
 } from '../utils/youtubeRecordings';
 
-function formatPublishedAt(iso: string): string {
+function formatStreamedAt(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   try {
@@ -21,8 +21,9 @@ function formatPublishedAt(iso: string): string {
 }
 
 /**
- * Public VOD list: Nature Walk CSC videos from 1 Aug 2026.
+ * Public VOD list: @NatureWalkCSC completed lives since 31 Jul 2026.
  * Data comes from same-origin `/api/youtube-recordings` (server holds the API key).
+ * Dates shown are stream start times, not VOD publish times.
  *
  * Concurrency: component-local fetch/abort only.
  * Security: embeds only validated video IDs from the API response.
@@ -142,7 +143,7 @@ export default function RecordingsPage() {
                   {selected.title}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  {formatPublishedAt(selected.publishedAt)}
+                  Streamed {formatStreamedAt(selected.publishedAt)}
                 </p>
               </div>
             </section>
@@ -182,7 +183,7 @@ export default function RecordingsPage() {
                         {row.title}
                       </p>
                       <p className="text-[11px] text-slate-400">
-                        {formatPublishedAt(row.publishedAt)}
+                        Streamed {formatStreamedAt(row.publishedAt)}
                       </p>
                     </div>
                   </button>
