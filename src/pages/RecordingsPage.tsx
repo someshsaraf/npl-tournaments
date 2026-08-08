@@ -79,7 +79,16 @@ export default function RecordingsPage() {
           Recordings
         </h1>
         <p className="text-sm text-slate-400">
-          Past Nature Walk CSC live streams from 1 Aug 2026 onward
+          Past live streams from{' '}
+          <a
+            href="https://www.youtube.com/@NatureWalkCSC/streams"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-300 hover:text-emerald-200 underline-offset-2 hover:underline"
+          >
+            @NatureWalkCSC
+          </a>{' '}
+          since 31 Jul 2026
         </p>
       </header>
 
@@ -94,19 +103,19 @@ export default function RecordingsPage() {
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-5 space-y-3">
           <p className="text-sm text-amber-100 font-medium">{error}</p>
           <a
-            href="https://www.youtube.com/results?search_query=Nature+walk+csc"
+            href="https://www.youtube.com/@NatureWalkCSC/streams"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex text-sm font-bold text-emerald-300 hover:text-emerald-200 underline-offset-2 hover:underline"
           >
-            Open on YouTube
+            Open @NatureWalkCSC streams on YouTube
           </a>
         </div>
       ) : null}
 
       {!loading && !error && items.length === 0 ? (
         <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
-          No recordings found for this channel since 1 Aug 2026.
+          No recordings found for @NatureWalkCSC since 31 Jul 2026.
         </p>
       ) : null}
 

@@ -1,5 +1,5 @@
-/** Inclusive start of NPL 2026 recordings window (UTC) — display / docs only. */
-export const RECORDINGS_PUBLISHED_AFTER = '2026-08-01T00:00:00Z';
+/** Inclusive start of recordings window (UTC) — display copy; API uses the same date. */
+export const RECORDINGS_PUBLISHED_AFTER = '2026-07-31T00:00:00Z';
 
 export type YouTubeRecording = {
   videoId: string;

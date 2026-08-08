@@ -1,8 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-/** Inclusive start of NPL 2026 recordings window (UTC). */
-const PUBLISHED_AFTER = '2026-08-01T00:00:00Z';
-const SEARCH_QUERY = 'Nature walk csc';
+/**
+ * Past live streams for https://www.youtube.com/@NatureWalkCSC/streams
+ * from 31 Jul 2026 onward (YouTube Data API — not HTML scrape).
+ */
+const PUBLISHED_AFTER = '2026-07-31T00:00:00Z';
+/** Public channel id for @NatureWalkCSC (not a secret). Override with YOUTUBE_CHANNEL_ID. */
+const DEFAULT_CHANNEL_ID = 'UCArjq0pgzz_DjtglfS6i_Fg';
 const MAX_RESULTS = 25;
 const API_HOST = 'https://www.googleapis.com';
 const CHANNEL_ID_RE = /^UC[\w-]{20,}$/;
@@ -60,13 +64,24 @@ function parseRecordingItem(raw: unknown): RecordingItem | null {
   return { videoId, title, publishedAt, thumbnailUrl };
 }
 
+function resolveChannelId(): string | null {
+  const fromEnv =
+    typeof process.env.YOUTUBE_CHANNEL_ID === 'string'
+      ? process.env.YOUTUBE_CHANNEL_ID.trim()
+      : '';
+  if (fromEnv) {
+    return CHANNEL_ID_RE.test(fromEnv) ? fromEnv : null;
+  }
+  return CHANNEL_ID_RE.test(DEFAULT_CHANNEL_ID) ? DEFAULT_CHANNEL_ID : null;
+}
+
 /**
  * GET /api/youtube-recordings?pageToken=…
- * Server-only YouTube Data API proxy. Keys never shipped to the browser.
+ * Lists completed live broadcasts for @NatureWalkCSC (same intent as /streams).
  *
- * Env (Vercel project settings, not VITE_):
- * - YOUTUBE_API_KEY
- * - YOUTUBE_CHANNEL_ID
+ * Env (Vercel, not VITE_):
+ * - YOUTUBE_API_KEY (required)
+ * - YOUTUBE_CHANNEL_ID (optional; defaults to NatureWalk CSC)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -77,22 +92,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey =
     typeof process.env.YOUTUBE_API_KEY === 'string' ? process.env.YOUTUBE_API_KEY.trim() : '';
-  const channelId =
-    typeof process.env.YOUTUBE_CHANNEL_ID === 'string'
-      ? process.env.YOUTUBE_CHANNEL_ID.trim()
-      : '';
+  const channelId = resolveChannelId();
 
-  if (!apiKey || !channelId) {
+  if (!apiKey) {
     res.status(503).json({
-      error:
-        'Recordings are not configured. Set YOUTUBE_API_KEY and YOUTUBE_CHANNEL_ID in Vercel env.',
+      error: 'Recordings are not configured. Set YOUTUBE_API_KEY in Vercel env.',
       code: 'missing_config'
     });
     return;
   }
-  if (!API_KEY_RE.test(apiKey) || !CHANNEL_ID_RE.test(channelId)) {
+  if (!API_KEY_RE.test(apiKey)) {
     res.status(500).json({
-      error: 'YouTube API key or channel ID format is invalid on the server.',
+      error: 'YouTube API key format is invalid on the server.',
+      code: 'invalid_config'
+    });
+    return;
+  }
+  if (!channelId) {
+    res.status(500).json({
+      error: 'YOUTUBE_CHANNEL_ID format is invalid on the server.',
       code: 'invalid_config'
     });
     return;
@@ -102,11 +120,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const pageToken =
     typeof rawToken === 'string' && PAGE_TOKEN_RE.test(rawToken.trim()) ? rawToken.trim() : '';
 
+  // eventType=completed ≈ channel /streams past broadcasts (requires type=video).
   const params = new URLSearchParams({
     part: 'snippet',
     channelId,
-    q: SEARCH_QUERY,
     type: 'video',
+    eventType: 'completed',
     order: 'date',
     publishedAfter: PUBLISHED_AFTER,
     maxResults: String(MAX_RESULTS),
