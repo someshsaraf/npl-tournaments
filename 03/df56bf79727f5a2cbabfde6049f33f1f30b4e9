@@ -1,0 +1,16 @@
+src/components/HomeEventAdBanner.tsx
+  h_d39e845a5ebfa7 1,3-5,8-13,15-36,38-46,49-50,52,55-68,73-74,77,79-80,84-86,89-94,99-101,103,107-144,150
+src/pages/HomePage.tsx
+  h_d39e845a5ebfa7 99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "03df56bf79727f5a2cbabfde6049f33f1f30b4e9",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
