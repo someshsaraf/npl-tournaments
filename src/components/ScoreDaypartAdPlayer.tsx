@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { EventAd } from '../data/eventAds';
 import { isSafeAdPosterPath } from '../data/eventAds';
 
-const SLIDE_MS = 10_000;
+const SLIDE_MS = 2_000;
 
 function useViewportOrientation(): 'portrait' | 'landscape' {
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(() => {
