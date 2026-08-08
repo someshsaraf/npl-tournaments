@@ -1,0 +1,18 @@
+src/components/VictoryJinglePlayer.tsx
+  h_d39e845a5ebfa7 2-3,26,30-41,46
+src/pages/LiveScoreboard.tsx
+  h_d39e845a5ebfa7 201,245,247-248,250,253,257,261,265,269-270,329,336,341,355,376,382,387,401
+src/utils/victoryJingle.ts
+  h_d39e845a5ebfa7 56,60-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "4e9afa6af6255d16a168af4c568029155d2c7152",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
