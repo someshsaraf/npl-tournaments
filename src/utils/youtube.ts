@@ -95,6 +95,7 @@ export function toYouTubeLiveOverlayEmbedUrl(raw: string): string | null {
 
 /**
  * Safe youtube-nocookie embed for a validated video ID (VOD / recordings).
+ * Tuned for in-page playback (playsinline) — not a redirect to youtube.com.
  * Input validation: rejects non-11-char IDs.
  */
 export function toYouTubeNocookieEmbedFromId(videoId: unknown): string | null {
@@ -103,8 +104,15 @@ export function toYouTubeNocookieEmbedFromId(videoId: unknown): string | null {
     autoplay: '1',
     playsinline: '1',
     rel: '0',
-    modestbranding: '1'
+    modestbranding: '1',
+    fs: '1',
+    iv_load_policy: '3',
+    enablejsapi: '1'
   });
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    params.set('origin', window.location.origin);
+    params.set('widget_referrer', window.location.origin);
+  }
   return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }
 
