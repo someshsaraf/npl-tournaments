@@ -1,0 +1,22 @@
+src/components/BetweenMatchAd.tsx
+  h_d39e845a5ebfa7 1-177
+src/hooks/useBetweenMatchAd.ts
+  h_d39e845a5ebfa7 1-61
+src/pages/AdminScorePage.tsx
+  h_d39e845a5ebfa7 35,39,66,700,711,741-744
+src/pages/LiveScoreboard.tsx
+  h_d39e845a5ebfa7 25,28,53,64-73,420,429-432,436-443
+src/pages/ScoreControl.tsx
+  h_d39e845a5ebfa7 38,42,73-74,260,669,680,709-712
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "0f5771401eaf257532f574afb06a16f520e16db5",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
