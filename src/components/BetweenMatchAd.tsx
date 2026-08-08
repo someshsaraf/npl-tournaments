@@ -36,6 +36,27 @@ function isSafeSameOriginAssetPath(value: unknown): value is string {
   );
 }
 
+function useViewportOrientation(): 'portrait' | 'landscape' {
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(() => {
+    if (typeof window === 'undefined') return 'portrait';
+    return window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait';
+  });
+
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: landscape)');
+    const sync = () => setOrientation(mq.matches ? 'landscape' : 'portrait');
+    sync();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', sync);
+      return () => mq.removeEventListener('change', sync);
+    }
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
+  }, []);
+
+  return orientation;
+}
+
 /**
  * Full-viewport between-match ad with Ken Burns poster (or optional video).
  * Concurrency: local timers/refs only; cleaned up on unmount.
@@ -60,6 +81,8 @@ export function BetweenMatchAd({
   const onCompleteRef = useRef(onComplete);
   const [useVideo, setUseVideo] = useState(Boolean(safeVideoSrc));
   const [progress, setProgress] = useState(0);
+  const orientation = useViewportOrientation();
+  const landscape = orientation === 'landscape';
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -113,10 +136,12 @@ export function BetweenMatchAd({
       aria-modal="true"
       aria-label={`${title} advertisement`}
     >
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden bg-black">
         {useVideo && safeVideoSrc ? (
           <video
-            className="absolute inset-0 h-full w-full object-contain bg-black"
+            className={`absolute inset-0 h-full w-full bg-black ${
+              landscape ? 'object-contain' : 'object-contain'
+            }`}
             src={safeVideoSrc}
             autoPlay
             muted
@@ -127,14 +152,33 @@ export function BetweenMatchAd({
             aria-label={`${title} video advertisement`}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_#1c1917_0%,_#0a0a0a_70%)]">
-            <img
-              src={posterSrc!}
-              alt={alt}
-              className="npl-between-ad-kenburns max-h-full max-w-full object-contain"
-              draggable={false}
-            />
-          </div>
+          <>
+            {landscape && posterSrc ? (
+              <img
+                src={posterSrc}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-45"
+                draggable={false}
+              />
+            ) : null}
+            <div
+              className={`absolute inset-0 flex items-center justify-center ${
+                landscape ? 'px-[max(1rem,4vw)]' : ''
+              }`}
+            >
+              <img
+                src={posterSrc!}
+                alt={alt}
+                className={`npl-between-ad-kenburns object-contain ${
+                  landscape
+                    ? 'max-h-full w-auto max-w-[min(100%,72vh)] shadow-2xl ring-1 ring-white/15 rounded-sm'
+                    : 'max-h-full max-w-full h-full w-full'
+                }`}
+                draggable={false}
+              />
+            </div>
+          </>
         )}
 
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3 sm:p-4 bg-gradient-to-b from-black/70 to-transparent">
