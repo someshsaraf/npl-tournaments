@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Film, Loader2 } from 'lucide-react';
 import { toYouTubeNocookieEmbedFromId } from '../utils/youtube';
 import {
@@ -22,8 +22,8 @@ function formatStreamedAt(iso: string): string {
 
 /**
  * Public VOD list: @NatureWalkCSC completed lives since 31 Jul 2026.
- * Data comes from same-origin `/api/youtube-recordings` (server holds the API key).
- * Dates shown are stream start times, not VOD publish times.
+ * Player stays sticky / side-by-side with the grid; selecting a card scrolls the
+ * player into view on small screens so users do not hunt upward.
  *
  * Concurrency: component-local fetch/abort only.
  * Security: embeds only validated video IDs from the API response.
@@ -35,6 +35,8 @@ export default function RecordingsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const playerRef = useRef<HTMLElement | null>(null);
+  const userPickedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +71,20 @@ export default function RecordingsPage() {
       ac.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!userPickedRef.current || !selectedId) return;
+    const el = playerRef.current;
+    if (!el) return;
+    // Keep player in view after picking a card lower on the page (esp. mobile).
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selectedId]);
+
+  const selectRecording = (videoId: string) => {
+    if (typeof videoId !== 'string' || !videoId.trim()) return;
+    userPickedRef.current = true;
+    setSelectedId(videoId);
+  };
 
   const embedSrc = selectedId ? toYouTubeNocookieEmbedFromId(selectedId) : null;
   const selected = items.find((r) => r.videoId === selectedId) ?? null;
@@ -121,117 +137,130 @@ export default function RecordingsPage() {
       ) : null}
 
       {!loading && items.length > 0 ? (
-        <>
-          {embedSrc && selected ? (
-            <section
-              className="rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-xl shadow-black/40"
-              aria-label="Selected recording"
-            >
-              <div className="aspect-video w-full bg-black">
-                <iframe
-                  key={selected.videoId}
-                  title={selected.title}
-                  src={embedSrc}
-                  className="h-full w-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-              </div>
-              <div className="px-4 py-3 bg-slate-900/90 border-t border-slate-800">
-                <p className="font-bold text-white text-sm sm:text-base leading-snug">
-                  {selected.title}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Streamed {formatStreamedAt(selected.publishedAt)}
-                </p>
-              </div>
-            </section>
-          ) : null}
-
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {items.map((row) => {
-              const active = row.videoId === selectedId;
-              return (
-                <li key={row.videoId}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(row.videoId)}
-                    className={`w-full text-left rounded-2xl overflow-hidden border transition-colors ${
-                      active
-                        ? 'border-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-400/50'
-                        : 'border-slate-800 bg-slate-900/50 hover:border-slate-600'
-                    }`}
-                    aria-pressed={active}
-                    aria-label={`Play ${row.title}`}
-                  >
-                    <div className="relative aspect-video bg-slate-950">
-                      <img
-                        src={row.thumbnailUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                        draggable={false}
-                      />
-                      <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                        <Film className="size-3" aria-hidden />
-                        Play
-                      </span>
-                    </div>
-                    <div className="px-3 py-2.5 space-y-0.5">
-                      <p className="text-sm font-bold text-white line-clamp-2 leading-snug">
-                        {row.title}
-                      </p>
-                      <p className="text-[11px] text-slate-400">
-                        Streamed {formatStreamedAt(row.publishedAt)}
-                      </p>
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-
-          {nextPageToken ? (
-            <div className="flex justify-center pt-1">
-              <button
-                type="button"
-                disabled={loadingMore}
-                onClick={() => {
-                  void (async () => {
-                    setLoadingMore(true);
-                    setError(null);
-                    try {
-                      const result = await fetchPastRecordings({
-                        pageToken: nextPageToken
-                      });
-                      setItems((prev) => [...prev, ...result.items]);
-                      setNextPageToken(result.nextPageToken);
-                    } catch (err) {
-                      const message =
-                        err instanceof FetchPastRecordingsError
-                          ? err.message
-                          : 'Failed to load more recordings.';
-                      setError(message);
-                    } finally {
-                      setLoadingMore(false);
-                    }
-                  })();
-                }}
-                className="rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm font-bold px-5 py-2.5 disabled:opacity-50 inline-flex items-center gap-2"
+        <div className="lg:grid lg:grid-cols-2 lg:gap-5 lg:items-start">
+          {/* Player: sticky under portal nav; scrolls into view on mobile pick */}
+          <div className="lg:sticky lg:top-28 z-30 -mx-3 sm:mx-0 px-3 sm:px-0 pb-3 lg:pb-0">
+            {embedSrc && selected ? (
+              <section
+                ref={playerRef}
+                className="scroll-mt-28 rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-xl shadow-black/40"
+                aria-label="Selected recording"
+                tabIndex={-1}
               >
-                {loadingMore ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                    Loading…
-                  </>
-                ) : (
-                  'Load more'
-                )}
-              </button>
-            </div>
-          ) : null}
-        </>
+                <div className="aspect-video w-full max-h-[42dvh] lg:max-h-none bg-black">
+                  <iframe
+                    key={selected.videoId}
+                    title={selected.title}
+                    src={embedSrc}
+                    className="h-full w-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                </div>
+                <div className="px-4 py-3 bg-slate-900/95 border-t border-slate-800">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-400/90 mb-1">
+                    Now playing
+                  </p>
+                  <p className="font-bold text-white text-sm sm:text-base leading-snug line-clamp-2">
+                    {selected.title}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Streamed {formatStreamedAt(selected.publishedAt)}
+                  </p>
+                </div>
+              </section>
+            ) : null}
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              Choose a recording
+            </p>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+              {items.map((row) => {
+                const active = row.videoId === selectedId;
+                return (
+                  <li key={row.videoId}>
+                    <button
+                      type="button"
+                      onClick={() => selectRecording(row.videoId)}
+                      className={`w-full text-left rounded-2xl overflow-hidden border transition-colors ${
+                        active
+                          ? 'border-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-400/50'
+                          : 'border-slate-800 bg-slate-900/50 hover:border-slate-600'
+                      }`}
+                      aria-pressed={active}
+                      aria-label={`Play ${row.title}`}
+                    >
+                      <div className="relative aspect-video bg-slate-950">
+                        <img
+                          src={row.thumbnailUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          draggable={false}
+                        />
+                        <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                          <Film className="size-3" aria-hidden />
+                          {active ? 'Playing' : 'Play'}
+                        </span>
+                      </div>
+                      <div className="px-3 py-2.5 space-y-0.5">
+                        <p className="text-sm font-bold text-white line-clamp-2 leading-snug">
+                          {row.title}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          Streamed {formatStreamedAt(row.publishedAt)}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {nextPageToken ? (
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  disabled={loadingMore}
+                  onClick={() => {
+                    void (async () => {
+                      setLoadingMore(true);
+                      setError(null);
+                      try {
+                        const result = await fetchPastRecordings({
+                          pageToken: nextPageToken
+                        });
+                        setItems((prev) => [...prev, ...result.items]);
+                        setNextPageToken(result.nextPageToken);
+                      } catch (err) {
+                        const message =
+                          err instanceof FetchPastRecordingsError
+                            ? err.message
+                            : 'Failed to load more recordings.';
+                        setError(message);
+                      } finally {
+                        setLoadingMore(false);
+                      }
+                    })();
+                  }}
+                  className="rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm font-bold px-5 py-2.5 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      Loading…
+                    </>
+                  ) : (
+                    'Load more'
+                  )}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
       ) : null}
     </div>
   );
