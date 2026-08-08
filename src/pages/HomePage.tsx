@@ -94,6 +94,48 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section
+        aria-label="Friends' Kitchen food stall"
+        className="overflow-hidden rounded-2xl border border-amber-700/40 bg-gradient-to-br from-amber-950/50 via-slate-900/80 to-emerald-950/40"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_1fr] md:grid-cols-[minmax(0,14rem)_1fr] gap-0">
+          <a
+            href="/Friends-Kitchen.jpeg"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block relative bg-amber-100/5 sm:border-r border-amber-800/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-inset"
+          >
+            <img
+              src="/Friends-Kitchen.jpeg"
+              alt="Friends' Kitchen — We're back! Amritsari Chole, Kulcha, Gulab Jamun. Pre-order at Clubhouse from 6:30 PM."
+              className="w-full h-48 sm:h-full sm:min-h-[11rem] object-cover object-top"
+              loading="lazy"
+              draggable={false}
+            />
+          </a>
+          <div className="flex flex-col justify-center gap-2 px-4 sm:px-5 py-4 sm:py-5">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-amber-400 font-bold">
+              Tonight at Clubhouse
+            </p>
+            <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight">
+              Friends&apos; Kitchen
+            </h2>
+            <p className="text-sm text-slate-300 max-w-xl">
+              We&apos;re back — Amritsari Chole with Kulcha or Ghee Jeera Rice, plus Gulab Jamun.
+              From 6:30 PM onwards. Pre-order to skip the rush.
+            </p>
+            <a
+              href="/Friends-Kitchen.jpeg"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex w-fit items-center rounded-lg bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wide px-3 py-2.5 hover:bg-amber-300"
+            >
+              View menu poster
+            </a>
+          </div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.9fr] gap-4 sm:gap-5">
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden flex flex-col min-h-[16rem]">
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-800">
