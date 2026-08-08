@@ -1,0 +1,14 @@
+src/data/eventAds.ts
+  h_d39e845a5ebfa7 52,58,61,63,66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "0d535bedfe264bba5a27f1bb891caf94f864e516",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
