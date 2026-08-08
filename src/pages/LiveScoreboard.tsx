@@ -26,6 +26,8 @@ import { BetweenMatchAd } from '../components/BetweenMatchAd';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
+import { useVictoryJingle } from '../hooks/useVictoryJingle';
+import { VictoryJinglePlayer } from '../components/VictoryJinglePlayer';
 import { isGoldenPoint } from '../utils/scoring';
 
 /**
@@ -52,6 +54,11 @@ export const LiveScoreboard: React.FC = () => {
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
   const { showAd, currentAd, maybeStartAdAfterCelebration, dismissAd } =
     useBetweenMatchAd(match);
+  const { embedSrc: victoryJingleSrc, stopJingle } = useVictoryJingle({
+    seriesOver: hasSeriesWinner(match),
+    celebrationVisible: Boolean(celebration) && hasSeriesWinner(match),
+    matchId: match.currentMatchId
+  });
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -443,6 +450,10 @@ export const LiveScoreboard: React.FC = () => {
           durationMs={8000}
         />
       )}
+
+      {victoryJingleSrc ? (
+        <VictoryJinglePlayer embedSrc={victoryJingleSrc} onClose={stopJingle} />
+      ) : null}
     </div>
   );
 };

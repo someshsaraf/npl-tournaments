@@ -28,6 +28,7 @@ import {
 } from '../utils/fullscreen';
 import { ServeRacket } from '../components/ServeRacket';
 import { LiveWinCelebration } from '../components/LiveWinCelebration';
+import { LiveEventAdRail } from '../components/LiveEventAdRail';
 
 
 /** Snapshot shown on /live between matches. */
@@ -1247,6 +1248,7 @@ export const StreamOverlay: React.FC = () => {
         )}
 
         <div className={overlayAnchorClass}>{scoreBug}</div>
+        {!showPlayGate ? <LiveEventAdRail /> : null}
       </div>
     );
   }
@@ -1283,6 +1285,7 @@ export const StreamOverlay: React.FC = () => {
         Portal
       </Link>
       <div className={overlayAnchorClass}>{scoreBug}</div>
+      <LiveEventAdRail />
     </div>
   );
 };

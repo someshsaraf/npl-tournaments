@@ -40,6 +40,8 @@ import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
+import { useVictoryJingle } from '../hooks/useVictoryJingle';
+import { VictoryJinglePlayer } from '../components/VictoryJinglePlayer';
 
 /**
  * Full-viewport scoreboard for court / audience.
@@ -72,6 +74,11 @@ export const ScoreControl: React.FC = () => {
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
   const { showAd, currentAd, maybeStartAdAfterCelebration, dismissAd, skipQueuedAd } =
     useBetweenMatchAd(match);
+  const { embedSrc: victoryJingleSrc, stopJingle } = useVictoryJingle({
+    seriesOver: hasSeriesWinner(match),
+    celebrationVisible: Boolean(celebration?.seriesOver),
+    matchId: match.currentMatchId
+  });
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -258,6 +265,7 @@ export const ScoreControl: React.FC = () => {
     setShowNewMatchForm(true);
     setCelebration(null);
     skipQueuedAd();
+    stopJingle();
   };
 
   const handleStartNextGame = () => {
@@ -294,6 +302,7 @@ export const ScoreControl: React.FC = () => {
       setResultSaved(false);
       setSaveMessage(null);
       setShowNewMatchForm(false);
+      stopJingle();
       updateMatchState(next);
     } catch (err) {
       setNewMatchError(err instanceof Error ? err.message : 'Could not start match.');
@@ -826,6 +835,10 @@ export const ScoreControl: React.FC = () => {
           </div>
         </div>
       )}
+
+      {victoryJingleSrc ? (
+        <VictoryJinglePlayer embedSrc={victoryJingleSrc} onClose={stopJingle} />
+      ) : null}
     </div>
   );
 };

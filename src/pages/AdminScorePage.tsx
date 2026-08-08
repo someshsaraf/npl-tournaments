@@ -37,6 +37,8 @@ import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
+import { useVictoryJingle } from '../hooks/useVictoryJingle';
+import { VictoryJinglePlayer } from '../components/VictoryJinglePlayer';
 import { captureAndPersistScoreSnapshot } from '../utils/scoreSnapshot';
 
 /**
@@ -65,6 +67,11 @@ export const AdminScorePage: React.FC = () => {
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
   const { showAd, currentAd, maybeStartAdAfterCelebration, dismissAd } =
     useBetweenMatchAd(match);
+  const { embedSrc: victoryJingleSrc, stopJingle } = useVictoryJingle({
+    seriesOver: hasSeriesWinner(match),
+    celebrationVisible: Boolean(celebration?.seriesOver),
+    matchId: match.currentMatchId
+  });
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -742,6 +749,10 @@ export const AdminScorePage: React.FC = () => {
       {showAd && currentAd && (
         <BetweenMatchAd ad={currentAd} onComplete={dismissAd} allowSkip durationMs={8000} />
       )}
+
+      {victoryJingleSrc ? (
+        <VictoryJinglePlayer embedSrc={victoryJingleSrc} onClose={stopJingle} />
+      ) : null}
 
     </div>
   );
