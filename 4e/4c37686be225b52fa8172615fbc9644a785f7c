@@ -1,0 +1,34 @@
+.env.example
+  h_d39e845a5ebfa7 1-10
+api/youtube-recordings.ts
+  h_d39e845a5ebfa7 1-164
+package-lock.json
+  h_d39e845a5ebfa7 24,41-100,108-557,560-566,570-574,577-580,583-584,1252-1287,1338-1359,1382-1419,1834-1844,2124-2146,2704-2729,2741-2754,2804-2946,2973-3032,3057-3087,3098-3131,3152-3168,3183-3189,3208-3234,3277-3294,3315-3355,3376-3424,3434-3474,3486-3495,3532-3551,3588-3602,3627-3709,3737-3750,3763-3772,3782-3804,3815-3858,4170-4179,4189-4288,4292-4318,4321-4327,4347-4395,4461-4509,4566-4581,4605-4635,4730-4770,4815-4838,4865-4877,4884-4909,4987-5003,5014-5029,5047-5084,5091-5110,5125-5137,5144-5163,5258-5264,5288-5298,5325-5334,5361-5370
+package.json
+  h_d39e845a5ebfa7 26
+src/App.tsx
+  h_d39e845a5ebfa7 10,48
+src/components/PublicLayout.tsx
+  h_d39e845a5ebfa7 4,27
+src/pages/RecordingsPage.tsx
+  h_d39e845a5ebfa7 1-228
+src/utils/youtube.ts
+  h_d39e845a5ebfa7 15-19,96-110
+src/utils/youtubeRecordings.ts
+  h_d39e845a5ebfa7 1-159
+src/vite-env.d.ts
+  h_d39e845a5ebfa7 1-9
+vercel.json
+  h_d39e845a5ebfa7 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "4e4c37686be225b52fa8172615fbc9644a785f7c",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
