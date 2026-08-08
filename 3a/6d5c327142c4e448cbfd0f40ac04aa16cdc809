@@ -1,0 +1,18 @@
+src/components/LiveEventAdRail.tsx
+  h_d39e845a5ebfa7 3,8-9,17,68,74
+src/data/eventAds.ts
+  h_d39e845a5ebfa7 71-78
+src/pages/StreamOverlay.tsx
+  h_d39e845a5ebfa7 1251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "3a6d5c327142c4e448cbfd0f40ac04aa16cdc809",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
