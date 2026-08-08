@@ -50,7 +50,8 @@ export const LiveScoreboard: React.FC = () => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cssImmersiveRef = useRef(false);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
-  const { showAd, maybeStartAdAfterCelebration, dismissAd } = useBetweenMatchAd(match);
+  const { showAd, currentAd, maybeStartAdAfterCelebration, dismissAd } =
+    useBetweenMatchAd(match);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -434,8 +435,9 @@ export const LiveScoreboard: React.FC = () => {
         />
       )}
 
-      {showAd && (
+      {showAd && currentAd && (
         <BetweenMatchAd
+          ad={currentAd}
           onComplete={dismissAd}
           allowSkip={false}
           durationMs={8000}

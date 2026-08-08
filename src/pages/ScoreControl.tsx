@@ -70,7 +70,7 @@ export const ScoreControl: React.FC = () => {
   const promptedKeyRef = useRef<string | null>(null);
   const autoSavedKeyRef = useRef<string | null>(null);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
-  const { showAd, maybeStartAdAfterCelebration, dismissAd, skipQueuedAd } =
+  const { showAd, currentAd, maybeStartAdAfterCelebration, dismissAd, skipQueuedAd } =
     useBetweenMatchAd(match);
 
   useEffect(() => {
@@ -706,8 +706,8 @@ export const ScoreControl: React.FC = () => {
         />
       )}
 
-      {showAd && !showNewMatchForm && (
-        <BetweenMatchAd onComplete={dismissAd} allowSkip durationMs={8000} />
+      {showAd && currentAd && !showNewMatchForm && (
+        <BetweenMatchAd ad={currentAd} onComplete={dismissAd} allowSkip durationMs={8000} />
       )}
 
       {showNewMatchForm && (

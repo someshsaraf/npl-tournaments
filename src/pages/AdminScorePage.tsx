@@ -63,7 +63,8 @@ export const AdminScorePage: React.FC = () => {
   const promptedKeyRef = useRef<string | null>(null);
   const autoSavedKeyRef = useRef<string | null>(null);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
-  const { showAd, maybeStartAdAfterCelebration, dismissAd } = useBetweenMatchAd(match);
+  const { showAd, currentAd, maybeStartAdAfterCelebration, dismissAd } =
+    useBetweenMatchAd(match);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -738,8 +739,8 @@ export const AdminScorePage: React.FC = () => {
         />
       )}
 
-      {showAd && (
-        <BetweenMatchAd onComplete={dismissAd} allowSkip durationMs={8000} />
+      {showAd && currentAd && (
+        <BetweenMatchAd ad={currentAd} onComplete={dismissAd} allowSkip durationMs={8000} />
       )}
 
     </div>

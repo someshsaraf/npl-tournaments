@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import type { EventAd } from '../data/eventAds';
+import { isSafeAdPosterPath } from '../data/eventAds';
 
-const POSTER_SRC = '/Friends-Kitchen.jpeg';
 /**
  * Optional real clip. When this file exists under public/, pass videoSrc
  * (e.g. "/Friends-Kitchen-ad.mp4") to prefer it over the Ken Burns poster.
@@ -10,6 +11,7 @@ const MIN_DURATION_MS = 5000;
 const MAX_DURATION_MS = 15_000;
 
 export type BetweenMatchAdProps = {
+  ad: EventAd;
   onComplete: () => void;
   /** How long to show the ad (clamped 5–15s). Default 8s. */
   durationMs?: number;
@@ -35,18 +37,24 @@ function isSafeSameOriginAssetPath(value: unknown): value is string {
 }
 
 /**
- * Full-viewport between-match ad (Friends' Kitchen).
- * Uses optional same-origin video, else Ken Burns zoom on the poster (~8s).
+ * Full-viewport between-match ad with Ken Burns poster (or optional video).
  * Concurrency: local timers/refs only; cleaned up on unmount.
- * Security: static same-origin assets only; rejects non-/ relative paths.
+ * Security: only allowlisted event poster paths + optional same-origin videoSrc.
+ * Input validation: rejects ads without a safe posterSrc.
  */
 export function BetweenMatchAd({
+  ad,
   onComplete,
   durationMs,
   allowSkip = true,
   videoSrc
 }: BetweenMatchAdProps) {
   const duration = clampDurationMs(durationMs);
+  const posterSrc = isSafeAdPosterPath(ad?.posterSrc) ? ad.posterSrc : null;
+  const title =
+    typeof ad?.title === 'string' && ad.title.trim() ? ad.title.trim() : 'Advertisement';
+  const alt =
+    typeof ad?.alt === 'string' && ad.alt.trim() ? ad.alt.trim() : title;
   const safeVideoSrc = isSafeSameOriginAssetPath(videoSrc) ? videoSrc : null;
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
@@ -64,6 +72,10 @@ export function BetweenMatchAd({
   };
 
   useEffect(() => {
+    if (!posterSrc && !safeVideoSrc) {
+      finish();
+      return;
+    }
     completedRef.current = false;
     setProgress(0);
     const started = performance.now();
@@ -86,16 +98,20 @@ export function BetweenMatchAd({
       cancelAnimationFrame(raf);
       window.clearTimeout(fallback);
     };
-    // finish is stable via ref; duration is the only trigger
+    // finish is stable via ref; duration/poster are the triggers
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-shot per mount
-  }, [duration]);
+  }, [duration, posterSrc, safeVideoSrc]);
+
+  if (!posterSrc && !safeVideoSrc) {
+    return null;
+  }
 
   return (
     <div
       className="fixed inset-0 z-[65] flex flex-col bg-slate-950 text-white"
       role="dialog"
       aria-modal="true"
-      aria-label="Friends' Kitchen advertisement"
+      aria-label={`${title} advertisement`}
     >
       <div className="relative flex-1 min-h-0 overflow-hidden">
         {useVideo && safeVideoSrc ? (
@@ -108,13 +124,13 @@ export function BetweenMatchAd({
             preload="auto"
             onError={() => setUseVideo(false)}
             onEnded={finish}
-            aria-label="Friends' Kitchen video advertisement"
+            aria-label={`${title} video advertisement`}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_#1c1917_0%,_#0a0a0a_70%)]">
             <img
-              src={POSTER_SRC}
-              alt="Friends' Kitchen — We're back at NPL. Pre-order at Clubhouse from 6:30 PM."
+              src={posterSrc!}
+              alt={alt}
               className="npl-between-ad-kenburns max-h-full max-w-full object-contain"
               draggable={false}
             />
@@ -123,7 +139,7 @@ export function BetweenMatchAd({
 
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3 sm:p-4 bg-gradient-to-b from-black/70 to-transparent">
           <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.22em] text-amber-300/90">
-            Advertisement · Friends&apos; Kitchen
+            Advertisement · {title}
           </p>
           <p className="text-[10px] sm:text-xs font-semibold text-slate-300 tabular-nums">
             {Math.max(1, Math.ceil((1 - progress) * (duration / 1000)))}s
