@@ -209,6 +209,7 @@ export const LiveScoreboard: React.FC = () => {
   const team1 = match.teamA || '';
   const team2 = match.teamB || '';
   const winnerLabel = match.gameWinner === 1 ? name1 : name2;
+  const opponentLabel = match.gameWinner === 1 ? name2 : name1;
   const showServing = !hasWinner;
   const winnerFirstScore = formatWinnerFirstScore(score1, score2, match.gameWinner);
 
@@ -255,19 +256,8 @@ export const LiveScoreboard: React.FC = () => {
 
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
           {hasWinner && !celebration ? (
-            <span
-              className="font-black text-emerald-200 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-7 py-2.5 rounded-2xl text-center leading-snug max-w-[min(94vw,48rem)]"
-              style={{ fontSize: 'clamp(1.35rem, 4.2vw, 2.75rem)' }}
-            >
-              <span className="block truncate">
-                {seriesOver ? 'MATCH' : 'GAME'} WIN · {winnerLabel}
-              </span>
-              <span
-                className="block font-mono text-amber-300 mt-1 font-black tabular-nums"
-                style={{ fontSize: '1.15em' }}
-              >
-                {winnerFirstScore}
-              </span>
+            <span className="text-sm sm:text-base md:text-lg font-black uppercase tracking-[0.2em] text-emerald-300">
+              {seriesOver ? 'Match win' : 'Game win'}
             </span>
           ) : !hasWinner && isGoldenPoint(match) ? (
             <span className="text-sm sm:text-base font-black text-amber-300 bg-amber-500/20 border border-amber-400/50 px-4 py-1.5 rounded-full animate-pulse">
@@ -335,7 +325,47 @@ export const LiveScoreboard: React.FC = () => {
 
       <SeriesScoreStrip match={match} size="lg" className="shrink-0 py-1.5 px-3 border-b border-slate-800/80 bg-slate-950" />
 
-      {/* Giant score stage — names overlay top so scores can use almost full height */}
+      {/* After a win: winner-first hierarchy. During play: split live scores. */}
+      {hasWinner ? (
+        <main
+          className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-4 px-4 text-center bg-slate-950"
+          aria-live="polite"
+        >
+          <p
+            className="font-black uppercase tracking-[0.28em] text-emerald-300"
+            style={{ fontSize: 'clamp(0.85rem, 2.2vw, 1.35rem)' }}
+          >
+            {seriesOver ? 'Match winner' : 'Game winner'}
+          </p>
+          <h2
+            className="w-full max-w-[min(96vw,70rem)] font-black text-white leading-[1.05]"
+            style={{
+              fontSize: 'clamp(2.75rem, min(11vw, 16dvh), 8rem)',
+              textShadow: '0 0 40px rgba(52,211,153,0.4)'
+            }}
+          >
+            {winnerLabel}
+          </h2>
+          <p
+            className="font-black font-mono tabular-nums text-amber-300 leading-none"
+            style={{
+              fontSize: 'clamp(4.5rem, min(20vw, 26dvh), 12rem)',
+              textShadow: '0 0 36px rgba(251,191,36,0.45)'
+            }}
+          >
+            {winnerFirstScore}
+          </p>
+          <p
+            className="w-full max-w-[min(92vw,48rem)] font-semibold text-slate-400 leading-snug"
+            style={{ fontSize: 'clamp(1.05rem, min(3.4vw, 4.5dvh), 2rem)' }}
+          >
+            <span className="uppercase tracking-[0.16em] text-amber-300/80 font-black mr-2">
+              def.
+            </span>
+            {opponentLabel}
+          </p>
+        </main>
+      ) : (
       <main className="flex-1 min-h-0 grid grid-cols-2 relative">
         <section
           className="relative flex flex-col min-h-0 min-w-0"
@@ -436,6 +466,7 @@ export const LiveScoreboard: React.FC = () => {
           </span>
         </div>
       </main>
+      )}
 
       {celebration && !showAd && (
         <WinnerCelebration

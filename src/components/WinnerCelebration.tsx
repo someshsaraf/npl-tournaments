@@ -83,37 +83,36 @@ export function WinnerCelebration({
   const canNextGame = typeof onNextGame === 'function';
   const audience = variant === 'audience';
 
-  // Audience: capped sizes so long doubles names + score fit one viewport without overlap.
+  // Audience: large type for hall viewing; winner dominates, opponent stays secondary.
   const titleSize = audience
-    ? 'clamp(0.85rem, 2.4vw, 1.35rem)'
+    ? 'clamp(1rem, 2.8vw, 1.75rem)'
     : 'clamp(0.85rem, 2.5vw, 1.25rem)';
   const nameSize = audience
-    ? 'clamp(2.25rem, min(8.5vw, 11dvh), 5.5rem)'
+    ? 'clamp(3.25rem, min(12vw, 18dvh), 9rem)'
     : showBo3Games
       ? 'clamp(3.5rem, min(20vw, 26dvh), 12rem)'
       : 'clamp(4rem, min(22vw, 32dvh), 14rem)';
   const opponentSize = audience
-    ? 'clamp(1.15rem, min(4.2vw, 5.5dvh), 2.25rem)'
+    ? 'clamp(1.1rem, min(3.6vw, 4.8dvh), 2.15rem)'
     : showBo3Games
       ? 'clamp(1.75rem, min(9vw, 12dvh), 5rem)'
       : 'clamp(2rem, min(10vw, 14dvh), 6rem)';
   const scoreSize = audience
-    ? 'clamp(3.5rem, min(16vw, 18dvh), 9rem)'
+    ? 'clamp(5rem, min(22vw, 28dvh), 14rem)'
     : 'clamp(3rem, 14vw, 9rem)';
   const gameScoreSize = audience
-    ? 'clamp(1.5rem, min(8vw, 9dvh), 3.5rem)'
+    ? 'clamp(2rem, min(10vw, 12dvh), 5rem)'
     : 'clamp(1.75rem, min(11vw, 12dvh), 4.5rem)';
   const gameLabelSize = audience
-    ? 'clamp(0.65rem, 1.5vw, 0.95rem)'
+    ? 'clamp(0.7rem, 1.6vw, 1rem)'
     : 'clamp(0.65rem, 1.5vw, 0.9rem)';
 
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden"
       style={{
-        background: audience
-          ? 'rgba(2, 6, 23, 0.97)'
-          : 'radial-gradient(ellipse at center, rgba(15,23,42,0.72) 0%, rgba(2,6,23,0.94) 70%)'
+        // Fully opaque — never show live scoreboard through the celebration.
+        background: audience ? '#020617' : 'radial-gradient(ellipse at center, rgba(15,23,42,0.72) 0%, rgba(2,6,23,0.94) 70%)'
       }}
       role="dialog"
       aria-modal="true"
@@ -124,7 +123,7 @@ export function WinnerCelebration({
       <div
         className={
           audience
-            ? 'relative z-10 flex h-full w-full max-w-[min(96vw,56rem)] flex-col items-center justify-center gap-3 sm:gap-4 px-4 py-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-center'
+            ? 'relative z-10 flex h-full w-full max-w-[min(98vw,72rem)] flex-col items-center justify-center gap-2 sm:gap-3 px-3 sm:px-6 py-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-center'
             : 'relative z-10 flex flex-col items-center justify-center gap-4 sm:gap-6 px-4 text-center max-w-[96vw]'
         }
       >
@@ -140,7 +139,7 @@ export function WinnerCelebration({
 
         <h1
           id="winner-celebration-title"
-          className="shrink-0 w-full font-black text-white leading-[1.05] px-1"
+          className="shrink-0 w-full font-black text-white leading-[1.02] px-1"
           style={{
             fontSize: nameSize,
             textShadow: '0 0 48px rgba(52,211,153,0.55), 0 6px 28px rgba(0,0,0,0.65)',
@@ -156,10 +155,10 @@ export function WinnerCelebration({
 
         {safeOpponent ? (
           <p
-            className="shrink-0 w-full max-w-[95vw] font-bold text-emerald-100/95 leading-snug px-1"
+            className="shrink-0 w-full max-w-[92vw] font-semibold text-slate-300 leading-snug px-2"
             style={{
               fontSize: opponentSize,
-              textShadow: '0 0 28px rgba(16,185,129,0.45), 0 4px 18px rgba(0,0,0,0.7)',
+              textShadow: '0 2px 12px rgba(0,0,0,0.8)',
               display: '-webkit-box',
               WebkitLineClamp: audience ? 2 : undefined,
               WebkitBoxOrient: audience ? ('vertical' as const) : undefined,
