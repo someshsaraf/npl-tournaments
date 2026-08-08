@@ -2,40 +2,71 @@ import { useEffect, useRef, useState } from 'react';
 import type { EventAd } from '../data/eventAds';
 import { getActiveEventAds, isSafeAdPosterPath } from '../data/eventAds';
 
-const ROTATE_MS = 7000;
+const ROTATE_MS = 8000;
+
+function filterValidAds(ads: EventAd[] | null | undefined): EventAd[] {
+  if (!Array.isArray(ads)) return [];
+  return ads.filter(
+    (ad) =>
+      ad &&
+      isSafeAdPosterPath(ad.posterSrc) &&
+      typeof ad.title === 'string' &&
+      ad.title.trim().length > 0
+  );
+}
 
 /**
- * Compact single-slot home ads: one slim strip that auto-rotates active posters.
- * Saves vertical space vs stacking banners. Pause on hover/focus.
+ * Cinematic single-slot home promo: poster-forward spotlight with per-ad templates.
+ * Rotates active ads; pause on hover/focus. One composition — no stacked banners.
  *
- * Concurrency: local interval + state only; cleaned up on unmount.
- * Security: only allowlisted poster paths from eventAds.
+ * Concurrency: local timers/state only; cleaned up on unmount.
+ * Security: allowlisted poster paths only.
  * Input validation: filters invalid ads before render.
  */
 export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
-  const validAds = (Array.isArray(ads) ? ads : []).filter(
-    (ad) => ad && isSafeAdPosterPath(ad.posterSrc) && typeof ad.title === 'string'
-  );
+  const validAds = filterValidAds(ads);
   const count = validAds.length;
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [progress, setProgress] = useState(0);
   const indexRef = useRef(0);
+  const progressRef = useRef(0);
+  const startedRef = useRef(performance.now());
 
   useEffect(() => {
     indexRef.current = index;
+    startedRef.current = performance.now();
+    progressRef.current = 0;
+    setProgress(0);
   }, [index]);
 
   useEffect(() => {
-    if (count <= 1 || paused) return;
-    const id = window.setInterval(() => {
-      const next = (indexRef.current + 1) % count;
-      indexRef.current = next;
-      setIndex(next);
-    }, ROTATE_MS);
-    return () => window.clearInterval(id);
-  }, [count, paused]);
+    if (count <= 1) return;
+    if (paused) {
+      // Freeze: keep started offset so resume continues from same progress.
+      startedRef.current = performance.now() - progressRef.current * ROTATE_MS;
+      return;
+    }
+    let raf = 0;
+    const tick = (now: number) => {
+      const elapsed = now - startedRef.current;
+      const ratio = Math.min(1, elapsed / ROTATE_MS);
+      progressRef.current = ratio;
+      setProgress(ratio);
+      if (ratio >= 1) {
+        const next = (indexRef.current + 1) % count;
+        indexRef.current = next;
+        startedRef.current = now;
+        progressRef.current = 0;
+        setIndex(next);
+        setProgress(0);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [count, paused, index]);
 
-  // Clamp if ads list shrinks.
   useEffect(() => {
     if (count === 0) return;
     if (index >= count) setIndex(0);
@@ -44,18 +75,25 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
   if (count === 0) return null;
 
   const ad = validAds[Math.min(index, count - 1)]!;
-  const amber = ad.accent !== 'saffron';
-  const shell = amber
-    ? 'border-amber-700/35 bg-gradient-to-r from-amber-950/40 via-slate-900/90 to-slate-900/80'
-    : 'border-orange-700/35 bg-gradient-to-r from-orange-950/40 via-slate-900/90 to-slate-900/80';
-  const eyebrow = amber ? 'text-amber-400' : 'text-orange-300';
-  const dotActive = amber ? 'bg-amber-400' : 'bg-orange-400';
+  const isKitchen = ad.template === 'kitchen-marquee';
+  const accentBar = isKitchen
+    ? 'from-amber-400 via-orange-500 to-amber-600'
+    : 'from-orange-400 via-white to-emerald-500';
+  const glow = isKitchen
+    ? 'shadow-[0_0_40px_-8px_rgba(251,191,36,0.45)]'
+    : 'shadow-[0_0_40px_-8px_rgba(249,115,22,0.4)]';
+  const ctaClass = isKitchen
+    ? 'bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-amber-400/25'
+    : 'bg-orange-400 text-slate-950 hover:bg-orange-300 shadow-orange-400/25';
+  const tagClass = isKitchen
+    ? 'bg-amber-400/95 text-slate-950'
+    : 'bg-gradient-to-r from-orange-500 via-white to-emerald-500 text-slate-950';
 
   return (
     <section
       aria-roledescription="carousel"
       aria-label="Community announcements"
-      className={`relative overflow-hidden rounded-xl border ${shell}`}
+      className={`npl-promo-spotlight relative overflow-hidden rounded-2xl border border-white/10 ${glow}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -65,81 +103,190 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
         }
       }}
     >
-      <div className="flex items-stretch gap-0 min-h-[4.75rem] sm:min-h-[5.25rem]">
-        <a
-          href={ad.posterSrc}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 w-[4.5rem] sm:w-[5.5rem] self-stretch focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-inset"
-          aria-label={`Open poster: ${ad.title}`}
-        >
-          <img
-            key={ad.id}
-            src={ad.posterSrc}
-            alt=""
-            className="h-full w-full object-cover object-top npl-home-ad-fade"
-            draggable={false}
-          />
-        </a>
+      {/* Full-bleed poster stage */}
+      <a
+        href={ad.posterSrc}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group relative block h-[10.5rem] sm:h-[12rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-inset"
+        aria-label={`${ad.ctaLabel}: ${ad.title}`}
+      >
+        <img
+          key={ad.id}
+          src={ad.posterSrc}
+          alt={ad.alt}
+          className={`absolute inset-0 h-full w-full object-cover ${
+            isKitchen ? 'npl-promo-kenburns object-[center_20%]' : 'npl-promo-kenburns-alt object-[center_15%]'
+          }`}
+          draggable={false}
+        />
 
-        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5 px-3 sm:px-4 py-2.5 pr-14 sm:pr-16">
-          <p className={`text-[10px] uppercase tracking-[0.16em] font-bold ${eyebrow}`}>
-            {ad.eyebrow}
+        {/* Template atmospheres */}
+        {isKitchen ? (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_40%,transparent_20%,rgba(2,6,23,0.55)_70%,rgba(2,6,23,0.92)_100%)]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent w-[72%] sm:w-[58%]" />
+            <div className="pointer-events-none absolute -left-8 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full bg-amber-500/20 blur-3xl npl-promo-pulse" />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_75%_30%,transparent_15%,rgba(2,6,23,0.5)_65%,rgba(2,6,23,0.92)_100%)]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/75 to-transparent w-[74%] sm:w-[60%]" />
+            <div
+              className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-orange-400 via-white to-emerald-500"
+              aria-hidden
+            />
+            <div className="pointer-events-none absolute right-6 top-0 h-24 w-24 rounded-full bg-orange-400/15 blur-2xl npl-promo-pulse" />
+          </>
+        )}
+
+        {/* Ticket / festival ribbon */}
+        <span
+          className={`absolute top-3 left-3 z-10 rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] shadow-md ${tagClass} npl-promo-tag-in`}
+        >
+          {ad.shortTag || ad.eyebrow}
+        </span>
+
+        {/* Copy overlay */}
+        <div className="absolute inset-0 z-10 flex flex-col justify-end sm:justify-center p-3.5 sm:p-5 pr-16 sm:pr-24 max-w-xl npl-promo-copy-in">
+          <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] font-bold text-emerald-300/90 mb-1">
+            {isKitchen ? 'Clubhouse kitchen' : 'Kids · Clubhouse'}
           </p>
-          <p className="text-sm sm:text-base font-bold text-white leading-snug truncate">
+          <h2 className="portal-display text-2xl sm:text-3xl text-white leading-none tracking-wide drop-shadow-lg">
             {ad.title}
-          </p>
-          <p className="text-[11px] sm:text-xs text-slate-400 line-clamp-1 sm:line-clamp-2">
+          </h2>
+          <p className="mt-1.5 text-[11px] sm:text-xs text-slate-200/90 line-clamp-2 max-w-md">
             {ad.blurb}
           </p>
-          <a
-            href={ad.posterSrc}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`mt-1 w-fit text-[11px] font-bold uppercase tracking-wide ${
-              amber ? 'text-amber-300 hover:text-amber-200' : 'text-orange-300 hover:text-orange-200'
-            }`}
+          <span
+            className={`mt-2.5 inline-flex w-fit items-center rounded-lg px-3 py-1.5 text-[11px] font-black uppercase tracking-wide shadow-lg transition-transform group-hover:scale-[1.03] group-active:scale-95 ${ctaClass}`}
           >
-            {ad.ctaLabel} →
-          </a>
+            {ad.ctaLabel}
+          </span>
         </div>
+
+        {/* Portrait poster peek (desktop) — framed like a lobby card */}
+        <div
+          className={`pointer-events-none absolute right-3 sm:right-4 top-1/2 hidden sm:block -translate-y-1/2 w-[5.75rem] md:w-[6.75rem] ${
+            isKitchen ? 'npl-promo-card-tilt-kitchen' : 'npl-promo-card-tilt-festival'
+          }`}
+          aria-hidden
+        >
+          <div className="aspect-[2/3] rounded-lg overflow-hidden ring-2 ring-white/25 shadow-2xl npl-promo-card-float">
+            <img
+              key={`${ad.id}-peek`}
+              src={ad.posterSrc}
+              alt=""
+              className="h-full w-full object-cover object-top"
+              draggable={false}
+            />
+            <div className={`absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r ${accentBar}`} />
+          </div>
+        </div>
+      </a>
+
+      {/* Bottom chrome: progress + dots */}
+      <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 px-3 pb-2 pt-6 bg-gradient-to-t from-slate-950/90 to-transparent">
+        <div
+          className="flex-1 h-0.5 rounded-full bg-white/15 overflow-hidden"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+          aria-label="Next announcement"
+        >
+          <div
+            className={`h-full rounded-full bg-gradient-to-r ${accentBar} transition-[width] duration-100 ease-linear`}
+            style={{ width: count > 1 && !paused ? `${Math.round(progress * 100)}%` : paused ? `${Math.round(progress * 100)}%` : '100%' }}
+          />
+        </div>
+        {count > 1 ? (
+          <div className="flex items-center gap-1.5 shrink-0" role="tablist" aria-label="Choose announcement">
+            {validAds.map((item, i) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={i === index}
+                aria-label={item.title}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  indexRef.current = i;
+                  setIndex(i);
+                }}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index
+                    ? isKitchen
+                      ? 'w-5 bg-amber-400'
+                      : 'w-5 bg-orange-400'
+                    : 'w-1.5 bg-white/35 hover:bg-white/55'
+                }`}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      {count > 1 ? (
-        <div
-          className="absolute right-2.5 bottom-2.5 flex items-center gap-1.5"
-          role="tablist"
-          aria-label="Choose announcement"
-        >
-          {validAds.map((item, i) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={i === index}
-              aria-label={item.title}
-              onClick={() => {
-                indexRef.current = i;
-                setIndex(i);
-              }}
-              className={`size-2 rounded-full transition-colors ${
-                i === index ? dotActive : 'bg-slate-600 hover:bg-slate-500'
-              }`}
-            />
-          ))}
-        </div>
-      ) : null}
-
       <style>{`
-        @keyframes npl-home-ad-fade {
-          from { opacity: 0.55; }
-          to { opacity: 1; }
+        @keyframes npl-promo-kenburns {
+          from { transform: scale(1.05) translate3d(0, 0, 0); }
+          to { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
         }
-        .npl-home-ad-fade {
-          animation: npl-home-ad-fade 0.45s ease-out both;
+        @keyframes npl-promo-kenburns-alt {
+          from { transform: scale(1.08) translate3d(0, 0, 0); }
+          to { transform: scale(1.2) translate3d(2%, -2%, 0); }
+        }
+        @keyframes npl-promo-pulse {
+          0%, 100% { opacity: 0.45; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.08); }
+        }
+        @keyframes npl-promo-tag-in {
+          from { opacity: 0; transform: translateY(-8px) scale(0.92); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes npl-promo-copy-in {
+          from { opacity: 0; transform: translateX(-12px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes npl-promo-card-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        .npl-promo-kenburns {
+          animation: npl-promo-kenburns ${ROTATE_MS}ms ease-out both;
+        }
+        .npl-promo-kenburns-alt {
+          animation: npl-promo-kenburns-alt ${ROTATE_MS}ms ease-out both;
+        }
+        .npl-promo-pulse {
+          animation: npl-promo-pulse 3.2s ease-in-out infinite;
+        }
+        .npl-promo-tag-in {
+          animation: npl-promo-tag-in 0.45s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+        }
+        .npl-promo-copy-in {
+          animation: npl-promo-copy-in 0.5s ease-out both;
+        }
+        .npl-promo-card-float {
+          animation: npl-promo-card-float 4s ease-in-out infinite;
+          position: relative;
+        }
+        .npl-promo-card-tilt-kitchen {
+          transform: rotate(2.5deg);
+        }
+        .npl-promo-card-tilt-festival {
+          transform: rotate(-2.5deg);
         }
         @media (prefers-reduced-motion: reduce) {
-          .npl-home-ad-fade { animation: none; }
+          .npl-promo-kenburns,
+          .npl-promo-kenburns-alt,
+          .npl-promo-pulse,
+          .npl-promo-tag-in,
+          .npl-promo-copy-in,
+          .npl-promo-card-float {
+            animation: none !important;
+          }
         }
       `}</style>
     </section>

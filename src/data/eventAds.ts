@@ -8,6 +8,11 @@
 
 export type EventAdId = 'friends-kitchen' | 'drawing-competition';
 
+export type EventAdAccent = 'amber' | 'saffron';
+
+/** Visual treatment for the home spotlight carousel. */
+export type EventAdTemplate = 'kitchen-marquee' | 'festival-spotlight';
+
 export type EventAd = {
   id: EventAdId;
   /** Short label shown on overlays / banners */
@@ -21,7 +26,10 @@ export type EventAd = {
   activeFrom: string;
   /** Inclusive local calendar end YYYY-MM-DD */
   activeTo: string;
-  accent: 'amber' | 'saffron';
+  accent: EventAdAccent;
+  template: EventAdTemplate;
+  /** Punchy ribbon text on the spotlight */
+  shortTag: string;
 };
 
 /** Friends' Kitchen — stall night only (8 Aug 2026). */
@@ -36,7 +44,9 @@ const FRIENDS_KITCHEN: EventAd = {
   alt: "Friends' Kitchen — We're back! Amritsari Chole, Kulcha, Gulab Jamun. Pre-order at Clubhouse from 6:30 PM.",
   activeFrom: '2026-08-08',
   activeTo: '2026-08-08',
-  accent: 'amber'
+  accent: 'amber',
+  template: 'kitchen-marquee',
+  shortTag: 'Tonight only'
 };
 
 /** Independence Day drawing competition — event day through prize day. */
@@ -51,7 +61,9 @@ const DRAWING_COMPETITION: EventAd = {
   alt: 'Independence Day 2026 Drawing Competition at Society Clubhouse — Saturday 8 August, 2:00 to 3:30 PM.',
   activeFrom: '2026-08-08',
   activeTo: '2026-08-15',
-  accent: 'saffron'
+  accent: 'saffron',
+  template: 'festival-spotlight',
+  shortTag: '2:00 PM today'
 };
 
 const EVENT_ADS: readonly EventAd[] = Object.freeze([FRIENDS_KITCHEN, DRAWING_COMPETITION]);
