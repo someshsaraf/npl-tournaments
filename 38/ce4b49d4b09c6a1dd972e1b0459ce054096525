@@ -1,0 +1,14 @@
+src/pages/HomePage.tsx
+  h_d39e845a5ebfa7 97-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "38ce4b49d4b09c6a1dd972e1b0459ce054096525",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
