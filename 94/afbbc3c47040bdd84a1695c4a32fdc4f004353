@@ -1,0 +1,20 @@
+src/components/LiveViewerCountBadge.tsx
+  h_d39e845a5ebfa7 1-28
+src/firebase.ts
+  h_d39e845a5ebfa7 35-41
+src/hooks/useLiveViewerCount.ts
+  h_d39e845a5ebfa7 1-168
+src/pages/StreamOverlay.tsx
+  h_d39e845a5ebfa7 32-33,326,1176-1185,1286-1295
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "94afbbc3c47040bdd84a1695c4a32fdc4f004353",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
