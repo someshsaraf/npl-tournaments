@@ -1,0 +1,44 @@
+package.json
+  h_d39e845a5ebfa7 7-9
+public/Gallery/README.md
+  h_d39e845a5ebfa7 1-13
+public/Gallery/manifest.json
+  h_d39e845a5ebfa7 1-66
+scripts/generate-gallery-manifest.mjs
+  h_d39e845a5ebfa7 1-83
+src/App.tsx
+  h_d39e845a5ebfa7 11,50
+src/components/PublicLayout.tsx
+  h_d39e845a5ebfa7 4,27
+src/components/ScoreDaypartAdPlayer.tsx
+  h_d39e845a5ebfa7 29
+src/firebase.ts
+  h_d39e845a5ebfa7 28
+src/hooks/useScoreDaypartAds.ts
+  h_d39e845a5ebfa7 17,94,108
+src/pages/AdminPanel.tsx
+  h_d39e845a5ebfa7 381,383-384,397-399
+src/pages/AdsTestPage.tsx
+  h_d39e845a5ebfa7 6,8,47-48,82-87
+src/pages/HomePage.tsx
+  h_d39e845a5ebfa7 169-174
+src/pages/MatchPhotosPage.tsx
+  h_d39e845a5ebfa7 1-227
+src/pages/StreamOverlay.tsx
+  h_d39e845a5ebfa7 33-34,329-330,1261-1262,1302-1303
+src/utils/matchGallery.ts
+  h_d39e845a5ebfa7 1-99
+src/utils/scoreDaypartAds.ts
+  h_d39e845a5ebfa7 2,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "53add32c2535c049c48d9f9ea4c477ab84f9c604",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
