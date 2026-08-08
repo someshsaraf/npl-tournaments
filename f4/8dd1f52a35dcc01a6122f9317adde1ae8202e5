@@ -1,0 +1,20 @@
+src/components/HomeEventAdBanner.tsx
+  h_d39e845a5ebfa7 81,87-89,94-96,101-103,108-110,115-117,122-124,129-131,136-138,187-196,304-307,333-335,358-360,365,379-380,383-391
+src/components/LiveEventAdRail.tsx
+  h_d39e845a5ebfa7 3,6-12,15-16,23,27-41,78-80,86-88
+src/components/PublicLayout.tsx
+  h_d39e845a5ebfa7 41-42,46-48,53,56
+src/data/eventAds.ts
+  h_d39e845a5ebfa7 2,4,10-14,16,19-23,38-42,66-83,95,118,121,127,135,153-165,169-178,182-183,186-187,192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "f48dd1f52a35dcc01a6122f9317adde1ae8202e5",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
