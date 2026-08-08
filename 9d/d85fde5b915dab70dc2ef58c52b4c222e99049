@@ -1,0 +1,18 @@
+api/youtube-recordings.ts
+  h_d39e845a5ebfa7 6-8,10-11,24,52-77,89,96-106,108-190,238,245,287-300
+src/pages/RecordingsPage.tsx
+  h_d39e845a5ebfa7 10,24,26,146,186
+src/utils/youtubeRecordings.ts
+  h_d39e845a5ebfa7 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "9dd85fde5b915dab70dc2ef58c52b4c222e99049",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
