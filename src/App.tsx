@@ -7,6 +7,7 @@ import TeamsPage from './pages/TeamsPage';
 import ResultsPage from './pages/ResultsPage';
 import RulesPage from './pages/RulesPage';
 import AskPage from './pages/AskPage';
+import RecordingsPage from './pages/RecordingsPage';
 import AdminPanel from './pages/AdminPanel';
 import AdminScorePage from './pages/AdminScorePage';
 import AdminResultsPage from './pages/AdminResultsPage';
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/teams" element={<TeamsPage />} />
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/rules" element={<RulesPage />} />
+          <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/ask" element={<AskPage />} />
         </Route>
 

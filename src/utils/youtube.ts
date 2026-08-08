@@ -12,6 +12,11 @@ function isValidVideoId(id: string | undefined): id is string {
   return typeof id === 'string' && VIDEO_ID_PATTERN.test(id);
 }
 
+/** True when value is an 11-char YouTube video id. */
+export function isValidYouTubeVideoId(id: unknown): id is string {
+  return typeof id === 'string' && isValidVideoId(id);
+}
+
 /**
  * Extracts a YouTube video ID from common watch/live/share URL forms.
  * Rejects non-YouTube hosts to avoid unsafe iframe src values.
@@ -86,6 +91,21 @@ export function toYouTubeLiveOverlayEmbedUrl(raw: string): string | null {
   }
 
   return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
+}
+
+/**
+ * Safe youtube-nocookie embed for a validated video ID (VOD / recordings).
+ * Input validation: rejects non-11-char IDs.
+ */
+export function toYouTubeNocookieEmbedFromId(videoId: unknown): string | null {
+  if (!isValidYouTubeVideoId(videoId)) return null;
+  const params = new URLSearchParams({
+    autoplay: '1',
+    playsinline: '1',
+    rel: '0',
+    modestbranding: '1'
+  });
+  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }
 
 export function isValidYouTubeLiveUrl(raw: string): boolean {
