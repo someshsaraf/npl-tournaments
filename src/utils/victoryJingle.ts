@@ -53,11 +53,12 @@ export function pickRandomVictoryJingleId(excludeId?: string | null): string | n
 export function toVictoryJingleEmbedUrl(videoId: unknown): string | null {
   if (typeof videoId !== 'string' || !ALLOWED_IDS.includes(videoId)) return null;
 
+  // Audio-only surface: hide player chrome (iframe is visually hidden in UI).
   const params = new URLSearchParams({
     autoplay: '1',
     mute: '0',
-    controls: '1',
-    disablekb: '0',
+    controls: '0',
+    disablekb: '1',
     fs: '0',
     modestbranding: '1',
     playsinline: '1',

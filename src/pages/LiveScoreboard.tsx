@@ -198,7 +198,7 @@ export const LiveScoreboard: React.FC = () => {
   const team1 = match.teamA || '';
   const team2 = match.teamB || '';
   const winnerLabel = match.gameWinner === 1 ? name1 : name2;
-  const opponentLabel = match.gameWinner === 1 ? name2 : name1;
+  const showServing = !hasWinner;
 
   return (
     <div
@@ -242,38 +242,32 @@ export const LiveScoreboard: React.FC = () => {
         </div>
 
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
-          {hasWinner ? (
+          {hasWinner && !celebration ? (
             <span
-              className="font-black text-emerald-200 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-6 py-2.5 rounded-2xl text-center leading-snug max-w-[min(94vw,52rem)]"
-              style={{ fontSize: 'clamp(1.35rem, 4.5vw, 3.25rem)' }}
+              className="font-black text-emerald-200 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-6 py-2 rounded-2xl text-center leading-snug max-w-[min(94vw,40rem)]"
+              style={{ fontSize: 'clamp(1rem, 3.2vw, 2rem)' }}
             >
-              <span className="block">
+              <span className="block truncate">
                 {seriesOver ? 'MATCH' : 'GAME'} WIN · {winnerLabel}
               </span>
-              <span
-                className="block font-black text-white mt-0.5"
-                style={{ fontSize: '0.85em' }}
-              >
-                def. {opponentLabel}
-              </span>
-              <span className="block text-emerald-300/90 mt-0.5" style={{ fontSize: '0.75em' }}>
+              <span className="block font-mono text-amber-300 mt-0.5" style={{ fontSize: '0.9em' }}>
                 {score1}-{score2}
               </span>
             </span>
-          ) : isGoldenPoint(match) ? (
+          ) : !hasWinner && isGoldenPoint(match) ? (
             <span className="text-sm sm:text-base font-black text-amber-300 bg-amber-500/20 border border-amber-400/50 px-4 py-1.5 rounded-full animate-pulse">
               GOLDEN POINT
             </span>
-          ) : match.deuceActive ? (
+          ) : !hasWinner && match.deuceActive ? (
             <span className="text-sm sm:text-base font-black text-red-400 bg-red-500/20 border border-red-500/50 px-4 py-1.5 rounded-full animate-pulse">
               DEUCE
             </span>
-          ) : match.bestOf === 3 ? null : (
+          ) : !hasWinner && match.bestOf === 3 ? null : !hasWinner ? (
             <span className="text-sm sm:text-base font-mono text-amber-300/90 font-bold">
               Race to {match.maxPoints ?? 11}
             </span>
-          )}
-          {match.isTrump && (
+          ) : null}
+          {match.isTrump && !celebration && (
             <span className="text-[10px] sm:text-xs bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-0.5 rounded-full font-bold uppercase tracking-widest">
               ★ Trump ★
             </span>
@@ -332,19 +326,19 @@ export const LiveScoreboard: React.FC = () => {
           className="relative flex flex-col min-h-0 min-w-0"
           style={{
             background:
-              activeServer === 1
+              showServing && activeServer === 1
                 ? 'linear-gradient(180deg, rgba(67,56,202,0.4) 0%, rgba(2,6,23,1) 55%)'
                 : 'rgba(2,6,23,1)',
             borderRight: '1px solid rgba(51,65,85,0.6)'
           }}
         >
           <div className="absolute inset-x-0 top-0 z-10 px-3 sm:px-5 pt-2 sm:pt-3 text-center pointer-events-none">
-            {activeServer === 1 && (
+            {showServing && activeServer === 1 && (
               <div className="mb-2 flex justify-center">
                 <ServingBadge size="lg" />
               </div>
             )}
-            {activeServer === 1 && (
+            {showServing && activeServer === 1 && (
               <span
                 className="pointer-events-auto absolute right-3 top-2 sm:right-4 sm:top-3 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
@@ -358,7 +352,7 @@ export const LiveScoreboard: React.FC = () => {
               </p>
             )}
             <p
-              className="font-black text-white leading-tight truncate px-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]"
+              className="font-black text-white leading-tight truncate px-2 sm:px-4 drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]"
               style={{ fontSize: 'clamp(1.5rem, 5vw, 3.75rem)' }}
             >
               {name1}
@@ -379,18 +373,18 @@ export const LiveScoreboard: React.FC = () => {
           className="relative flex flex-col min-h-0 min-w-0"
           style={{
             background:
-              activeServer === 2
+              showServing && activeServer === 2
                 ? 'linear-gradient(180deg, rgba(190,24,93,0.4) 0%, rgba(2,6,23,1) 55%)'
                 : 'rgba(2,6,23,1)'
           }}
         >
           <div className="absolute inset-x-0 top-0 z-10 px-3 sm:px-5 pt-2 sm:pt-3 text-center pointer-events-none">
-            {activeServer === 2 && (
+            {showServing && activeServer === 2 && (
               <div className="mb-2 flex justify-center">
                 <ServingBadge size="lg" />
               </div>
             )}
-            {activeServer === 2 && (
+            {showServing && activeServer === 2 && (
               <span
                 className="pointer-events-auto absolute right-3 top-2 sm:right-4 sm:top-3 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
@@ -404,7 +398,7 @@ export const LiveScoreboard: React.FC = () => {
               </p>
             )}
             <p
-              className="font-black text-white leading-tight truncate px-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]"
+              className="font-black text-white leading-tight truncate px-2 sm:px-4 drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]"
               style={{ fontSize: 'clamp(1.5rem, 5vw, 3.75rem)' }}
             >
               {name2}
