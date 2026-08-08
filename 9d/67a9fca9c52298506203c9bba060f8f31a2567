@@ -1,0 +1,16 @@
+src/components/WinnerCelebration.tsx
+  h_d39e845a5ebfa7 86,88,91,96,101,104,107,114-115,126,142,158,161
+src/pages/LiveScoreboard.tsx
+  h_d39e845a5ebfa7 212,259-260,328-368,469
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "9d67a9fca9c52298506203c9bba060f8f31a2567",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
