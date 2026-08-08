@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { EventAd } from '../data/eventAds';
-import { getActiveEventAds, isSafeAdPosterPath } from '../data/eventAds';
+import { getAllEventAds, isSafeAdPosterPath } from '../data/eventAds';
 
 const ROTATE_MS = 5500;
 
 /**
- * Slim left-edge "lobby card" rail for /live — date-active posters peek without
- * covering the stream center or top-right score bug. Tap to peek full poster.
+ * Slim left-edge "lobby card" rail for /live — always shows both community posters
+ * (no date filter). Peek without covering stream center or top-right score.
  *
  * Concurrency: local timers/state only; cleaned up on unmount.
  * Security: allowlisted poster paths only.
@@ -14,7 +14,7 @@ const ROTATE_MS = 5500;
  */
 export function LiveEventAdRail() {
   const [ads] = useState<EventAd[]>(() =>
-    getActiveEventAds().filter(
+    getAllEventAds().filter(
       (ad) => ad && isSafeAdPosterPath(ad.posterSrc) && typeof ad.title === 'string'
     )
   );
@@ -65,13 +65,13 @@ export function LiveEventAdRail() {
                   } ${
                     active
                       ? 'w-[3.15rem] sm:w-[3.6rem] opacity-100 scale-100 ring-1 ring-white/30'
-                      : 'w-[2.35rem] sm:w-[2.7rem] opacity-70 scale-[0.96] hover:opacity-95'
+                      : 'w-[2.85rem] sm:w-[3.2rem] opacity-95 scale-[0.98] hover:opacity-100'
                   }`}
                   style={{
                     aspectRatio: '2 / 3',
                     transform: active
                       ? 'translateX(0) rotate(-1.5deg)'
-                      : 'translateX(-2px) rotate(1.5deg)'
+                      : 'translateX(0) rotate(1.5deg)'
                   }}
                 >
                   <img

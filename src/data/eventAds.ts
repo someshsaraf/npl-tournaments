@@ -68,6 +68,14 @@ const DRAWING_COMPETITION: EventAd = {
 
 const EVENT_ADS: readonly EventAd[] = Object.freeze([FRIENDS_KITCHEN, DRAWING_COMPETITION]);
 
+/**
+ * All community posters (no date filter). Used by /live rail so promos stay visible.
+ * Returns a shallow copy so callers cannot mutate the frozen catalog.
+ */
+export function getAllEventAds(): EventAd[] {
+  return [...EVENT_ADS];
+}
+
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**

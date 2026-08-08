@@ -1248,7 +1248,7 @@ export const StreamOverlay: React.FC = () => {
         )}
 
         <div className={overlayAnchorClass}>{scoreBug}</div>
-        {!showPlayGate ? <LiveEventAdRail /> : null}
+        <LiveEventAdRail />
       </div>
     );
   }
