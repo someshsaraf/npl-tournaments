@@ -28,6 +28,7 @@ import {
 import { normalizeMatchState } from '../utils/matchState';
 import { AdminNav } from '../components/AdminNav';
 import { buildCustomMatchState, sanitizeLabel } from '../utils/customMatch';
+import { useScoreDaypartAdsAdmin } from '../hooks/useScoreDaypartAds';
 
 const LIVE_DELAY_PRESETS_SECONDS = [0, 5, 7, 10, 15] as const;
 
@@ -290,6 +291,15 @@ export const AdminPanel: React.FC = () => {
     delaySecondsParsed >= MIN_LIVE_SCORE_DELAY_MS / 1000 &&
     delaySecondsParsed <= MAX_LIVE_SCORE_DELAY_MS / 1000;
 
+  const {
+    stoppedToday: scoreAdsStoppedToday,
+    inWindow: scoreAdsInWindow,
+    stopAds: stopScoreDaypartAds,
+    resumeAds: resumeScoreDaypartAds,
+    busy: scoreAdsBusy,
+    message: scoreAdsMessage
+  } = useScoreDaypartAdsAdmin();
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
 
@@ -363,6 +373,63 @@ export const AdminPanel: React.FC = () => {
             {youtubeSaveMessage}
           </p>
         )}
+      </div>
+
+      {/* /score afternoon fullscreen ads (1–5 PM) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-200">Score Board Ads (1–5 PM)</h2>
+          <span className="text-[11px] text-slate-500">
+            Fullscreen on <code className="text-indigo-300">/score</code>
+            {scoreAdsInWindow ? (
+              scoreAdsStoppedToday ? (
+                <span className="ml-2 text-amber-400 font-semibold">● Stopped</span>
+              ) : (
+                <span className="ml-2 text-emerald-400 font-semibold">● Live window</span>
+              )
+            ) : (
+              <span className="ml-2 text-slate-500 font-semibold">● Outside 1–5 PM</span>
+            )}
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          Between 1:00 PM and 5:00 PM local time, <code className="text-slate-400">/score</code>{' '}
+          rotates community posters fullscreen. Stop anytime before 5 PM; resumes tomorrow unless
+          you stop again.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => void stopScoreDaypartAds()}
+            disabled={scoreAdsBusy || scoreAdsStoppedToday}
+            className="text-xs font-bold bg-rose-500 text-white hover:bg-rose-400 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2.5 rounded-lg transition-colors"
+          >
+            {scoreAdsBusy ? 'Saving…' : 'Stop Score Ads'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void resumeScoreDaypartAds()}
+            disabled={scoreAdsBusy || !scoreAdsStoppedToday}
+            className="text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2.5 rounded-lg transition-colors"
+          >
+            Resume Score Ads
+          </button>
+          <a
+            href="/ads"
+            className="text-xs font-bold text-center bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 px-4 py-2.5 rounded-lg transition-colors"
+          >
+            Open /ads preview
+          </a>
+        </div>
+        {scoreAdsMessage ? (
+          <p
+            className={`text-[11px] ${
+              scoreAdsMessage.startsWith('Failed') ? 'text-red-400' : 'text-emerald-400'
+            }`}
+          >
+            {scoreAdsMessage}
+          </p>
+        ) : null}
       </div>
 
       {/* /live score broadcast delay */}

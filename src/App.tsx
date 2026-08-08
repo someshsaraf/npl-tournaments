@@ -14,6 +14,7 @@ import AdminTeamsPage from './pages/AdminTeamsPage';
 import LiveScoreboard from './pages/LiveScoreboard';
 import StreamOverlay from './pages/StreamOverlay';
 import ScoreControl from './pages/ScoreControl';
+import AdsTestPage from './pages/AdsTestPage';
 import { db } from './firebase';
 import {
   migrateLegacyPlayerNames,
@@ -49,6 +50,7 @@ export default function App() {
         {/* Immersive displays (no portal chrome) */}
         <Route path="/score" element={<LiveScoreboard />} />
         <Route path="/live" element={<StreamOverlay />} />
+        <Route path="/ads" element={<AdsTestPage />} />
 
         {/* Staff-only — not in public nav */}
         <Route path="/admin" element={<AdminPanel />} />

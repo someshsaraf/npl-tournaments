@@ -24,5 +24,11 @@ export const YOUTUBE_LIVE_URL_PATH = 'settings/youtubeLiveUrl';
 /** RTDB path for /live score broadcast delay in milliseconds. */
 export const LIVE_SCORE_DELAY_MS_PATH = 'settings/liveScoreDelayMs';
 
+/**
+ * RTDB path for /score daypart fullscreen ads kill-switch.
+ * Value is a local YYYY-MM-DD string when stopped for that day; null/missing = allowed.
+ */
+export const SCORE_DAYPART_ADS_STOPPED_DATE_PATH = 'settings/scoreDaypartAdsStoppedDate';
+
 /** RTDB path for player old→new name aliases (propagated across completed matches). */
 export const PLAYER_NAME_ALIASES_PATH = 'settings/playerNameAliases';

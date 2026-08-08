@@ -28,6 +28,8 @@ import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
 import { useVictoryJingle } from '../hooks/useVictoryJingle';
 import { VictoryJinglePlayer } from '../components/VictoryJinglePlayer';
+import { useScoreDaypartAds } from '../hooks/useScoreDaypartAds';
+import { ScoreDaypartAdPlayer } from '../components/ScoreDaypartAdPlayer';
 import { isGoldenPoint } from '../utils/scoring';
 
 /**
@@ -59,6 +61,7 @@ export const LiveScoreboard: React.FC = () => {
     celebrationVisible: Boolean(celebration) && hasSeriesWinner(match),
     matchId: match.currentMatchId
   });
+  const { active: daypartAdsActive, ads: daypartAds } = useScoreDaypartAds();
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -442,7 +445,7 @@ export const LiveScoreboard: React.FC = () => {
         />
       )}
 
-      {showAd && currentAd && (
+      {showAd && currentAd && !daypartAdsActive && (
         <BetweenMatchAd
           ad={currentAd}
           onComplete={dismissAd}
@@ -451,7 +454,9 @@ export const LiveScoreboard: React.FC = () => {
         />
       )}
 
-      {victoryJingleSrc ? (
+      {daypartAdsActive ? <ScoreDaypartAdPlayer ads={daypartAds} /> : null}
+
+      {victoryJingleSrc && !daypartAdsActive ? (
         <VictoryJinglePlayer embedSrc={victoryJingleSrc} onClose={stopJingle} />
       ) : null}
     </div>
