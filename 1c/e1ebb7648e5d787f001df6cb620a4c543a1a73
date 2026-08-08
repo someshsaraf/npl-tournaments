@@ -1,0 +1,14 @@
+src/hooks/useVictoryJingle.ts
+  h_d39e845a5ebfa7 20-24,40-41,52-55,67-80,83,85-88,103,107,113,119-121,135-138,145,155,161,165,168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "1ce1ebb7648e5d787f001df6cb620a4c543a1a73",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
