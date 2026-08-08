@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { GameScore } from '../data/tournamentData';
+import { formatWinnerFirstScore } from '../utils/matchState';
 import { FireworksCanvas } from './FireworksCanvas';
 
 type WinnerCelebrationProps = {
@@ -81,21 +82,21 @@ export function WinnerCelebration({
     ? 'clamp(1rem, 3.5vw, 2rem)'
     : 'clamp(0.85rem, 2.5vw, 1.25rem)';
   const nameSize = audience
-    ? 'clamp(4rem, min(22vw, 34dvh), 16rem)'
+    ? 'clamp(5.5rem, min(28vw, 42dvh), 20rem)'
     : showBo3Games
       ? 'clamp(3.5rem, min(20vw, 26dvh), 12rem)'
       : 'clamp(4rem, min(22vw, 32dvh), 14rem)';
-  /** Opponent must read from distance — ~55% of winner size, high contrast. */
+  /** Opponent must read from distance — high contrast, smaller than winner. */
   const opponentSize = audience
-    ? 'clamp(2.25rem, min(12vw, 16dvh), 8rem)'
+    ? 'clamp(2.5rem, min(13vw, 18dvh), 9rem)'
     : showBo3Games
       ? 'clamp(1.75rem, min(9vw, 12dvh), 5rem)'
       : 'clamp(2rem, min(10vw, 14dvh), 6rem)';
   const scoreSize = audience
-    ? 'clamp(5rem, min(32vw, 40dvh), 24rem)'
+    ? 'clamp(6.5rem, min(36vw, 44dvh), 28rem)'
     : 'clamp(3rem, 14vw, 9rem)';
   const gameScoreSize = audience
-    ? 'clamp(2rem, min(14vw, 16dvh), 6rem)'
+    ? 'clamp(2.5rem, min(16vw, 18dvh), 7rem)'
     : 'clamp(1.75rem, min(11vw, 12dvh), 4.5rem)';
   const gameLabelSize = audience
     ? 'clamp(0.7rem, 1.8vw, 1.1rem)'
@@ -236,7 +237,9 @@ export function WinnerCelebration({
                         : undefined
                     }}
                   >
-                    {filled ? `${g.score1}-${g.score2}` : '—'}
+                    {filled
+                      ? formatWinnerFirstScore(g.score1, g.score2, g.winner)
+                      : '—'}
                   </span>
                 </div>
               );

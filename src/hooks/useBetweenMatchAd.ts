@@ -5,10 +5,11 @@ import type { MatchState } from '../data/tournamentData';
 import { hasSeriesWinner } from '../utils/matchState';
 
 /**
- * Queues a between-match ad after a series win, once celebration is dismissed.
- * Picks randomly among date-active ads (Friends' Kitchen only on 2026-08-08).
- * Plays at most once per currentMatchId. Mid-series game wins do not queue.
- * Skips entirely when no ads are active today.
+ * Queues a between-match ad after a series win.
+ * Call maybeStartAdAfterCelebration when ready (e.g. celebration dismiss on
+ * /scorer, or victory jingle end on /score).
+ * Picks randomly among date-active ads. Plays at most once per currentMatchId.
+ * Mid-series game wins do not queue. Skips when no ads are active today.
  *
  * Concurrency: component-local refs/state only.
  * Input validation: requires a non-empty match id string when present.

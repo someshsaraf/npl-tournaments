@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
@@ -7,6 +7,7 @@ import type { MatchState } from '../data/tournamentData';
 import {
   formatGameScoresLine,
   formatGamesWonLabel,
+  formatWinnerFirstScore,
   hasGameWinner,
   hasSeriesWinner,
   normalizeMatchState
@@ -56,10 +57,17 @@ export const LiveScoreboard: React.FC = () => {
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
   const { showAd, currentAd, maybeStartAdAfterCelebration, dismissAd } =
     useBetweenMatchAd(match);
+
+  /** /score: start between-match ad only after victory jingle ends (or skips). */
+  const handleJingleEnded = useCallback(() => {
+    maybeStartAdAfterCelebration();
+  }, [maybeStartAdAfterCelebration]);
+
   const { embedSrc: victoryJingleSrc, stopJingle } = useVictoryJingle({
     seriesOver: hasSeriesWinner(match),
     celebrationVisible: Boolean(celebration) && hasSeriesWinner(match),
-    matchId: match.currentMatchId
+    matchId: match.currentMatchId,
+    onJingleEnded: handleJingleEnded
   });
   const { active: daypartAdsActive, ads: daypartAds } = useScoreDaypartAds();
 
@@ -72,15 +80,14 @@ export const LiveScoreboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Audience kiosk: after series win celebration, auto-advance into the ad.
+  // Audience kiosk: auto-dismiss celebration after 10s (ad waits for jingle end).
   useEffect(() => {
     if (!celebration || !hasSeriesWinner(match) || showAd) return;
     const timer = window.setTimeout(() => {
       setCelebration(null);
-      maybeStartAdAfterCelebration();
     }, 10_000);
     return () => window.clearTimeout(timer);
-  }, [celebration, match, showAd, maybeStartAdAfterCelebration]);
+  }, [celebration, match, showAd]);
 
   useEffect(() => {
     const sync = () => {
@@ -132,7 +139,11 @@ export const LiveScoreboard: React.FC = () => {
     setCelebration({
       winnerName: winName,
       opponentName: oppName,
-      scoreLabel: `${match.score1 ?? 0}-${match.score2 ?? 0}`,
+      scoreLabel: formatWinnerFirstScore(
+        match.score1,
+        match.score2,
+        match.gameWinner
+      ),
       subtitle,
       gameScores: match.bestOf === 3 ? rawScores : [],
       seriesLabel: match.bestOf === 3 ? formatGamesWonLabel(match) : '',
@@ -199,6 +210,7 @@ export const LiveScoreboard: React.FC = () => {
   const team2 = match.teamB || '';
   const winnerLabel = match.gameWinner === 1 ? name1 : name2;
   const showServing = !hasWinner;
+  const winnerFirstScore = formatWinnerFirstScore(score1, score2, match.gameWinner);
 
   return (
     <div
@@ -244,14 +256,17 @@ export const LiveScoreboard: React.FC = () => {
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
           {hasWinner && !celebration ? (
             <span
-              className="font-black text-emerald-200 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-6 py-2 rounded-2xl text-center leading-snug max-w-[min(94vw,40rem)]"
-              style={{ fontSize: 'clamp(1rem, 3.2vw, 2rem)' }}
+              className="font-black text-emerald-200 bg-emerald-500/25 border-2 border-emerald-400/60 px-4 sm:px-7 py-2.5 rounded-2xl text-center leading-snug max-w-[min(94vw,48rem)]"
+              style={{ fontSize: 'clamp(1.35rem, 4.2vw, 2.75rem)' }}
             >
               <span className="block truncate">
                 {seriesOver ? 'MATCH' : 'GAME'} WIN · {winnerLabel}
               </span>
-              <span className="block font-mono text-amber-300 mt-0.5" style={{ fontSize: '0.9em' }}>
-                {score1}-{score2}
+              <span
+                className="block font-mono text-amber-300 mt-1 font-black tabular-nums"
+                style={{ fontSize: '1.15em' }}
+              >
+                {winnerFirstScore}
               </span>
             </span>
           ) : !hasWinner && isGoldenPoint(match) ? (
@@ -433,7 +448,6 @@ export const LiveScoreboard: React.FC = () => {
           matchWinner={celebration.matchWinner}
           onDismiss={() => {
             setCelebration(null);
-            maybeStartAdAfterCelebration();
           }}
           variant="audience"
         />

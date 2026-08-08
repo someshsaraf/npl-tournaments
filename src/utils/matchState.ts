@@ -136,8 +136,27 @@ export function formatGameScoresLine(match: MatchState | null | undefined): stri
     return '';
   }
   return match.gameScores
-    .map((g, i) => `G${i + 1} ${g.score1}-${g.score2}`)
+    .map((g, i) => {
+      if (!g || !Number.isFinite(g.score1) || !Number.isFinite(g.score2)) return null;
+      return `G${i + 1} ${g.score1}-${g.score2}`;
+    })
+    .filter(Boolean)
     .join(' · ');
+}
+
+/**
+ * Formats a game score with the winner's points first (e.g. right side 15–9 → "15-9").
+ * Input validation: coerces non-finite scores to 0; unknown winner defaults to side1-first.
+ */
+export function formatWinnerFirstScore(
+  score1: unknown,
+  score2: unknown,
+  winner: unknown
+): string {
+  const s1 = Number.isFinite(Number(score1)) ? Number(score1) : 0;
+  const s2 = Number.isFinite(Number(score2)) ? Number(score2) : 0;
+  if (winner === 2) return `${s2}-${s1}`;
+  return `${s1}-${s2}`;
 }
 
 /** Series games tally, e.g. "1-0". */
