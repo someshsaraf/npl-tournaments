@@ -96,9 +96,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {homeAds.map((ad) => (
-        <HomeEventAdBanner key={ad.id} ad={ad} />
-      ))}
+      {homeAds.length > 0 ? <HomeEventAdBanner ads={homeAds} /> : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.9fr] gap-4 sm:gap-5">
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden flex flex-col min-h-[16rem]">
