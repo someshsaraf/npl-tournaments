@@ -167,6 +167,12 @@ export default function HomePage() {
 
           <div className="mt-auto flex flex-wrap gap-2 pt-1">
             <Link
+              to="/photos"
+              className="flex-1 min-w-[7rem] text-center rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs uppercase tracking-wide px-3 py-2.5 hover:bg-emerald-400"
+            >
+              Match photos
+            </Link>
+            <Link
               to="/results"
               className="flex-1 min-w-[7rem] text-center rounded-lg bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wide px-3 py-2.5 hover:bg-amber-300"
             >

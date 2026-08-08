@@ -30,6 +30,8 @@ import { ServeRacket } from '../components/ServeRacket';
 import { LiveWinCelebration } from '../components/LiveWinCelebration';
 import { LiveEventAdRail } from '../components/LiveEventAdRail';
 import { LiveViewerCountBadge } from '../components/LiveViewerCountBadge';
+import { ScoreDaypartAdPlayer } from '../components/ScoreDaypartAdPlayer';
+import { useScoreDaypartAds } from '../hooks/useScoreDaypartAds';
 import { useLiveViewerCount } from '../hooks/useLiveViewerCount';
 
 
@@ -324,6 +326,8 @@ export const StreamOverlay: React.FC = () => {
   /** Brief fireworks on the score bug only — not a center-page modal. */
   const [scoreBurst, setScoreBurst] = useState(false);
   const viewerCount = useLiveViewerCount();
+  /** Same 1–5 PM fullscreen poster loop as /score (shared admin stop flag). */
+  const { active: daypartAdsActive, ads: daypartAds } = useScoreDaypartAds();
 
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
@@ -1254,7 +1258,8 @@ export const StreamOverlay: React.FC = () => {
         )}
 
         <div className={overlayAnchorClass}>{scoreBug}</div>
-        <LiveEventAdRail />
+        {!daypartAdsActive ? <LiveEventAdRail /> : null}
+        {daypartAdsActive ? <ScoreDaypartAdPlayer ads={daypartAds} /> : null}
       </div>
     );
   }
@@ -1294,7 +1299,8 @@ export const StreamOverlay: React.FC = () => {
         </Link>
       </div>
       <div className={overlayAnchorClass}>{scoreBug}</div>
-      <LiveEventAdRail />
+      {!daypartAdsActive ? <LiveEventAdRail /> : null}
+      {daypartAdsActive ? <ScoreDaypartAdPlayer ads={daypartAds} /> : null}
     </div>
   );
 };

@@ -378,9 +378,10 @@ export const AdminPanel: React.FC = () => {
       {/* /score afternoon fullscreen ads (1–5 PM) */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-200">Score Board Ads (1–5 PM)</h2>
+          <h2 className="text-sm font-semibold text-slate-200">Score & Live Ads (1–5 PM)</h2>
           <span className="text-[11px] text-slate-500">
-            Fullscreen on <code className="text-indigo-300">/score</code>
+            Fullscreen on <code className="text-indigo-300">/score</code> +{' '}
+            <code className="text-indigo-300">/live</code>
             {scoreAdsInWindow ? (
               scoreAdsStoppedToday ? (
                 <span className="ml-2 text-amber-400 font-semibold">● Stopped</span>
@@ -393,9 +394,9 @@ export const AdminPanel: React.FC = () => {
           </span>
         </div>
         <p className="text-[11px] text-slate-500">
-          Between 1:00 PM and 5:00 PM local time, <code className="text-slate-400">/score</code>{' '}
-          rotates community posters fullscreen. Stop anytime before 5 PM; resumes tomorrow unless
-          you stop again.
+          Between 1:00 PM and 5:00 PM local time, <code className="text-slate-400">/score</code> and{' '}
+          <code className="text-slate-400">/live</code> rotate community posters fullscreen. Stop
+          anytime before 5 PM; resumes tomorrow unless you stop again.
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
           <button

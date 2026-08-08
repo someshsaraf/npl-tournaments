@@ -8,6 +8,7 @@ import ResultsPage from './pages/ResultsPage';
 import RulesPage from './pages/RulesPage';
 import AskPage from './pages/AskPage';
 import RecordingsPage from './pages/RecordingsPage';
+import MatchPhotosPage from './pages/MatchPhotosPage';
 import AdminPanel from './pages/AdminPanel';
 import AdminScorePage from './pages/AdminScorePage';
 import AdminResultsPage from './pages/AdminResultsPage';
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/rules" element={<RulesPage />} />
           <Route path="/recordings" element={<RecordingsPage />} />
+          <Route path="/photos" element={<MatchPhotosPage />} />
           <Route path="/ask" element={<AskPage />} />
         </Route>
 

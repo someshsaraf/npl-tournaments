@@ -3,9 +3,9 @@ import { ScoreDaypartAdPlayer } from '../components/ScoreDaypartAdPlayer';
 import { useScoreDaypartAds, useScoreDaypartAdsAdmin } from '../hooks/useScoreDaypartAds';
 
 /**
- * Staff test page for /score daypart fullscreen ads.
+ * Staff test page for /score + /live daypart fullscreen ads.
  * Always previews the rotating posters (ignores 1–5 PM window) so you can verify
- * creatives anytime. Stop/resume still uses the same Firebase flag as /score.
+ * creatives anytime. Stop/resume still uses the same Firebase flag as /score and /live.
  *
  * Concurrency: hooks own their listeners/timers.
  * Security: staff URL only (not in public nav); stop writes validated date keys.
@@ -44,7 +44,8 @@ export default function AdsTestPage() {
             Ads test · /ads
           </p>
           <p className="text-xs text-slate-300">
-            Preview always runs here. On <code className="text-indigo-300">/score</code>:{' '}
+            Preview always runs here. On <code className="text-indigo-300">/score</code> and{' '}
+            <code className="text-indigo-300">/live</code>:{' '}
             {scoreWouldPlay ? (
               <span className="text-emerald-400 font-semibold">would play now</span>
             ) : (
@@ -77,6 +78,12 @@ export default function AdsTestPage() {
               className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-100 hover:bg-slate-700"
             >
               Open /score
+            </Link>
+            <Link
+              to="/live"
+              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-100 hover:bg-slate-700"
+            >
+              Open /live
             </Link>
             <Link
               to="/admin"

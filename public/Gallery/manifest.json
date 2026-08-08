@@ -1,0 +1,66 @@
+{
+  "generatedAt": "2026-08-08T09:46:49.839Z",
+  "folder": "/Gallery",
+  "items": [
+    {
+      "src": "/Gallery/Photo-.jpeg",
+      "file": "Photo-.jpeg",
+      "kind": "image",
+      "title": "Photo"
+    },
+    {
+      "src": "/Gallery/Photo-1.jpeg",
+      "file": "Photo-1.jpeg",
+      "kind": "image",
+      "title": "Photo 1"
+    },
+    {
+      "src": "/Gallery/Photo-2.jpeg",
+      "file": "Photo-2.jpeg",
+      "kind": "image",
+      "title": "Photo 2"
+    },
+    {
+      "src": "/Gallery/Photo-3.jpeg",
+      "file": "Photo-3.jpeg",
+      "kind": "image",
+      "title": "Photo 3"
+    },
+    {
+      "src": "/Gallery/Photo-4.jpeg",
+      "file": "Photo-4.jpeg",
+      "kind": "image",
+      "title": "Photo 4"
+    },
+    {
+      "src": "/Gallery/Photo-5.jpeg",
+      "file": "Photo-5.jpeg",
+      "kind": "image",
+      "title": "Photo 5"
+    },
+    {
+      "src": "/Gallery/Photo-6.jpeg",
+      "file": "Photo-6.jpeg",
+      "kind": "image",
+      "title": "Photo 6"
+    },
+    {
+      "src": "/Gallery/Photo-7.jpeg",
+      "file": "Photo-7.jpeg",
+      "kind": "image",
+      "title": "Photo 7"
+    },
+    {
+      "src": "/Gallery/Photo-8.jpeg",
+      "file": "Photo-8.jpeg",
+      "kind": "image",
+      "title": "Photo 8"
+    },
+    {
+      "src": "/Gallery/Photo-9.mp4",
+      "file": "Photo-9.mp4",
+      "kind": "video",
+      "title": "Photo 9"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   CalendarDays,
+  Camera,
   Film,
   Home,
   MessageCircleQuestion,
@@ -23,6 +24,7 @@ const NAV: ReadonlyArray<{
   { to: '/schedule', label: 'Schedule', end: false, icon: CalendarDays },
   { to: '/teams', label: 'Teams', end: false, icon: Users },
   { to: '/results', label: 'Results', end: false, icon: Trophy },
+  { to: '/photos', label: 'Photos', end: false, icon: Camera },
   { to: '/live', label: 'Live Stream', end: false, icon: Radio },
   { to: '/recordings', label: 'Recordings', end: false, icon: Film },
   { to: '/rules', label: 'Rules', end: false, icon: ScrollText },

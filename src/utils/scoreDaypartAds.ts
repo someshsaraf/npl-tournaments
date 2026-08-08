@@ -1,5 +1,5 @@
 /**
- * /score daypart fullscreen ads: local 13:00–17:00 window + admin same-day stop.
+ * /score + /live daypart fullscreen ads: local 13:00–17:00 window + admin same-day stop.
  *
  * Concurrency: pure helpers; no shared mutable state.
  * Security: stop flag is a YYYY-MM-DD string only (no free-form payloads).
@@ -44,7 +44,7 @@ export function isScoreDaypartAdsStoppedToday(
   return stoppedDateKey === getLocalDateKey(now);
 }
 
-/** Whether /score should run the fullscreen daypart ad loop. */
+/** Whether /score and /live should run the fullscreen daypart ad loop. */
 export function shouldPlayScoreDaypartAds(
   stoppedDateKey: unknown,
   now: Date = new Date(),
