@@ -1,0 +1,28 @@
+src/components/BetweenMatchAd.tsx
+  h_d39e845a5ebfa7 2-3,14,40,42-43,46,53-57,75-78,101,103-107,114,127,132-133,142
+src/components/HomeEventAdBanner.tsx
+  h_d39e845a5ebfa7 1-73
+src/data/eventAds.ts
+  h_d39e845a5ebfa7 1-133
+src/hooks/useBetweenMatchAd.ts
+  h_d39e845a5ebfa7 2-3,9,11,18,21,29,32,35,42,50-51,54-62,73,78,81-87
+src/pages/AdminScorePage.tsx
+  h_d39e845a5ebfa7 66-67,742-743
+src/pages/HomePage.tsx
+  h_d39e845a5ebfa7 22,34,99-101
+src/pages/LiveScoreboard.tsx
+  h_d39e845a5ebfa7 53-54,438,440
+src/pages/ScoreControl.tsx
+  h_d39e845a5ebfa7 73,709-710
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "26b21b2ad48c80627c67a10ddfd8e5cec6f24c72",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
