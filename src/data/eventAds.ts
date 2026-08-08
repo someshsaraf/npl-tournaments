@@ -49,21 +49,21 @@ const FRIENDS_KITCHEN: EventAd = {
   shortTag: 'Tonight only'
 };
 
-/** Independence Day drawing competition — promo through 15 Aug 2026. */
+/** Independence Day drawing competition — Saturday 8 Aug 2026, 2:00 PM. */
 const DRAWING_COMPETITION: EventAd = {
   id: 'drawing-competition',
   title: 'Independence Day Drawing Competition',
   eyebrow: 'Nature Walk · Clubhouse',
   blurb:
-    '15th August at the Clubhouse. Ages 3–5, 6–8, and 9+. Bring crayons/pencils — sheets provided.',
+    'Today 2:00–3:30 PM at the Clubhouse. Ages 3–5, 6–8, and 9+. Bring crayons/pencils — sheets provided. Prizes on 15 Aug.',
   ctaLabel: 'View competition poster',
   posterSrc: '/Drawing-Competition.jpeg',
-  alt: 'Independence Day 2026 Drawing Competition at Society Clubhouse — 15th August.',
+  alt: 'Independence Day 2026 Drawing Competition at Society Clubhouse — Saturday 8 August, 2:00 to 3:30 PM.',
   activeFrom: '2026-08-08',
-  activeTo: '2026-08-15',
+  activeTo: '2026-08-08',
   accent: 'saffron',
   template: 'festival-spotlight',
-  shortTag: '15th Aug'
+  shortTag: 'Today 2:00 PM'
 };
 
 const EVENT_ADS: readonly EventAd[] = Object.freeze([FRIENDS_KITCHEN, DRAWING_COMPETITION]);
