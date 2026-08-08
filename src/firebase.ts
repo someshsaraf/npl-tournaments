@@ -32,3 +32,10 @@ export const SCORE_DAYPART_ADS_STOPPED_DATE_PATH = 'settings/scoreDaypartAdsStop
 
 /** RTDB path for player old→new name aliases (propagated across completed matches). */
 export const PLAYER_NAME_ALIASES_PATH = 'settings/playerNameAliases';
+
+/**
+ * RTDB path for /live page presence (one child per open tab).
+ * Clients write presence/live/{sessionId} and remove via onDisconnect.
+ * Rules must allow public .write for create/delete under this path only.
+ */
+export const LIVE_VIEWERS_PRESENCE_PATH = 'presence/live';

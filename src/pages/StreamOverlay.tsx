@@ -29,6 +29,8 @@ import {
 import { ServeRacket } from '../components/ServeRacket';
 import { LiveWinCelebration } from '../components/LiveWinCelebration';
 import { LiveEventAdRail } from '../components/LiveEventAdRail';
+import { LiveViewerCountBadge } from '../components/LiveViewerCountBadge';
+import { useLiveViewerCount } from '../hooks/useLiveViewerCount';
 
 
 /** Snapshot shown on /live between matches. */
@@ -321,6 +323,7 @@ export const StreamOverlay: React.FC = () => {
   const [showHomeScreenTip, setShowHomeScreenTip] = useState(false);
   /** Brief fireworks on the score bug only — not a center-page modal. */
   const [scoreBurst, setScoreBurst] = useState(false);
+  const viewerCount = useLiveViewerCount();
 
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
@@ -1170,13 +1173,16 @@ export const StreamOverlay: React.FC = () => {
         )}
 
         {/* Portal exit — bottom-right so it is not covered by the score (top-right) */}
-        <Link
-          to="/"
-          className="absolute z-[70] bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] pointer-events-auto rounded-full bg-slate-900/85 hover:bg-emerald-500 text-white hover:text-slate-950 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 border border-white/25 shadow-lg"
-          aria-label="Back to portal"
-        >
-          Portal
-        </Link>
+        <div className="absolute z-[70] bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] pointer-events-auto flex items-center gap-2">
+          <LiveViewerCountBadge count={viewerCount} />
+          <Link
+            to="/"
+            className="rounded-full bg-slate-900/85 hover:bg-emerald-500 text-white hover:text-slate-950 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 border border-white/25 shadow-lg"
+            aria-label="Back to portal"
+          >
+            Portal
+          </Link>
+        </div>
 
         {/* Portrait (or non-iOS): show Sound / Full Screen. Hidden in iOS landscape cinema. */}
         {!showPlayGate && !iosLandscapeCinema && (
@@ -1277,13 +1283,16 @@ export const StreamOverlay: React.FC = () => {
           </button>
         </div>
       )}
-      <Link
-        to="/"
-        className="absolute z-[70] bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] pointer-events-auto rounded-full bg-slate-900/85 hover:bg-emerald-500 text-white hover:text-slate-950 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 border border-white/25 shadow-lg"
-        aria-label="Back to portal"
-      >
-        Portal
-      </Link>
+      <div className="absolute z-[70] bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] pointer-events-auto flex items-center gap-2">
+        <LiveViewerCountBadge count={viewerCount} />
+        <Link
+          to="/"
+          className="rounded-full bg-slate-900/85 hover:bg-emerald-500 text-white hover:text-slate-950 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 border border-white/25 shadow-lg"
+          aria-label="Back to portal"
+        >
+          Portal
+        </Link>
+      </div>
       <div className={overlayAnchorClass}>{scoreBug}</div>
       <LiveEventAdRail />
     </div>
