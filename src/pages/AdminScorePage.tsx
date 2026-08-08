@@ -32,9 +32,11 @@ import {
 import { ServeRacket } from '../components/ServeRacket';
 import { ServingBadge } from '../components/ServingBadge';
 import { WinnerCelebration } from '../components/WinnerCelebration';
+import { BetweenMatchAd } from '../components/BetweenMatchAd';
 import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
+import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
 import { captureAndPersistScoreSnapshot } from '../utils/scoreSnapshot';
 
 /**
@@ -61,6 +63,7 @@ export const AdminScorePage: React.FC = () => {
   const promptedKeyRef = useRef<string | null>(null);
   const autoSavedKeyRef = useRef<string | null>(null);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
+  const { showAd, maybeStartAdAfterCelebration, dismissAd } = useBetweenMatchAd(match);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -694,7 +697,7 @@ export const AdminScorePage: React.FC = () => {
         </p>
       )}
 
-      {celebration && (
+      {celebration && !showAd && (
         <WinnerCelebration
           winnerName={celebration.winnerName}
           opponentName={celebration.opponentName}
@@ -705,6 +708,7 @@ export const AdminScorePage: React.FC = () => {
           matchWinner={celebration.matchWinner}
           onDismiss={() => {
             setCelebration(null);
+            maybeStartAdAfterCelebration();
             if (hasSeriesWinner(match)) {
               setSaveMessage(
                 resultSaved
@@ -732,6 +736,10 @@ export const AdminScorePage: React.FC = () => {
             ) : undefined
           }
         />
+      )}
+
+      {showAd && (
+        <BetweenMatchAd onComplete={dismissAd} allowSkip durationMs={8000} />
       )}
 
     </div>

@@ -35,9 +35,11 @@ import {
 import { buildCustomMatchState } from '../utils/customMatch';
 import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
+import { BetweenMatchAd } from '../components/BetweenMatchAd';
 import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
+import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
 
 /**
  * Full-viewport scoreboard for court / audience.
@@ -68,6 +70,8 @@ export const ScoreControl: React.FC = () => {
   const promptedKeyRef = useRef<string | null>(null);
   const autoSavedKeyRef = useRef<string | null>(null);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
+  const { showAd, maybeStartAdAfterCelebration, dismissAd, skipQueuedAd } =
+    useBetweenMatchAd(match);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -253,6 +257,7 @@ export const ScoreControl: React.FC = () => {
     setNewBestOf(isBestOf(match.bestOf) ? match.bestOf : 1);
     setShowNewMatchForm(true);
     setCelebration(null);
+    skipQueuedAd();
   };
 
   const handleStartNextGame = () => {
@@ -661,7 +666,7 @@ export const ScoreControl: React.FC = () => {
         </p>
       )}
 
-      {celebration && (
+      {celebration && !showAd && (
         <WinnerCelebration
           winnerName={celebration.winnerName}
           opponentName={celebration.opponentName}
@@ -672,6 +677,7 @@ export const ScoreControl: React.FC = () => {
           matchWinner={celebration.matchWinner}
           onDismiss={() => {
             setCelebration(null);
+            maybeStartAdAfterCelebration();
             if (hasSeriesWinner(match)) {
               setSaveMessage(
                 resultSaved
@@ -698,6 +704,10 @@ export const ScoreControl: React.FC = () => {
             ) : undefined
           }
         />
+      )}
+
+      {showAd && !showNewMatchForm && (
+        <BetweenMatchAd onComplete={dismissAd} allowSkip durationMs={8000} />
       )}
 
       {showNewMatchForm && (

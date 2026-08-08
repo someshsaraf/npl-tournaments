@@ -22,8 +22,10 @@ import { ServeRacket } from '../components/ServeRacket';
 import { ServingBadge } from '../components/ServingBadge';
 import { BrandBanner } from '../components/BrandBanner';
 import { WinnerCelebration } from '../components/WinnerCelebration';
+import { BetweenMatchAd } from '../components/BetweenMatchAd';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
+import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
 import { isGoldenPoint } from '../utils/scoring';
 
 /**
@@ -48,6 +50,7 @@ export const LiveScoreboard: React.FC = () => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cssImmersiveRef = useRef(false);
   const { audioEnabled, speechSupported, enableAudio, disableAudio } = useMatchAnnouncer(match);
+  const { showAd, maybeStartAdAfterCelebration, dismissAd } = useBetweenMatchAd(match);
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -57,6 +60,16 @@ export const LiveScoreboard: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  // Audience kiosk: after series win celebration, auto-advance into the ad.
+  useEffect(() => {
+    if (!celebration || !hasSeriesWinner(match) || showAd) return;
+    const timer = window.setTimeout(() => {
+      setCelebration(null);
+      maybeStartAdAfterCelebration();
+    }, 10_000);
+    return () => window.clearTimeout(timer);
+  }, [celebration, match, showAd, maybeStartAdAfterCelebration]);
 
   useEffect(() => {
     const sync = () => {
@@ -404,7 +417,7 @@ export const LiveScoreboard: React.FC = () => {
         </div>
       </main>
 
-      {celebration && (
+      {celebration && !showAd && (
         <WinnerCelebration
           winnerName={celebration.winnerName}
           opponentName={celebration.opponentName}
@@ -413,8 +426,19 @@ export const LiveScoreboard: React.FC = () => {
           gameScores={celebration.gameScores}
           seriesLabel={celebration.seriesLabel}
           matchWinner={celebration.matchWinner}
-          onDismiss={() => setCelebration(null)}
+          onDismiss={() => {
+            setCelebration(null);
+            maybeStartAdAfterCelebration();
+          }}
           variant="audience"
+        />
+      )}
+
+      {showAd && (
+        <BetweenMatchAd
+          onComplete={dismissAd}
+          allowSkip={false}
+          durationMs={8000}
         />
       )}
     </div>
