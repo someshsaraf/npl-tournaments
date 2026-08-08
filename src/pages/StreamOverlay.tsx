@@ -102,6 +102,7 @@ function isMatchInProgress(match: MatchState): boolean {
 /** Minimal YouTube IFrame API surface used by /live. */
 type YtPlayer = {
   playVideo: () => void;
+  pauseVideo: () => void;
   mute: () => void;
   unMute: () => void;
   getPlayerState?: () => number;
@@ -261,6 +262,23 @@ function playWithSound(player: YtPlayer): void {
   }
 }
 
+/** Stop audio/video immediately (used while daypart ads cover /live). */
+function pauseStream(player: YtPlayer | null | undefined): void {
+  if (!player || typeof player !== 'object') return;
+  try {
+    player.mute();
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (typeof player.pauseVideo === 'function') {
+      player.pauseVideo();
+    }
+  } catch (err) {
+    console.error('Failed to pause YouTube stream for ads:', err);
+  }
+}
+
 /**
  * Short label for the compact score bug.
  * Validates name + maxChars; prefers keeping readable doubles ("A / B").
@@ -328,6 +346,8 @@ export const StreamOverlay: React.FC = () => {
   const viewerCount = useLiveViewerCount();
   /** Same 1–5 PM fullscreen poster loop as /score (shared admin stop flag). */
   const { active: daypartAdsActive, ads: daypartAds } = useScoreDaypartAds();
+  /** Ref so player keep-alive / state handlers can suppress play without remounting. */
+  const adsSuppressPlaybackRef = useRef(daypartAdsActive);
 
   const playerRef = useRef<YtPlayer | null>(null);
   const liveRootRef = useRef<HTMLDivElement | null>(null);
@@ -616,6 +636,7 @@ export const StreamOverlay: React.FC = () => {
         const playingState = window.YT.PlayerState?.PLAYING ?? 1;
         const pausedState = window.YT.PlayerState?.PAUSED ?? 2;
         const endedState = window.YT.PlayerState?.ENDED ?? 0;
+        const buffering = window.YT.PlayerState?.BUFFERING ?? 3;
         const cuedState = window.YT.PlayerState?.CUED ?? 5;
 
         const player = new window.YT.Player(PLAYER_ELEMENT_ID, {
@@ -640,6 +661,10 @@ export const StreamOverlay: React.FC = () => {
           events: {
             onReady: (e) => {
               hardenYouTubeIframe(e.target);
+              if (adsSuppressPlaybackRef.current) {
+                pauseStream(e.target);
+                return;
+              }
               if (soundOnRef.current && !iosLike) {
                 playWithSound(e.target);
               } else if (soundOnRef.current && iosLike) {
@@ -650,6 +675,12 @@ export const StreamOverlay: React.FC = () => {
               }
             },
             onStateChange: (e) => {
+              if (adsSuppressPlaybackRef.current) {
+                if (e.data === playingState || e.data === buffering) {
+                  pauseStream(e.target);
+                }
+                return;
+              }
               if (e.data === playingState) {
                 setShowPlayGate(false);
               }
@@ -682,9 +713,8 @@ export const StreamOverlay: React.FC = () => {
         if (!iosLike) {
           keepAliveRef.current = window.setInterval(() => {
             const p = playerRef.current;
-            if (!p || !userStartedRef.current) return;
+            if (!p || !userStartedRef.current || adsSuppressPlaybackRef.current) return;
             const state = typeof p.getPlayerState === 'function' ? p.getPlayerState() : -1;
-            const buffering = window.YT?.PlayerState?.BUFFERING ?? 3;
             if (state === playingState || state === buffering) return;
             if (soundOnRef.current) playWithSound(p);
             else playMuted(p);
@@ -716,7 +746,28 @@ export const StreamOverlay: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId]);
 
+  /**
+   * While daypart ads cover /live, mute + pause YouTube so no stream/recording audio plays.
+   * Resume when the ad window ends (respect prior mute preference).
+   */
+  useEffect(() => {
+    adsSuppressPlaybackRef.current = daypartAdsActive;
+    const player = playerRef.current;
+    if (!player) return;
+
+    if (daypartAdsActive) {
+      pauseStream(player);
+      return;
+    }
+
+    // Ads cleared — resume only if the viewer already engaged / desktop autoplay path.
+    if (!userStartedRef.current && iosLike) return;
+    if (soundOnRef.current) playWithSound(player);
+    else playMuted(player);
+  }, [daypartAdsActive, iosLike]);
+
   const handleUserPlay = () => {
+    if (adsSuppressPlaybackRef.current) return;
     const player = playerRef.current;
     if (!player) {
       setShowPlayGate(true);
@@ -733,6 +784,7 @@ export const StreamOverlay: React.FC = () => {
   };
 
   const handleToggleSound = () => {
+    if (adsSuppressPlaybackRef.current) return;
     const player = playerRef.current;
     if (!player) return;
     userStartedRef.current = true;
