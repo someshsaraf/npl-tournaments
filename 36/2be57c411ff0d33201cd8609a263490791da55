@@ -1,0 +1,28 @@
+src/App.tsx
+  h_d39e845a5ebfa7 17,53
+src/components/ScoreDaypartAdPlayer.tsx
+  h_d39e845a5ebfa7 1-94
+src/firebase.ts
+  h_d39e845a5ebfa7 27-32
+src/hooks/useScoreDaypartAds.ts
+  h_d39e845a5ebfa7 1-125
+src/pages/AdminPanel.tsx
+  h_d39e845a5ebfa7 31,294-302,378-434
+src/pages/AdsTestPage.tsx
+  h_d39e845a5ebfa7 1-101
+src/pages/LiveScoreboard.tsx
+  h_d39e845a5ebfa7 31-32,64,448,457-459
+src/utils/scoreDaypartAds.ts
+  h_d39e845a5ebfa7 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "362be57c411ff0d33201cd8609a263490791da55",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
