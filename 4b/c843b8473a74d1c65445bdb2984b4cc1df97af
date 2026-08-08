@@ -1,0 +1,20 @@
+src/components/WinnerCelebration.tsx
+  h_d39e845a5ebfa7 3,85,89,91,96,99,240-242
+src/hooks/useBetweenMatchAd.ts
+  h_d39e845a5ebfa7 8-12
+src/pages/LiveScoreboard.tsx
+  h_d39e845a5ebfa7 1,10,60-65,69-70,83,90,142-146,213,259-260,265-269
+src/utils/matchState.ts
+  h_d39e845a5ebfa7 139-143,147-161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "4bc843b8473a74d1c65445bdb2984b4cc1df97af",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
