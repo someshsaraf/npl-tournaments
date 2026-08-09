@@ -32,8 +32,20 @@ const COLORS = [
   '#ffffff'
 ];
 
-function pickColor(): string {
-  return COLORS[Math.floor(Math.random() * COLORS.length)] ?? '#fbbf24';
+const GOLD_COLORS = [
+  '#fbbf24',
+  '#f59e0b',
+  '#fde68a',
+  '#fcd34d',
+  '#fffbeb',
+  '#ffffff',
+  '#eab308',
+  '#fef3c7'
+];
+
+function pickColor(palette: 'default' | 'gold'): string {
+  const pool = palette === 'gold' ? GOLD_COLORS : COLORS;
+  return pool[Math.floor(Math.random() * pool.length)] ?? '#fbbf24';
 }
 
 function burst(
@@ -69,15 +81,30 @@ type FireworksCanvasProps = {
    * When false, use the full viewport (WinnerCelebration).
    */
   contain?: boolean;
+  /** Color set — gold for finals champion ceremony. */
+  palette?: 'default' | 'gold';
+  /** Spawn/burst multiplier (clamped). Default 1. */
+  intensity?: number;
 };
 
 /**
  * Fireworks canvas. Animation runs only while mounted.
  * Concurrency: local RAF/state per mount; cleaned up on unmount (no shared globals).
  * Respects prefers-reduced-motion by skipping the animation loop.
+ * Input validation: palette allowlist; intensity clamped to a safe range.
  */
-export function FireworksCanvas({ className, contain = false }: FireworksCanvasProps) {
+export function FireworksCanvas({
+  className,
+  contain = false,
+  palette = 'default',
+  intensity = 1
+}: FireworksCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const safePalette = palette === 'gold' ? 'gold' : 'default';
+  const safeIntensity =
+    typeof intensity === 'number' && Number.isFinite(intensity)
+      ? Math.min(2, Math.max(0.4, intensity))
+      : 1;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -101,7 +128,7 @@ export function FireworksCanvas({ className, contain = false }: FireworksCanvasP
     let spawnTimer = 0;
     let viewW = 0;
     let viewH = 0;
-    const density = contain ? 0.55 : 1;
+    const density = (contain ? 0.55 : 1) * safeIntensity;
 
     const measure = (): { w: number; h: number } => {
       if (contain) {
@@ -133,7 +160,7 @@ export function FireworksCanvas({ className, contain = false }: FireworksCanvasP
         y: h + 8,
         vx: (Math.random() - 0.5) * (contain ? 0.8 : 1.2),
         vy: -(contain ? 3.2 + Math.random() * 2.2 : 6.5 + Math.random() * 3.5),
-        color: pickColor(),
+        color: pickColor(safePalette),
         burstAt: h * (0.12 + Math.random() * 0.4)
       });
     };
@@ -146,8 +173,10 @@ export function FireworksCanvas({ className, contain = false }: FireworksCanvasP
       ctx.clearRect(0, 0, w, h);
 
       spawnTimer += 1;
-      const maxRockets = contain ? 3 : 6;
-      const spawnEvery = contain ? 22 : 18;
+      const maxRockets = Math.round((contain ? 3 : 6) * safeIntensity);
+      const spawnEvery = contain
+        ? Math.max(12, Math.round(22 / safeIntensity))
+        : Math.max(10, Math.round(18 / safeIntensity));
       if (spawnTimer % spawnEvery === 0 && rockets.length < maxRockets) {
         spawnRocket();
       }
@@ -178,7 +207,7 @@ export function FireworksCanvas({ className, contain = false }: FireworksCanvasP
 
         if (r.y <= r.burstAt || r.vy >= 0) {
           burst(particles, r.x, r.y, r.color, density);
-          burst(particles, r.x, r.y, pickColor(), density);
+          burst(particles, r.x, r.y, pickColor(safePalette), density);
           rockets.splice(i, 1);
         }
       }
@@ -209,7 +238,9 @@ export function FireworksCanvas({ className, contain = false }: FireworksCanvasP
     };
 
     resize();
-    for (let i = 0; i < (contain ? 2 : 3); i += 1) spawnRocket();
+    for (let i = 0; i < (contain ? 2 : Math.round(3 * safeIntensity)); i += 1) {
+      spawnRocket();
+    }
     raf = window.requestAnimationFrame(tick);
     window.addEventListener('resize', resize);
 
@@ -225,7 +256,7 @@ export function FireworksCanvas({ className, contain = false }: FireworksCanvasP
       window.removeEventListener('resize', resize);
       ro?.disconnect();
     };
-  }, [contain]);
+  }, [contain, safePalette, safeIntensity]);
 
   const canvasClass =
     typeof className === 'string' && className.trim()

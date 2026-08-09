@@ -32,6 +32,8 @@ type WinnerCelebrationProps = {
   matchWinner?: 1 | 2 | null;
   /** Extra links/actions under the primary buttons (e.g. Schedule / Rules / Admin) */
   extraActions?: ReactNode;
+  /** Finals series win — champion chrome + gold fireworks */
+  isFinal?: boolean;
 };
 
 /**
@@ -57,7 +59,8 @@ export function WinnerCelebration({
   gameScores,
   seriesLabel,
   matchWinner,
-  extraActions
+  extraActions,
+  isFinal = false
 }: WinnerCelebrationProps) {
   const safeName =
     typeof winnerName === 'string' && winnerName.trim() ? winnerName.trim() : 'Winner';
@@ -82,6 +85,7 @@ export function WinnerCelebration({
   const canNewMatch = typeof onNewMatch === 'function';
   const canNextGame = typeof onNextGame === 'function';
   const audience = variant === 'audience';
+  const finals = isFinal === true;
 
   // Audience: large type for hall viewing; winner dominates, opponent stays secondary.
   const titleSize = audience
@@ -112,13 +116,18 @@ export function WinnerCelebration({
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden"
       style={{
         // Fully opaque — never show live scoreboard through the celebration.
-        background: audience ? '#020617' : 'radial-gradient(ellipse at center, rgba(15,23,42,0.72) 0%, rgba(2,6,23,0.94) 70%)'
+        background: audience
+          ? finals
+            ? 'radial-gradient(ellipse at center, #1c1408 0%, #020617 72%)'
+            : '#020617'
+          : 'radial-gradient(ellipse at center, rgba(15,23,42,0.72) 0%, rgba(2,6,23,0.94) 70%)',
+        boxShadow: finals ? 'inset 0 0 0 3px rgba(245,158,11,0.5)' : undefined
       }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="winner-celebration-title"
     >
-      <FireworksCanvas />
+      <FireworksCanvas palette={finals ? 'gold' : 'default'} intensity={finals ? 1.45 : 1} />
 
       <div
         className={
@@ -127,14 +136,25 @@ export function WinnerCelebration({
             : 'relative z-10 flex flex-col items-center justify-center gap-4 sm:gap-6 px-4 text-center max-w-[96vw]'
         }
       >
+        {finals ? (
+          <p
+            className="shrink-0 font-black uppercase tracking-[0.4em] text-amber-200/90"
+            style={{ fontSize: 'clamp(0.7rem, 1.8vw, 1.1rem)' }}
+          >
+            NPL 2026 · Final
+          </p>
+        ) : null}
         <p
-          className="shrink-0 font-black uppercase tracking-[0.35em] text-amber-300"
+          className={`shrink-0 font-black uppercase tracking-[0.35em] ${
+            finals ? 'text-amber-300' : 'text-amber-300'
+          }`}
           style={{
             fontSize: titleSize,
-            animation: 'winner-pulse 1.4s ease-in-out infinite'
+            animation: 'winner-pulse 1.4s ease-in-out infinite',
+            textShadow: finals ? '0 0 24px rgba(245,158,11,0.55)' : undefined
           }}
         >
-          Winner
+          {finals ? 'Champion' : 'Winner'}
         </p>
 
         <h1
@@ -142,7 +162,9 @@ export function WinnerCelebration({
           className="shrink-0 w-full font-black text-white leading-[1.02] px-1"
           style={{
             fontSize: nameSize,
-            textShadow: '0 0 48px rgba(52,211,153,0.55), 0 6px 28px rgba(0,0,0,0.65)',
+            textShadow: finals
+              ? '0 0 56px rgba(245,158,11,0.6), 0 6px 28px rgba(0,0,0,0.65)'
+              : '0 0 48px rgba(52,211,153,0.55), 0 6px 28px rgba(0,0,0,0.65)',
             animation: 'winner-pop 0.7s cubic-bezier(0.22, 1.2, 0.36, 1) both',
             display: '-webkit-box',
             WebkitLineClamp: audience ? 3 : undefined,

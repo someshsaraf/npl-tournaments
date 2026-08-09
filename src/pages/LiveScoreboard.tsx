@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
-import { INITIAL_MATCH } from '../data/tournamentData';
+import { INITIAL_MATCH, isFinalStage } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import {
   formatGameScoresLine,
@@ -80,12 +80,13 @@ export const LiveScoreboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Audience kiosk: auto-dismiss celebration after 10s (ad waits for jingle end).
+  // Audience kiosk: auto-dismiss celebration (finals hold longer for the crowd).
   useEffect(() => {
     if (!celebration || !hasSeriesWinner(match) || showAd) return;
+    const holdMs = isFinalStage(match.stage) ? 15_000 : 10_000;
     const timer = window.setTimeout(() => {
       setCelebration(null);
-    }, 10_000);
+    }, holdMs);
     return () => window.clearTimeout(timer);
   }, [celebration, match, showAd]);
 
@@ -202,6 +203,7 @@ export const LiveScoreboard: React.FC = () => {
   const activeServer = match.server === 2 ? 2 : 1;
   const hasWinner = hasGameWinner(match);
   const seriesOver = hasSeriesWinner(match);
+  const isFinal = isFinalStage(match.stage);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
   const name1 = match.player1 || match.teamA || 'Side A';
@@ -224,23 +226,43 @@ export const LiveScoreboard: React.FC = () => {
         inset: 0,
         width: '100vw',
         height: '100dvh',
-        maxHeight: '100dvh'
+        maxHeight: '100dvh',
+        ...(isFinal
+          ? {
+              boxShadow: 'inset 0 0 0 3px rgba(245, 158, 11, 0.55)'
+            }
+          : {})
       }}
     >
       {/* Brand — compact so scores dominate */}
       <div
-        className="shrink-0 flex justify-center border-b border-slate-800/80 bg-slate-950"
+        className={`shrink-0 flex flex-col items-center border-b bg-slate-950 ${
+          isFinal ? 'border-amber-500/40' : 'border-slate-800/80'
+        }`}
         style={{
           paddingTop: 'max(0.25rem, env(safe-area-inset-top))',
           paddingBottom: '0.25rem'
         }}
       >
         <BrandBanner size="sm" />
+        {isFinal ? (
+          <p
+            className="mt-0.5 font-black uppercase tracking-[0.35em] text-amber-300"
+            style={{
+              fontSize: 'clamp(0.65rem, 1.6vw, 0.95rem)',
+              textShadow: '0 0 18px rgba(245,158,11,0.45)'
+            }}
+          >
+            NPL 2026 · Final
+          </p>
+        ) : null}
       </div>
 
       {/* Match meta strip */}
       <header
-        className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 border-b border-slate-800 bg-slate-950"
+        className={`shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 border-b bg-slate-950 ${
+          isFinal ? 'border-amber-500/35' : 'border-slate-800'
+        }`}
         style={{
           paddingTop: '0.25rem',
           paddingBottom: '0.25rem',
@@ -248,16 +270,32 @@ export const LiveScoreboard: React.FC = () => {
         }}
       >
         <div className="min-w-0 overflow-hidden text-left">
-          <span className="text-sm sm:text-base md:text-lg font-bold text-indigo-400 tracking-wider uppercase truncate block">
+          <span
+            className={`text-sm sm:text-base md:text-lg font-bold tracking-wider uppercase truncate block ${
+              isFinal ? 'text-amber-300' : 'text-indigo-400'
+            }`}
+          >
             {match.category}
           </span>
-          <span className="text-xs sm:text-sm text-slate-500 truncate block">{match.stage}</span>
+          <span
+            className={`text-xs sm:text-sm truncate block ${
+              isFinal
+                ? 'font-black uppercase tracking-[0.28em] text-amber-400/90'
+                : 'text-slate-500'
+            }`}
+          >
+            {isFinal ? 'Final' : match.stage}
+          </span>
         </div>
 
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
           {hasWinner && !celebration ? (
-            <span className="text-sm sm:text-base md:text-lg font-black uppercase tracking-[0.2em] text-emerald-300">
-              {seriesOver ? 'Match win' : 'Game win'}
+            <span
+              className={`text-sm sm:text-base md:text-lg font-black uppercase tracking-[0.2em] ${
+                isFinal && seriesOver ? 'text-amber-300' : 'text-emerald-300'
+              }`}
+            >
+              {seriesOver ? (isFinal ? 'Champion' : 'Match win') : 'Game win'}
             </span>
           ) : !hasWinner && isGoldenPoint(match) ? (
             <span className="text-sm sm:text-base font-black text-amber-300 bg-amber-500/20 border border-amber-400/50 px-4 py-1.5 rounded-full animate-pulse">
@@ -267,10 +305,22 @@ export const LiveScoreboard: React.FC = () => {
             <span className="text-sm sm:text-base font-black text-red-400 bg-red-500/20 border border-red-500/50 px-4 py-1.5 rounded-full animate-pulse">
               DEUCE
             </span>
-          ) : !hasWinner && match.bestOf === 3 ? null : !hasWinner ? (
-            <span className="text-sm sm:text-base font-mono text-amber-300/90 font-bold">
-              Race to {match.maxPoints ?? 11}
-            </span>
+          ) : !hasWinner && match.bestOf === 3 ? (
+            isFinal ? (
+              <span className="text-sm sm:text-base font-black uppercase tracking-[0.28em] text-amber-300 bg-amber-500/15 border border-amber-400/45 px-4 py-1.5 rounded-full">
+                Final
+              </span>
+            ) : null
+          ) : !hasWinner ? (
+            isFinal ? (
+              <span className="text-sm sm:text-base font-black uppercase tracking-[0.28em] text-amber-300 bg-amber-500/15 border border-amber-400/45 px-4 py-1.5 rounded-full">
+                Final · Race to {match.maxPoints ?? 11}
+              </span>
+            ) : (
+              <span className="text-sm sm:text-base font-mono text-amber-300/90 font-bold">
+                Race to {match.maxPoints ?? 11}
+              </span>
+            )
           ) : null}
           {match.isTrump && !celebration && (
             <span className="text-[10px] sm:text-xs bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-0.5 rounded-full font-bold uppercase tracking-widest">
@@ -323,7 +373,13 @@ export const LiveScoreboard: React.FC = () => {
         </div>
       </header>
 
-      <SeriesScoreStrip match={match} size="lg" className="shrink-0 py-1.5 px-3 border-b border-slate-800/80 bg-slate-950" />
+      <SeriesScoreStrip
+        match={match}
+        size="lg"
+        className={`shrink-0 py-1.5 px-3 border-b bg-slate-950 ${
+          isFinal ? 'border-amber-500/30' : 'border-slate-800/80'
+        }`}
+      />
 
       {/* After a win: winner-first hierarchy. During play: split live scores. */}
       {hasWinner ? (
@@ -332,16 +388,20 @@ export const LiveScoreboard: React.FC = () => {
           aria-live="polite"
         >
           <p
-            className="font-black uppercase tracking-[0.28em] text-emerald-300"
+            className={`font-black uppercase tracking-[0.28em] ${
+              isFinal && seriesOver ? 'text-amber-300' : 'text-emerald-300'
+            }`}
             style={{ fontSize: 'clamp(0.85rem, 2.2vw, 1.35rem)' }}
           >
-            {seriesOver ? 'Match winner' : 'Game winner'}
+            {seriesOver ? (isFinal ? 'Champion' : 'Match winner') : 'Game winner'}
           </p>
           <h2
             className="w-full max-w-[min(96vw,70rem)] font-black text-white leading-[1.05]"
             style={{
               fontSize: 'clamp(2.75rem, min(11vw, 16dvh), 8rem)',
-              textShadow: '0 0 40px rgba(52,211,153,0.4)'
+              textShadow: isFinal
+                ? '0 0 44px rgba(245,158,11,0.5)'
+                : '0 0 40px rgba(52,211,153,0.4)'
             }}
           >
             {winnerLabel}
@@ -477,6 +537,7 @@ export const LiveScoreboard: React.FC = () => {
           gameScores={celebration.gameScores}
           seriesLabel={celebration.seriesLabel}
           matchWinner={celebration.matchWinner}
+          isFinal={isFinal && seriesOver}
           onDismiss={() => {
             setCelebration(null);
           }}
