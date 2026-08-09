@@ -39,3 +39,12 @@ export const PLAYER_NAME_ALIASES_PATH = 'settings/playerNameAliases';
  * Rules must allow public .write for create/delete under this path only.
  */
 export const LIVE_VIEWERS_PRESENCE_PATH = 'presence/live';
+
+/**
+ * RTDB path for community gallery uploads metadata (one child per upload).
+ * Files live in Storage under gallery/{id}/… — see storage.rules.
+ */
+export const GALLERY_UPLOADS_PATH = 'galleryUploads';
+
+/** RTDB path for running total of community gallery bytes (5 GB cap). */
+export const GALLERY_TOTAL_BYTES_PATH = 'galleryUploadsMeta/totalBytes';

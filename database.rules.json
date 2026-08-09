@@ -1,0 +1,39 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "currentMatch": {
+      ".read": true,
+      ".write": true
+    },
+    "completedMatches": {
+      ".read": true,
+      ".write": true
+    },
+    "settings": {
+      ".read": true,
+      ".write": true
+    },
+    "presence": {
+      "live": {
+        "$sessionId": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    },
+    "galleryUploads": {
+      ".read": true,
+      "$uploadId": {
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['url', 'kind', 'title', 'fileName', 'contentType', 'storagePath', 'createdAt', 'byteSize']) && (newData.child('kind').val() == 'image' || newData.child('kind').val() == 'video') && newData.child('url').isString() && newData.child('url').val().matches('^https://.*') && newData.child('storagePath').isString() && newData.child('storagePath').val().beginsWith('gallery/') && !newData.child('storagePath').val().matches('.*\\.\\..*') && newData.child('title').isString() && newData.child('title').val().length <= 80 && newData.child('fileName').isString() && newData.child('fileName').val().length <= 120 && newData.child('contentType').isString() && newData.child('createdAt').isString() && newData.child('byteSize').isNumber() && newData.child('byteSize').val() > 0 && newData.child('byteSize').val() <= 41943040"
+      }
+    },
+    "galleryUploadsMeta": {
+      ".read": true,
+      "totalBytes": {
+        ".write": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5368709120"
+      }
+    }
+  }
+}

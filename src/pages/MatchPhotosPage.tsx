@@ -1,22 +1,45 @@
-import { useEffect, useCallback, useState } from 'react';
-import { Loader2, Play, X } from 'lucide-react';
+import { useEffect, useCallback, useRef, useState } from 'react';
+import { Loader2, Play, Upload, X } from 'lucide-react';
 import {
   fetchGalleryManifest,
   type GalleryMediaItem
 } from '../utils/matchGallery';
+import {
+  GALLERY_MAX_IMAGE_BYTES,
+  GALLERY_MAX_TOTAL_BYTES,
+  GALLERY_MAX_VIDEO_BYTES,
+  formatGalleryStorageLabel,
+  subscribeGalleryStorageUsage,
+  subscribeGalleryUploads,
+  uploadGalleryMedia,
+  uploadsToGalleryItems
+} from '../utils/galleryUploads';
+
+const ACCEPT =
+  'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm';
 
 /**
- * Public match photos / clips gallery (public/Gallery — images + mp4).
- * Lightbox stays in-portal; videos use native <video controls playsInline>.
+ * Public match photos / clips gallery.
+ * Static files from public/Gallery + community uploads (Firebase Storage + RTDB).
  *
- * Concurrency: component-local state only.
- * Security: only allowlisted paths from validated manifest.
+ * Concurrency: component-local state + one RTDB listener; cleaned up on unmount.
+ * Security: allowlisted MIME/size on upload; only validated /Gallery/ paths and
+ * HTTPS Firebase download URLs are shown.
  */
 export default function MatchPhotosPage() {
-  const [items, setItems] = useState<GalleryMediaItem[]>([]);
+  const [staticItems, setStaticItems] = useState<GalleryMediaItem[]>([]);
+  const [uploadItems, setUploadItems] = useState<GalleryMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [usedBytes, setUsedBytes] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const items = [...uploadItems, ...staticItems];
+  const storageFull = usedBytes >= GALLERY_MAX_TOTAL_BYTES;
 
   useEffect(() => {
     let cancelled = false;
@@ -27,12 +50,14 @@ export default function MatchPhotosPage() {
       try {
         const list = await fetchGalleryManifest(ac.signal);
         if (cancelled) return;
-        setItems(list);
+        setStaticItems(list);
       } catch (err) {
         if (cancelled) return;
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        setError(err instanceof Error ? err.message : 'Failed to load photos.');
-        setItems([]);
+        // Static manifest missing is OK if uploads exist — soft-fail.
+        console.error('Static gallery load failed:', err);
+        setStaticItems([]);
+        setError(err instanceof Error ? err.message : 'Failed to load curated photos.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -42,6 +67,26 @@ export default function MatchPhotosPage() {
       cancelled = true;
       ac.abort();
     };
+  }, []);
+
+  useEffect(() => {
+    const unsub = subscribeGalleryUploads(
+      (records) => {
+        setUploadItems(uploadsToGalleryItems(records));
+      },
+      (err) => {
+        console.error(err);
+        // Do not wipe curated gallery if RTDB rules block uploads list.
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = subscribeGalleryStorageUsage((bytes) => {
+      setUsedBytes(bytes);
+    });
+    return () => unsub();
   }, []);
 
   const closeLightbox = useCallback(() => setActiveIndex(null), []);
@@ -76,44 +121,134 @@ export default function MatchPhotosPage() {
     };
   }, [activeIndex, closeLightbox, showPrev, showNext]);
 
+  const handlePickClick = () => {
+    setUploadError(null);
+    setUploadMessage(null);
+    if (storageFull) {
+      setUploadError('Gallery storage is full (5 GB limit).');
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleFilesSelected = async (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    const file = list[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError(null);
+    setUploadMessage(null);
+    try {
+      const record = await uploadGalleryMedia(file);
+      setUploadMessage(`Uploaded “${record.title}”. Thanks!`);
+      // RTDB listener will refresh the grid; optimistically prepend.
+      setUploadItems((prev) => {
+        const next: GalleryMediaItem = {
+          id: record.id,
+          src: record.url,
+          file: record.fileName,
+          kind: record.kind,
+          title: record.title
+        };
+        if (prev.some((p) => p.id === record.id)) return prev;
+        return [next, ...prev];
+      });
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const active = activeIndex !== null ? items[activeIndex] ?? null : null;
+  const imageMb = Math.round(GALLERY_MAX_IMAGE_BYTES / (1024 * 1024));
+  const videoMb = Math.round(GALLERY_MAX_VIDEO_BYTES / (1024 * 1024));
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">
-          Match photos
-        </h1>
-        <p className="text-sm text-slate-400">
-          Court photos and short clips from NPL 2026
-          {items.length > 0 ? ` · ${items.length} item${items.length === 1 ? '' : 's'}` : ''}
-        </p>
+      <header className="space-y-3">
+        <div className="space-y-1">
+          <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">
+            Match photos
+          </h1>
+          <p className="text-sm text-slate-400">
+            Court photos and short clips from NPL 2026
+            {items.length > 0 ? ` · ${items.length} item${items.length === 1 ? '' : 's'}` : ''}
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPT}
+            className="sr-only"
+            aria-hidden
+            tabIndex={-1}
+            onChange={(e) => void handleFilesSelected(e.target.files)}
+          />
+          <button
+            type="button"
+            onClick={handlePickClick}
+            disabled={uploading || storageFull}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-slate-950 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {uploading ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Upload className="size-4" aria-hidden />
+            )}
+            {uploading ? 'Uploading…' : storageFull ? 'Storage full' : 'Upload photo or clip'}
+          </button>
+          <p className="text-[11px] text-slate-500">
+            JPG / PNG / WebP / GIF (max {imageMb}MB) · MP4 / WebM (max {videoMb}MB)
+            <span className="block sm:inline sm:before:content-['·_'] mt-0.5 sm:mt-0">
+              Used {formatGalleryStorageLabel(usedBytes)}
+            </span>
+          </p>
+        </div>
+
+        {uploadError ? (
+          <p className="text-sm text-amber-200 font-medium" role="alert">
+            {uploadError}
+          </p>
+        ) : null}
+        {uploadMessage ? (
+          <p className="text-sm text-emerald-300 font-medium" role="status">
+            {uploadMessage}
+          </p>
+        ) : null}
       </header>
 
-      {loading ? (
+      {loading && items.length === 0 ? (
         <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
           <Loader2 className="size-5 animate-spin" aria-hidden />
           <span className="text-sm font-medium">Loading gallery…</span>
         </div>
       ) : null}
 
-      {!loading && error ? (
+      {!loading && error && items.length === 0 ? (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-5">
           <p className="text-sm text-amber-100 font-medium">{error}</p>
+          <p className="text-xs text-amber-100/70 mt-2">
+            You can still upload a photo above once Firebase rules allow gallery writes.
+          </p>
         </div>
       ) : null}
 
-      {!loading && !error && items.length === 0 ? (
+      {!loading && items.length === 0 && !error ? (
         <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
-          No photos yet. Add files to <code className="text-slate-300">public/Gallery</code> and
-          run <code className="text-slate-300">npm run gallery:manifest</code>.
+          No photos yet — be the first to upload, or add files under{' '}
+          <code className="text-slate-300">public/Gallery</code>.
         </p>
       ) : null}
 
-      {!loading && items.length > 0 ? (
+      {items.length > 0 ? (
         <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {items.map((item, index) => (
-            <li key={item.file}>
+            <li key={item.id ?? `static:${item.file}`}>
               <button
                 type="button"
                 onClick={() => setActiveIndex(index)}

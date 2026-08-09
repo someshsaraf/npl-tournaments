@@ -12,6 +12,8 @@ export type GalleryMediaItem = {
   file: string;
   kind: GalleryMediaKind;
   title: string;
+  /** Present for community uploads (RTDB id). */
+  id?: string;
 };
 
 export type GalleryManifest = {
