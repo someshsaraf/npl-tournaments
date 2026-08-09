@@ -26,7 +26,7 @@ function useViewportOrientation(): 'portrait' | 'landscape' {
 }
 
 /**
- * Continuous fullscreen poster loop for /score and /live during the 1–5 PM daypart.
+ * Continuous fullscreen poster loop for /score and /live during the 1–4 PM daypart.
  * Portrait posters scale to fit; landscape uses a blurred fill + contained poster.
  *
  * Concurrency: local interval/state only; cleaned up on unmount.

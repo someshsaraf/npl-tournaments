@@ -344,7 +344,7 @@ export const StreamOverlay: React.FC = () => {
   /** Brief fireworks on the score bug only — not a center-page modal. */
   const [scoreBurst, setScoreBurst] = useState(false);
   const viewerCount = useLiveViewerCount();
-  /** Same 1–5 PM fullscreen poster loop as /score (shared admin stop flag). */
+  /** Same 1–4 PM fullscreen poster loop as /score (shared admin stop flag). */
   const { active: daypartAdsActive, ads: daypartAds } = useScoreDaypartAds();
   /** Ref so player keep-alive / state handlers can suppress play without remounting. */
   const adsSuppressPlaybackRef = useRef(daypartAdsActive);

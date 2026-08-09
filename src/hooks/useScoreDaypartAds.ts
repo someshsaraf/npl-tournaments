@@ -14,7 +14,7 @@ const CLOCK_TICK_MS = 30_000;
 const AD_REFRESH_MS = 60_000;
 
 /**
- * Drives /score + /live 1–5 PM fullscreen ad loop + Firebase same-day stop flag.
+ * Drives /score + /live 1–4 PM fullscreen ad loop + Firebase same-day stop flag.
  * Concurrency: local state + one RTDB listener; cleaned up on unmount.
  * Security: only reads the allowlisted settings path; validates date-key shape.
  */
@@ -105,7 +105,7 @@ export function useScoreDaypartAdsAdmin(): {
     setMessage(null);
     try {
       await set(ref(db, SCORE_DAYPART_ADS_STOPPED_DATE_PATH), null);
-      setMessage('Score & live ads resumed for the 1–5 PM window.');
+      setMessage('Score & live ads resumed for the 1–4 PM window.');
     } catch (err) {
       console.error('Failed to resume score daypart ads:', err);
       setMessage('Failed to resume ads — check Firebase permissions.');

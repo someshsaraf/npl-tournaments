@@ -4,7 +4,7 @@ import { useScoreDaypartAds, useScoreDaypartAdsAdmin } from '../hooks/useScoreDa
 
 /**
  * Staff test page for /score + /live daypart fullscreen ads.
- * Always previews the rotating posters (ignores 1–5 PM window) so you can verify
+ * Always previews the rotating posters (ignores 1–4 PM window) so you can verify
  * creatives anytime. Stop/resume still uses the same Firebase flag as /score and /live.
  *
  * Concurrency: hooks own their listeners/timers.
@@ -52,7 +52,7 @@ export default function AdsTestPage() {
               <span className="text-slate-400 font-semibold">would not play</span>
             )}
             {' · '}
-            window {inWindow ? 'open (1–5 PM)' : 'closed'}
+            window {inWindow ? 'open (1–4 PM)' : 'closed'}
             {' · '}
             {stoppedToday ? 'admin stopped today' : 'not stopped'}
           </p>

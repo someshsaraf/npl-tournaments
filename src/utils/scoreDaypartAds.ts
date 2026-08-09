@@ -1,5 +1,5 @@
 /**
- * /score + /live daypart fullscreen ads: local 13:00–17:00 window + admin same-day stop.
+ * /score + /live daypart fullscreen ads: local 13:00–16:00 window + admin same-day stop.
  *
  * Concurrency: pure helpers; no shared mutable state.
  * Security: stop flag is a YYYY-MM-DD string only (no free-form payloads).
@@ -10,8 +10,8 @@ const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Inclusive start hour (1 PM local). */
 export const SCORE_DAYPART_ADS_START_HOUR = 13;
-/** Exclusive end hour (5 PM local). */
-export const SCORE_DAYPART_ADS_END_HOUR = 17;
+/** Exclusive end hour (4 PM local). */
+export const SCORE_DAYPART_ADS_END_HOUR = 16;
 
 export function getLocalDateKey(now: Date = new Date()): string {
   const d = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
@@ -25,7 +25,7 @@ export function isValidStoppedDateKey(value: unknown): value is string {
   return typeof value === 'string' && DATE_KEY_RE.test(value);
 }
 
-/** True during [13:00, 17:00) local time. */
+/** True during [13:00, 16:00) local time. */
 export function isScoreDaypartAdsWindow(now: Date = new Date()): boolean {
   const d = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
   const hour = d.getHours();
