@@ -1,0 +1,20 @@
+src/components/FireworksCanvas.tsx
+  h_d39e845a5ebfa7 35-48,84-87,94,96-101,103-107,131,163,176-179,210,241-243,259
+src/components/WinnerCelebration.tsx
+  h_d39e845a5ebfa7 35-36,62-63,88,119-124,130,139-146,148-150,153-154,157,165-167
+src/data/tournamentData.ts
+  h_d39e845a5ebfa7 35-40,184,186-196,204-210
+src/pages/LiveScoreboard.tsx
+  h_d39e845a5ebfa7 5,83,86,89,206,229-234,239-241,248-258,263-265,273-277,280-288,293-298,308-323,376-382,391-393,396,402-404,540
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "9334193c8744ad92983086bf73a56cbe0ee44d6c",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
