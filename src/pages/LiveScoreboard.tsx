@@ -58,18 +58,24 @@ export const LiveScoreboard: React.FC = () => {
   const { showAd, currentAd, maybeStartAdAfterCelebration, dismissAd } =
     useBetweenMatchAd(match);
 
-  /** /score: start between-match ad only after victory jingle ends (or skips). */
+  /** /score: start between-match ad only after victory jingle ends (or skips). Never for finals. */
   const handleJingleEnded = useCallback(() => {
+    if (isFinalStage(match.stage)) return;
     maybeStartAdAfterCelebration();
-  }, [maybeStartAdAfterCelebration]);
+  }, [maybeStartAdAfterCelebration, match.stage]);
+
+  const isFinalMatch = isFinalStage(match.stage);
 
   const { embedSrc: victoryJingleSrc, stopJingle } = useVictoryJingle({
-    seriesOver: hasSeriesWinner(match),
-    celebrationVisible: Boolean(celebration) && hasSeriesWinner(match),
+    seriesOver: hasSeriesWinner(match) && !isFinalMatch,
+    celebrationVisible:
+      Boolean(celebration) && hasSeriesWinner(match) && !isFinalMatch,
     matchId: match.currentMatchId,
     onJingleEnded: handleJingleEnded
   });
   const { active: daypartAdsActive, ads: daypartAds } = useScoreDaypartAds();
+  /** Finals: no daypart ads, no between-match ads, no victory music. */
+  const allowAdsAndMusic = !isFinalMatch;
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -80,13 +86,13 @@ export const LiveScoreboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Audience kiosk: auto-dismiss celebration (finals hold longer for the crowd).
+  // Audience kiosk: auto-dismiss celebration — finals hold until next match starts.
   useEffect(() => {
     if (!celebration || !hasSeriesWinner(match) || showAd) return;
-    const holdMs = isFinalStage(match.stage) ? 15_000 : 10_000;
+    if (isFinalStage(match.stage)) return;
     const timer = window.setTimeout(() => {
       setCelebration(null);
-    }, holdMs);
+    }, 10_000);
     return () => window.clearTimeout(timer);
   }, [celebration, match, showAd]);
 
@@ -203,7 +209,7 @@ export const LiveScoreboard: React.FC = () => {
   const activeServer = match.server === 2 ? 2 : 1;
   const hasWinner = hasGameWinner(match);
   const seriesOver = hasSeriesWinner(match);
-  const isFinal = isFinalStage(match.stage);
+  const isFinal = isFinalMatch;
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
   const name1 = match.player1 || match.teamA || 'Side A';
@@ -214,6 +220,13 @@ export const LiveScoreboard: React.FC = () => {
   const opponentLabel = match.gameWinner === 1 ? name2 : name1;
   const showServing = !hasWinner;
   const winnerFirstScore = formatWinnerFirstScore(score1, score2, match.gameWinner);
+  const bo3GameScores =
+    match.bestOf === 3 && Array.isArray(match.gameScores)
+      ? match.gameScores.filter(
+          (g) => g && Number.isFinite(g.score1) && Number.isFinite(g.score2)
+        )
+      : [];
+  const showBo3Inline = bo3GameScores.length > 0;
 
   return (
     <div
@@ -384,21 +397,23 @@ export const LiveScoreboard: React.FC = () => {
       {/* After a win: winner-first hierarchy. During play: split live scores. */}
       {hasWinner ? (
         <main
-          className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-4 px-4 text-center bg-slate-950"
+          className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-5 px-4 text-center bg-slate-950"
           aria-live="polite"
         >
           <p
             className={`font-black uppercase tracking-[0.28em] ${
               isFinal && seriesOver ? 'text-amber-300' : 'text-emerald-300'
             }`}
-            style={{ fontSize: 'clamp(0.85rem, 2.2vw, 1.35rem)' }}
+            style={{ fontSize: 'clamp(1.1rem, 2.8vw, 1.75rem)' }}
           >
             {seriesOver ? (isFinal ? 'Champion' : 'Match winner') : 'Game winner'}
           </p>
           <h2
-            className="w-full max-w-[min(96vw,70rem)] font-black text-white leading-[1.05]"
+            className="w-full max-w-[min(98vw,80rem)] font-black text-white leading-[1.02]"
             style={{
-              fontSize: 'clamp(2.75rem, min(11vw, 16dvh), 8rem)',
+              fontSize: showBo3Inline
+                ? 'clamp(4.5rem, min(15vw, 22dvh), 11rem)'
+                : 'clamp(5rem, min(16vw, 24dvh), 12rem)',
               textShadow: isFinal
                 ? '0 0 44px rgba(245,158,11,0.5)'
                 : '0 0 40px rgba(52,211,153,0.4)'
@@ -406,18 +421,84 @@ export const LiveScoreboard: React.FC = () => {
           >
             {winnerLabel}
           </h2>
-          <p
-            className="font-black font-mono tabular-nums text-amber-300 leading-none"
-            style={{
-              fontSize: 'clamp(4.5rem, min(20vw, 26dvh), 12rem)',
-              textShadow: '0 0 36px rgba(251,191,36,0.45)'
-            }}
-          >
-            {winnerFirstScore}
-          </p>
+          {showBo3Inline ? (
+            <div
+              className="flex w-full max-w-[min(98vw,80rem)] items-stretch justify-center gap-2 sm:gap-4"
+              aria-label={`Game scores ${bo3GameScores.map((g, i) => `G${i + 1} ${g.score1}-${g.score2}`).join(', ')}`}
+            >
+              {[0, 1, 2].map((i) => {
+                const g = bo3GameScores[i];
+                const filled = !!g;
+                const winnerSide =
+                  match.matchWinner === 1 || match.matchWinner === 2
+                    ? match.matchWinner
+                    : seriesOver && (match.gameWinner === 1 || match.gameWinner === 2)
+                      ? match.gameWinner
+                      : null;
+                const wonByMatchWinner =
+                  filled && winnerSide !== null && g.winner === winnerSide;
+                return (
+                  <div
+                    key={`inline-g${i + 1}`}
+                    className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl border px-2 py-3 sm:px-4 sm:py-5 ${
+                      wonByMatchWinner
+                        ? 'border-emerald-400 bg-emerald-500/30'
+                        : filled
+                          ? 'border-amber-400/50 bg-slate-950/50'
+                          : 'border-slate-700/40 bg-slate-950/20 opacity-35'
+                    }`}
+                  >
+                    <span
+                      className={`font-black uppercase tracking-[0.2em] ${
+                        wonByMatchWinner ? 'text-emerald-200' : 'text-slate-400'
+                      }`}
+                      style={{ fontSize: 'clamp(1rem, 2.4vw, 1.5rem)' }}
+                    >
+                      G{i + 1}
+                      {wonByMatchWinner ? ' · W' : ''}
+                    </span>
+                    <span
+                      className={`font-black font-mono tabular-nums leading-none ${
+                        wonByMatchWinner
+                          ? 'text-emerald-200'
+                          : filled
+                            ? 'text-amber-300'
+                            : 'text-slate-600'
+                      }`}
+                      style={{ fontSize: 'clamp(3.75rem, min(16vw, 20dvh), 9rem)' }}
+                    >
+                      {filled
+                        ? formatWinnerFirstScore(g.score1, g.score2, g.winner)
+                        : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p
+              className="font-black font-mono tabular-nums text-amber-300 leading-none"
+              style={{
+                fontSize: 'clamp(7rem, min(28vw, 34dvh), 16rem)',
+                textShadow: '0 0 36px rgba(251,191,36,0.45)'
+              }}
+            >
+              {winnerFirstScore}
+            </p>
+          )}
+          {showBo3Inline ? (
+            <p
+              className={`font-black tracking-wide ${
+                isFinal && seriesOver ? 'text-amber-300' : 'text-emerald-300'
+              }`}
+              style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2.5rem)' }}
+            >
+              Games {formatGamesWonLabel(match)}
+            </p>
+          ) : null}
           <p
             className="w-full max-w-[min(92vw,48rem)] font-semibold text-slate-400 leading-snug"
-            style={{ fontSize: 'clamp(1.05rem, min(3.4vw, 4.5dvh), 2rem)' }}
+            style={{ fontSize: 'clamp(1.35rem, min(4.2vw, 5.5dvh), 2.5rem)' }}
           >
             <span className="uppercase tracking-[0.16em] text-amber-300/80 font-black mr-2">
               def.
@@ -528,7 +609,7 @@ export const LiveScoreboard: React.FC = () => {
       </main>
       )}
 
-      {celebration && !showAd && (
+      {celebration && !(showAd && allowAdsAndMusic) && (
         <WinnerCelebration
           winnerName={celebration.winnerName}
           opponentName={celebration.opponentName}
@@ -545,7 +626,7 @@ export const LiveScoreboard: React.FC = () => {
         />
       )}
 
-      {showAd && currentAd && !daypartAdsActive && (
+      {allowAdsAndMusic && showAd && currentAd && !daypartAdsActive && (
         <BetweenMatchAd
           ad={currentAd}
           onComplete={dismissAd}
@@ -554,9 +635,11 @@ export const LiveScoreboard: React.FC = () => {
         />
       )}
 
-      {daypartAdsActive ? <ScoreDaypartAdPlayer ads={daypartAds} /> : null}
+      {allowAdsAndMusic && daypartAdsActive ? (
+        <ScoreDaypartAdPlayer ads={daypartAds} />
+      ) : null}
 
-      {victoryJingleSrc && !daypartAdsActive ? (
+      {allowAdsAndMusic && victoryJingleSrc && !daypartAdsActive ? (
         <VictoryJinglePlayer embedSrc={victoryJingleSrc} onClose={stopJingle} />
       ) : null}
     </div>

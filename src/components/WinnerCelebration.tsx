@@ -86,30 +86,36 @@ export function WinnerCelebration({
   const canNextGame = typeof onNextGame === 'function';
   const audience = variant === 'audience';
   const finals = isFinal === true;
-
-  // Audience: large type for hall viewing; winner dominates, opponent stays secondary.
+  // Audience /score: hall-scale type. BO3 needs big name + big G1–G3 together.
   const titleSize = audience
-    ? 'clamp(1rem, 2.8vw, 1.75rem)'
+    ? finals
+      ? 'clamp(1.35rem, 3.4vw, 2.25rem)'
+      : 'clamp(1.25rem, 3.2vw, 2rem)'
     : 'clamp(0.85rem, 2.5vw, 1.25rem)';
   const nameSize = audience
-    ? 'clamp(3.25rem, min(12vw, 18dvh), 9rem)'
+    ? showBo3Games
+      ? 'clamp(4.5rem, min(15vw, 22dvh), 11rem)'
+      : 'clamp(5rem, min(16vw, 24dvh), 12rem)'
     : showBo3Games
       ? 'clamp(3.5rem, min(20vw, 26dvh), 12rem)'
       : 'clamp(4rem, min(22vw, 32dvh), 14rem)';
   const opponentSize = audience
-    ? 'clamp(1.1rem, min(3.6vw, 4.8dvh), 2.15rem)'
+    ? 'clamp(1.35rem, min(4.2vw, 5.5dvh), 2.5rem)'
     : showBo3Games
       ? 'clamp(1.75rem, min(9vw, 12dvh), 5rem)'
       : 'clamp(2rem, min(10vw, 14dvh), 6rem)';
   const scoreSize = audience
-    ? 'clamp(5rem, min(22vw, 28dvh), 14rem)'
+    ? 'clamp(7rem, min(28vw, 34dvh), 16rem)'
     : 'clamp(3rem, 14vw, 9rem)';
   const gameScoreSize = audience
-    ? 'clamp(2rem, min(10vw, 12dvh), 5rem)'
+    ? 'clamp(3.75rem, min(16vw, 20dvh), 9rem)'
     : 'clamp(1.75rem, min(11vw, 12dvh), 4.5rem)';
   const gameLabelSize = audience
-    ? 'clamp(0.7rem, 1.6vw, 1rem)'
+    ? 'clamp(1rem, 2.4vw, 1.5rem)'
     : 'clamp(0.65rem, 1.5vw, 0.9rem)';
+  const seriesSize = audience
+    ? 'clamp(1.5rem, 3.5vw, 2.5rem)'
+    : undefined;
 
   return (
     <div
@@ -196,7 +202,7 @@ export function WinnerCelebration({
 
         {showBo3Games ? (
           <div
-            className="shrink-0 flex w-full max-w-[96vw] items-center justify-center gap-2 sm:gap-3"
+            className="shrink-0 flex w-full max-w-[min(98vw,80rem)] items-stretch justify-center gap-2 sm:gap-4"
             aria-label={`Game scores ${bo3Scores.map((g, i) => `G${i + 1} ${g.score1}-${g.score2}`).join(', ')}`}
           >
             {[0, 1, 2].map((i) => {
@@ -212,7 +218,7 @@ export function WinnerCelebration({
               return (
                 <div
                   key={`win-g${i + 1}`}
-                  className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl border px-1 py-2 sm:px-3 sm:py-3 ${
+                  className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl border px-2 py-3 sm:px-4 sm:py-5 ${
                     wonByMatchWinner
                       ? 'border-emerald-400 bg-emerald-500/30 shadow-lg shadow-emerald-500/25'
                       : wonByOther
@@ -275,7 +281,12 @@ export function WinnerCelebration({
         )}
 
         {safeSeries ? (
-          <p className="shrink-0 text-sm sm:text-base font-black text-emerald-300 tracking-wide">
+          <p
+            className={`shrink-0 font-black tracking-wide ${
+              finals ? 'text-amber-300' : 'text-emerald-300'
+            }`}
+            style={{ fontSize: seriesSize ?? undefined }}
+          >
             Games {safeSeries}
           </p>
         ) : null}
@@ -333,18 +344,25 @@ export function WinnerCelebration({
               New Match
             </button>
           )}
-          <button
-            type="button"
-            onClick={onDismiss}
-            disabled={isSaving}
-            className={
-              audience
-                ? 'rounded-xl bg-slate-800/90 text-white font-bold text-xs sm:text-sm px-5 py-2.5 border border-slate-600 active:scale-95 disabled:opacity-50'
-                : 'rounded-2xl bg-slate-800 text-white font-black text-sm sm:text-base px-8 py-3.5 border border-slate-600 active:scale-95 disabled:opacity-50'
-            }
-          >
-            Continue
-          </button>
+          {/* Finals on /score: hold fireworks until next match — no dismiss. */}
+          {!(audience && finals) ? (
+            <button
+              type="button"
+              onClick={onDismiss}
+              disabled={isSaving}
+              className={
+                audience
+                  ? 'rounded-xl bg-slate-800/90 text-white font-bold text-xs sm:text-sm px-5 py-2.5 border border-slate-600 active:scale-95 disabled:opacity-50'
+                  : 'rounded-2xl bg-slate-800 text-white font-black text-sm sm:text-base px-8 py-3.5 border border-slate-600 active:scale-95 disabled:opacity-50'
+              }
+            >
+              Continue
+            </button>
+          ) : (
+            <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.2em] text-amber-200/80">
+              Holding for next match
+            </p>
+          )}
         </div>
         {extraActions ? (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2 w-full max-w-lg px-2">
