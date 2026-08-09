@@ -1,0 +1,24 @@
+src/components/ScoreDaypartAdPlayer.tsx
+  h_d39e845a5ebfa7 29
+src/hooks/useScoreDaypartAds.ts
+  h_d39e845a5ebfa7 17,108
+src/pages/AdminPanel.tsx
+  h_d39e845a5ebfa7 378,381,392,397,399
+src/pages/AdsTestPage.tsx
+  h_d39e845a5ebfa7 7,55
+src/pages/StreamOverlay.tsx
+  h_d39e845a5ebfa7 347
+src/utils/scoreDaypartAds.ts
+  h_d39e845a5ebfa7 2,13-14,28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "580e2ae87746aaad6ef922af513cb40451176fbe",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
