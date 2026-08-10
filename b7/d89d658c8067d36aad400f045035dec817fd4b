@@ -1,0 +1,20 @@
+public/Gallery/README.md
+  h_d39e845a5ebfa7 15,25-27
+src/pages/MatchPhotosPage.tsx
+  h_d39e845a5ebfa7 6-13,32-33,46-48,145-150,155,157-168,180-181,183,191-192,219,221,236,243-258,319,326
+src/utils/galleryUploads.ts
+  h_d39e845a5ebfa7 12-16,18-19,48-50,98-123,198-202,214,228-229,393-394,397-402,445,458
+src/utils/matchGallery.ts
+  h_d39e845a5ebfa7 15,17-18,34-48,65-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "b7d89d658c8067d36aad400f045035dec817fd4b",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
