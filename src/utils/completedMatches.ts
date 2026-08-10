@@ -219,6 +219,218 @@ export function sortCompletedMatches(rows: CompletedMatch[]): CompletedMatch[] {
   });
 }
 
+/** Admin-editable fields for a completed match (fixture id is immutable). */
+export type CompletedMatchEditInput = {
+  category: string;
+  stage: string;
+  details: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  teamA: string;
+  teamB: string;
+  player1: string;
+  player2: string;
+  score1: number;
+  score2: number;
+  result: string;
+  winnerSide: 1 | 2;
+  isTrump: boolean;
+  bestOf: 1 | 3;
+  gamesWon1: number;
+  gamesWon2: number;
+  /** ISO timestamp; completedDate/Time are derived. */
+  completedAt: string;
+};
+
+function clipStr(value: unknown, max: number, label: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(`${label} must be text.`);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > max) {
+    throw new Error(`${label} must be at most ${max} characters.`);
+  }
+  return trimmed;
+}
+
+function parseNonNegInt(value: unknown, label: string): number {
+  const n =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim()
+        ? Number(value)
+        : NaN;
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+    throw new Error(`${label} must be a whole number ≥ 0.`);
+  }
+  if (n > 999) {
+    throw new Error(`${label} is too large.`);
+  }
+  return n;
+}
+
+/**
+ * Merge admin edits into an existing completed match.
+ * Preserves id/fixtureId, snapshots, maxPoints, and gameScores.
+ *
+ * Concurrency: pure — caller writes the result to RTDB.
+ * Security: no secrets; validates types/ranges before write.
+ * Input: existing CompletedMatch + edit payload; fails fast on bad values.
+ */
+export function applyCompletedMatchEdits(
+  existing: CompletedMatch,
+  edits: unknown
+): CompletedMatch {
+  if (!existing || typeof existing !== 'object') {
+    throw new Error('applyCompletedMatchEdits: existing match required');
+  }
+  if (typeof existing.fixtureId !== 'string' || !existing.fixtureId.trim()) {
+    throw new Error('applyCompletedMatchEdits: fixtureId required');
+  }
+  if (!edits || typeof edits !== 'object' || Array.isArray(edits)) {
+    throw new Error('Edit form data is invalid.');
+  }
+  const raw = edits as Record<string, unknown>;
+
+  const category = clipStr(raw.category, 80, 'Category');
+  const stage = clipStr(raw.stage, 80, 'Stage');
+  const details = clipStr(raw.details, 200, 'Match');
+  if (!details) throw new Error('Match details are required.');
+  const scheduledDate = clipStr(raw.scheduledDate, 40, 'Scheduled date');
+  const scheduledTime = clipStr(raw.scheduledTime, 20, 'Scheduled time');
+  const teamA = clipStr(raw.teamA, 80, 'Team A');
+  const teamB = clipStr(raw.teamB, 80, 'Team B');
+  const player1 = clipStr(raw.player1, 120, 'Player / side A');
+  const player2 = clipStr(raw.player2, 120, 'Player / side B');
+  const result = clipStr(raw.result, 80, 'Result');
+  if (!result) throw new Error('Result is required.');
+
+  const score1 = parseNonNegInt(raw.score1, 'Score 1');
+  const score2 = parseNonNegInt(raw.score2, 'Score 2');
+  const gamesWon1 = parseNonNegInt(raw.gamesWon1, 'Games won (side A)');
+  const gamesWon2 = parseNonNegInt(raw.gamesWon2, 'Games won (side B)');
+
+  const winnerSideRaw = raw.winnerSide;
+  const winnerSideNum =
+    typeof winnerSideRaw === 'number'
+      ? winnerSideRaw
+      : typeof winnerSideRaw === 'string'
+        ? Number(winnerSideRaw)
+        : NaN;
+  if (winnerSideNum !== 1 && winnerSideNum !== 2) {
+    throw new Error('Winner side must be 1 or 2.');
+  }
+  const winnerSide = winnerSideNum as 1 | 2;
+
+  const bestOfRaw = raw.bestOf;
+  const bestOfNum =
+    typeof bestOfRaw === 'number'
+      ? bestOfRaw
+      : typeof bestOfRaw === 'string'
+        ? Number(bestOfRaw)
+        : NaN;
+  if (!isBestOf(bestOfNum)) {
+    throw new Error('Best of must be 1 or 3.');
+  }
+
+  const isTrump = raw.isTrump === true || raw.isTrump === 'true';
+
+  const completedAtRaw = clipStr(raw.completedAt, 40, 'Completed at');
+  const completedMs = Date.parse(completedAtRaw);
+  if (!Number.isFinite(completedMs)) {
+    throw new Error('Completed time must be a valid date/time.');
+  }
+  const completedAtDate = new Date(completedMs);
+  const completedAt = completedAtDate.toISOString();
+
+  const winnerName =
+    winnerSide === 1
+      ? player1 || teamA || 'Side A'
+      : player2 || teamB || 'Side B';
+
+  return {
+    ...existing,
+    id: existing.fixtureId,
+    fixtureId: existing.fixtureId,
+    status: 'completed',
+    category,
+    stage,
+    details,
+    scheduledDate,
+    scheduledTime,
+    teamA,
+    teamB,
+    player1,
+    player2,
+    score1,
+    score2,
+    result,
+    winnerSide,
+    winnerName,
+    isTrump,
+    bestOf: bestOfNum,
+    gamesWon1,
+    gamesWon2,
+    completedAt,
+    completedDate: formatMatchDate(completedAtDate),
+    completedTime: formatMatchTime(completedAtDate)
+  };
+}
+
+/** Build edit-form defaults from a completed match row. */
+export function completedMatchToEditInput(row: CompletedMatch): CompletedMatchEditInput {
+  if (!row || typeof row !== 'object') {
+    throw new Error('completedMatchToEditInput: row required');
+  }
+  const completedMs = Date.parse(row.completedAt || '');
+  const completedAt = Number.isFinite(completedMs)
+    ? new Date(completedMs).toISOString()
+    : new Date().toISOString();
+
+  return {
+    category: typeof row.category === 'string' ? row.category : '',
+    stage: typeof row.stage === 'string' ? row.stage : '',
+    details: typeof row.details === 'string' ? row.details : '',
+    scheduledDate: typeof row.scheduledDate === 'string' ? row.scheduledDate : '',
+    scheduledTime: typeof row.scheduledTime === 'string' ? row.scheduledTime : '',
+    teamA: typeof row.teamA === 'string' ? row.teamA : '',
+    teamB: typeof row.teamB === 'string' ? row.teamB : '',
+    player1: typeof row.player1 === 'string' ? row.player1 : '',
+    player2: typeof row.player2 === 'string' ? row.player2 : '',
+    score1: Number.isFinite(row.score1) ? row.score1 : 0,
+    score2: Number.isFinite(row.score2) ? row.score2 : 0,
+    result: typeof row.result === 'string' ? row.result : '',
+    winnerSide: row.winnerSide === 2 ? 2 : 1,
+    isTrump: !!row.isTrump,
+    bestOf: isBestOf(row.bestOf) ? row.bestOf : 1,
+    gamesWon1: Number.isFinite(row.gamesWon1) ? Number(row.gamesWon1) : 0,
+    gamesWon2: Number.isFinite(row.gamesWon2) ? Number(row.gamesWon2) : 0,
+    completedAt
+  };
+}
+
+/** Value for `<input type="datetime-local" />` from an ISO string (local timezone). */
+export function isoToDatetimeLocalValue(iso: unknown): string {
+  if (typeof iso !== 'string' || !iso.trim()) return '';
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Parse datetime-local value to ISO; fails fast if empty/invalid. */
+export function datetimeLocalToIso(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error('Completed time is required.');
+  }
+  const ms = Date.parse(value.trim());
+  if (!Number.isFinite(ms)) {
+    throw new Error('Completed time is invalid.');
+  }
+  return new Date(ms).toISOString();
+}
+
 export type ActualPlayTime = {
   /** ISO timestamp when the match was actually finished/saved */
   actualAt: string;
