@@ -113,17 +113,34 @@ function extractGeminiText(data: unknown): string | null {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const apiKey =
+    typeof process.env.GEMINI_API_KEY === 'string' ? process.env.GEMINI_API_KEY.trim() : '';
+  const model = resolveModel();
+
+  // Health / readiness — never exposes the key.
+  if (req.method === 'GET') {
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json({
+      ok: true,
+      configured: apiKey.length > 0,
+      model,
+      message: apiKey
+        ? 'Gemini Ask is configured.'
+        : 'GEMINI_API_KEY is not set. Add it in Vercel Project Settings → Environment Variables, then redeploy. Locally use a .env file and `npx vercel dev`.'
+    });
+    return;
+  }
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'GET, POST');
     res.status(405).json({ error: 'Method not allowed', code: 'method_not_allowed' });
     return;
   }
 
-  const apiKey =
-    typeof process.env.GEMINI_API_KEY === 'string' ? process.env.GEMINI_API_KEY.trim() : '';
   if (!apiKey) {
     res.status(503).json({
-      error: 'Ask is not configured. Set GEMINI_API_KEY in Vercel env.',
+      error:
+        'Ask is not configured. Set GEMINI_API_KEY in Vercel env (Project Settings → Environment Variables), then redeploy. Locally: put it in .env and run `npx vercel dev`.',
       code: 'missing_config'
     });
     return;

@@ -22,6 +22,7 @@ import {
 } from '../utils/galleryUploads';
 import {
   GALLERY_EMOJI_OPTIONS,
+  galleryPhotoEmojiKey,
   rankedGalleryEmoji,
   subscribeGalleryEmoji,
   toggleGalleryEmoji,
@@ -39,7 +40,8 @@ const ACCEPT =
  * Concurrency: component-local state + RTDB listeners; cleaned up on unmount.
  * Security: allowlisted MIME + season tags (npl-2023…2026); shared 5 GB quota;
  * only validated /Gallery/ paths and HTTPS download URLs are shown.
- * Emoji icons: allowlisted set; one per visitor per community upload (localStorage visitor id).
+ * Emoji icons: allowlisted set on every photo (static + uploads); one per visitor
+ * (localStorage visitor id). Keys: upload id or s-{year}-{file}.
  */
 export default function MatchPhotosPage() {
   const [staticItems, setStaticItems] = useState<GalleryMediaItem[]>([]);
@@ -55,7 +57,7 @@ export default function MatchPhotosPage() {
   const [uploadTag, setUploadTag] = useState<GalleryYearTag>(
     galleryTagFromYear(GALLERY_DEFAULT_YEAR)
   );
-  const [emojiByUploadId, setEmojiByUploadId] = useState<
+  const [emojiByPhotoKey, setEmojiByPhotoKey] = useState<
     Record<string, GalleryEmojiCounts>
   >({});
   const [emojiBusyId, setEmojiBusyId] = useState<string | null>(null);
@@ -114,8 +116,8 @@ export default function MatchPhotosPage() {
 
   useEffect(() => {
     const unsub = subscribeGalleryEmoji(
-      (byId) => {
-        setEmojiByUploadId(byId);
+      (byKey) => {
+        setEmojiByPhotoKey(byKey);
       },
       (err) => {
         console.error(err);
@@ -200,15 +202,15 @@ export default function MatchPhotosPage() {
   };
 
   const handleEmojiToggle = async (
-    uploadId: string,
+    photoKey: string,
     emoji: GalleryEmoji,
     mine: GalleryEmoji | null
   ) => {
-    if (!uploadId || emojiBusyId) return;
-    setEmojiBusyId(uploadId);
+    if (!photoKey || emojiBusyId) return;
+    setEmojiBusyId(photoKey);
     setEmojiError(null);
     try {
-      await toggleGalleryEmoji(uploadId, emoji, mine);
+      await toggleGalleryEmoji(photoKey, emoji, mine);
     } catch (err) {
       setEmojiError(err instanceof Error ? err.message : 'Could not save emoji.');
     } finally {
@@ -332,7 +334,7 @@ export default function MatchPhotosPage() {
               Used {formatGalleryStorageLabel(usedBytes)}
             </span>
             <span className="block sm:inline sm:before:content-['·_'] mt-0.5 sm:mt-0">
-              Open an upload to attach an emoji
+              Tap an emoji under any photo
             </span>
           </p>
         </div>
@@ -381,14 +383,26 @@ export default function MatchPhotosPage() {
       {items.length > 0 ? (
         <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {items.map((item, index) => {
-            const emojiState = item.id ? emojiByUploadId[item.id] : undefined;
-            const ranked = emojiState ? rankedGalleryEmoji(emojiState.counts) : [];
+            let photoKey = '';
+            try {
+              photoKey = galleryPhotoEmojiKey(item);
+            } catch {
+              photoKey = '';
+            }
+            const emojiState = photoKey
+              ? emojiByPhotoKey[photoKey] ?? { counts: {}, mine: null }
+              : { counts: {}, mine: null };
+            const ranked = rankedGalleryEmoji(emojiState.counts);
+            const busy = Boolean(photoKey && emojiBusyId === photoKey);
             return (
-              <li key={item.id ?? `static:${item.year}:${item.file}`}>
+              <li
+                key={item.id ?? `static:${item.year}:${item.file}`}
+                className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950"
+              >
                 <button
                   type="button"
                   onClick={() => setActiveIndex(index)}
-                  className="group relative w-full aspect-square overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+                  className="group relative block w-full aspect-square overflow-hidden text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-inset"
                   aria-label="Open gallery item"
                 >
                   {item.kind === 'image' ? (
@@ -432,10 +446,58 @@ export default function MatchPhotosPage() {
                     </span>
                   ) : null}
                 </button>
+
+                {photoKey ? (
+                  <div
+                    className="flex flex-wrap items-center justify-center gap-0.5 border-t border-slate-800 bg-slate-900/80 px-1 py-1"
+                    role="group"
+                    aria-label="Attach emoji to this photo"
+                  >
+                    {GALLERY_EMOJI_OPTIONS.map((emoji) => {
+                      const count = emojiState.counts[emoji] ?? 0;
+                      const selected = emojiState.mine === emoji;
+                      return (
+                        <button
+                          key={emoji}
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            void handleEmojiToggle(photoKey, emoji, emojiState.mine)
+                          }
+                          className={
+                            selected
+                              ? 'rounded-md bg-emerald-500/25 px-1.5 py-0.5 text-sm hover:bg-emerald-500/40 disabled:opacity-50'
+                              : 'rounded-md px-1.5 py-0.5 text-sm opacity-80 hover:bg-slate-800 hover:opacity-100 disabled:opacity-50'
+                          }
+                          aria-pressed={selected}
+                          aria-label={
+                            selected
+                              ? `Remove ${emoji} emoji`
+                              : `Attach ${emoji} emoji${count > 0 ? `, ${count} so far` : ''}`
+                          }
+                          title={selected ? 'Remove your emoji' : 'Attach emoji'}
+                        >
+                          <span aria-hidden>{emoji}</span>
+                          {count > 0 ? (
+                            <span className="ml-0.5 text-[9px] font-bold text-slate-400">
+                              {count}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </li>
             );
           })}
         </ul>
+      ) : null}
+
+      {emojiError && activeIndex === null ? (
+        <p className="text-sm text-amber-200 font-medium" role="alert">
+          {emojiError}
+        </p>
       ) : null}
 
       {active && activeIndex !== null ? (
@@ -495,65 +557,71 @@ export default function MatchPhotosPage() {
             )}
           </div>
 
-          {active.id ? (
-            <div className="border-t border-white/10 px-3 sm:px-5 py-3 space-y-2">
-              <p className="text-center text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                Attach emoji
-              </p>
-              <div
-                className="flex flex-wrap items-center justify-center gap-2"
-                role="group"
-                aria-label="Emoji icons for this photo"
-              >
-                {GALLERY_EMOJI_OPTIONS.map((emoji) => {
-                  const state = emojiByUploadId[active.id!] ?? {
-                    counts: {},
-                    mine: null
-                  };
-                  const count = state.counts[emoji] ?? 0;
-                  const selected = state.mine === emoji;
-                  const busy = emojiBusyId === active.id;
-                  return (
-                    <button
-                      key={emoji}
-                      type="button"
-                      disabled={busy}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleEmojiToggle(active.id!, emoji, state.mine);
-                      }}
-                      className={
-                        selected
-                          ? 'inline-flex items-center gap-1 rounded-full border border-emerald-400/80 bg-emerald-500/20 px-3 py-1.5 text-lg hover:bg-emerald-500/30 disabled:opacity-50'
-                          : 'inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1.5 text-lg hover:border-white/40 hover:bg-slate-800 disabled:opacity-50'
-                      }
-                      aria-pressed={selected}
-                      aria-label={
-                        selected
-                          ? `Remove ${emoji} emoji`
-                          : `Attach ${emoji} emoji${count > 0 ? `, ${count} so far` : ''}`
-                      }
-                    >
-                      <span aria-hidden>{emoji}</span>
-                      {count > 0 ? (
-                        <span className="text-[11px] font-bold text-slate-300">{count}</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-              {emojiError ? (
-                <p className="text-center text-xs text-amber-200" role="alert">
-                  {emojiError}
+          {(() => {
+            let activeKey = '';
+            try {
+              activeKey = galleryPhotoEmojiKey(active);
+            } catch {
+              activeKey = '';
+            }
+            if (!activeKey) return null;
+            const state = emojiByPhotoKey[activeKey] ?? { counts: {}, mine: null };
+            const busy = emojiBusyId === activeKey;
+            return (
+              <div className="border-t border-white/10 px-3 sm:px-5 py-3 space-y-2">
+                <p className="text-center text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  Attach emoji
                 </p>
-              ) : null}
-            </div>
-          ) : null}
+                <div
+                  className="flex flex-wrap items-center justify-center gap-2"
+                  role="group"
+                  aria-label="Emoji icons for this photo"
+                >
+                  {GALLERY_EMOJI_OPTIONS.map((emoji) => {
+                    const count = state.counts[emoji] ?? 0;
+                    const selected = state.mine === emoji;
+                    return (
+                      <button
+                        key={emoji}
+                        type="button"
+                        disabled={busy}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleEmojiToggle(activeKey, emoji, state.mine);
+                        }}
+                        className={
+                          selected
+                            ? 'inline-flex items-center gap-1 rounded-full border border-emerald-400/80 bg-emerald-500/20 px-3 py-1.5 text-lg hover:bg-emerald-500/30 disabled:opacity-50'
+                            : 'inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1.5 text-lg hover:border-white/40 hover:bg-slate-800 disabled:opacity-50'
+                        }
+                        aria-pressed={selected}
+                        aria-label={
+                          selected
+                            ? `Remove ${emoji} emoji`
+                            : `Attach ${emoji} emoji${count > 0 ? `, ${count} so far` : ''}`
+                        }
+                      >
+                        <span aria-hidden>{emoji}</span>
+                        {count > 0 ? (
+                          <span className="text-[11px] font-bold text-slate-300">{count}</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+                {emojiError ? (
+                  <p className="text-center text-xs text-amber-200" role="alert">
+                    {emojiError}
+                  </p>
+                ) : null}
+              </div>
+            );
+          })()}
 
           <p className="text-center text-[11px] text-slate-500 py-2">
             {activeIndex + 1} / {items.length}
             {active.kind === 'video' ? ' · Video' : ''}
-            {active.id ? ' · Tap an emoji to react' : ''}
+            {' · Tap an emoji to react'}
           </p>
         </div>
       ) : null}

@@ -41,8 +41,8 @@
     },
     "galleryEmoji": {
       ".read": true,
-      "$uploadId": {
-        ".validate": "$uploadId.matches(/^[a-zA-Z0-9_-]{8,80}$/)",
+      "$photoKey": {
+        ".validate": "$photoKey.matches(/^[a-zA-Z0-9_-]{8,80}$/)",
         "$visitorId": {
           ".write": true,
           ".validate": "$visitorId.matches(/^[a-zA-Z0-9_-]{8,64}$/) && (!newData.exists() || (newData.isString() && (newData.val() == '🔥' || newData.val() == '👏' || newData.val() == '😂' || newData.val() == '❤️' || newData.val() == '🏏' || newData.val() == '💪')))"

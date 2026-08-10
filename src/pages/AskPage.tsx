@@ -208,6 +208,10 @@ export default function AskPage() {
   const [live, setLive] = useState<MatchState | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [askStatus, setAskStatus] = useState<{
+    state: 'checking' | 'ready' | 'missing_key' | 'unreachable';
+    detail: string;
+  }>({ state: 'checking', detail: 'Checking Ask assistant…' });
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'welcome',
@@ -266,6 +270,70 @@ export default function AskPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, busy]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const res = await fetch('/api/ask', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          signal: controller.signal
+        });
+        if (cancelled) return;
+
+        if (res.status === 404) {
+          setAskStatus({
+            state: 'unreachable',
+            detail:
+              '/api/ask not found. On Vercel, redeploy after adding api/ask.ts. Locally run `npx vercel dev` (not plain `npm run dev`).'
+          });
+          return;
+        }
+
+        let data: { configured?: unknown; message?: unknown; model?: unknown } | null = null;
+        try {
+          data = (await res.json()) as typeof data;
+        } catch {
+          setAskStatus({
+            state: 'unreachable',
+            detail:
+              'Got a non-JSON response from /api/ask (likely the Vite SPA). Use `npx vercel dev` or open the deployed Vercel URL.'
+          });
+          return;
+        }
+
+        const configured = data?.configured === true;
+        const msg =
+          typeof data?.message === 'string' && data.message.trim()
+            ? data.message.trim()
+            : configured
+              ? 'Gemini Ask is configured.'
+              : 'GEMINI_API_KEY is not set.';
+        const model =
+          typeof data?.model === 'string' && data.model.trim() ? data.model.trim() : '';
+
+        setAskStatus({
+          state: configured ? 'ready' : 'missing_key',
+          detail: configured ? `${msg}${model ? ` · model ${model}` : ''}` : msg
+        });
+      } catch {
+        if (cancelled) return;
+        setAskStatus({
+          state: 'unreachable',
+          detail:
+            'Could not reach /api/ask. Locally run `npx vercel dev` with GEMINI_API_KEY in .env.'
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
 
   const runAsk = (raw: string) => {
     const question = typeof raw === 'string' ? raw.trim().slice(0, MAX_QUESTION) : '';
@@ -345,6 +413,28 @@ export default function AskPage() {
           from live tournament data on this site.
         </p>
       </header>
+
+      <div
+        className={`rounded-xl border px-3.5 py-3 text-sm ${
+          askStatus.state === 'ready'
+            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+            : askStatus.state === 'checking'
+              ? 'border-slate-700 bg-slate-900/60 text-slate-400'
+              : 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+        }`}
+        role="status"
+      >
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] mb-1">
+          {askStatus.state === 'ready'
+            ? 'Gemini connected'
+            : askStatus.state === 'checking'
+              ? 'Checking Gemini…'
+              : askStatus.state === 'missing_key'
+                ? 'Gemini key missing'
+                : 'Ask API unreachable'}
+        </p>
+        <p className="leading-relaxed">{askStatus.detail}</p>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         {SUGGESTED_PROMPTS.map((prompt) => (

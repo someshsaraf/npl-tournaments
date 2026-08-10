@@ -6,15 +6,17 @@ import {
   type Unsubscribe
 } from 'firebase/database';
 import { db, GALLERY_EMOJI_PATH } from '../firebase';
+import type { GalleryMediaItem } from './matchGallery';
 
-/** Allowlisted emoji icons visitors may attach to an uploaded photo. */
+/** Allowlisted emoji icons visitors may attach to any gallery photo. */
 export const GALLERY_EMOJI_OPTIONS = ['🔥', '👏', '😂', '❤️', '🏏', '💪'] as const;
 
 export type GalleryEmoji = (typeof GALLERY_EMOJI_OPTIONS)[number];
 
 const VISITOR_STORAGE_KEY = 'npl-gallery-visitor-id';
 const VISITOR_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
-const UPLOAD_ID_RE = /^[a-zA-Z0-9_-]{8,80}$/;
+/** RTDB path segment for a photo (community id or static s-year-file key). */
+const PHOTO_KEY_RE = /^[a-zA-Z0-9_-]{8,80}$/;
 
 export type GalleryEmojiCounts = {
   /** Emoji → how many visitors attached it. */
@@ -35,25 +37,63 @@ export function isGalleryEmoji(value: unknown): value is GalleryEmoji {
 }
 
 /**
- * Validate community-upload id used as RTDB path segment.
+ * Validate photo key used as RTDB path segment.
  * Fails closed on empty / unsafe characters.
  */
-export function parseGalleryUploadId(value: unknown): string {
+export function parseGalleryPhotoKey(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new Error('Photo id is required to attach an emoji.');
+    throw new Error('Photo key is required to attach an emoji.');
   }
   const id = value.trim();
-  if (!UPLOAD_ID_RE.test(id)) {
-    throw new Error('Invalid photo id for emoji.');
+  if (!PHOTO_KEY_RE.test(id)) {
+    throw new Error('Invalid photo key for emoji.');
   }
   return id;
+}
+
+/** @deprecated Use parseGalleryPhotoKey */
+export const parseGalleryUploadId = parseGalleryPhotoKey;
+
+/**
+ * Stable RTDB key for any gallery item (community upload or curated static file).
+ * Input: gallery item with id and/or year+file; output is path-safe.
+ */
+export function galleryPhotoEmojiKey(item: unknown): string {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    throw new Error('galleryPhotoEmojiKey: gallery item required');
+  }
+  const row = item as Partial<GalleryMediaItem>;
+  if (typeof row.id === 'string' && row.id.trim()) {
+    return parseGalleryPhotoKey(row.id.trim());
+  }
+  if (
+    typeof row.year !== 'number' ||
+    !Number.isInteger(row.year) ||
+    row.year < 2000 ||
+    row.year > 2100
+  ) {
+    throw new Error('galleryPhotoEmojiKey: valid year required for static photo');
+  }
+  if (typeof row.file !== 'string' || !row.file.trim()) {
+    throw new Error('galleryPhotoEmojiKey: file name required for static photo');
+  }
+  const safeFile = row.file
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 60);
+  if (!safeFile) {
+    throw new Error('galleryPhotoEmojiKey: file name produced empty key');
+  }
+  const key = `s-${row.year}-${safeFile}`;
+  return parseGalleryPhotoKey(key);
 }
 
 /**
  * Stable per-browser visitor id (localStorage) for emoji ownership.
  * Input validation: only [a-zA-Z0-9_-]{8,64} so path injection is impossible.
- * Concurrency: localStorage is per-origin; not shared across tabs' writers atomically
- * but id creation is idempotent enough for emoji toggles.
+ * Concurrency: localStorage is per-origin; id creation is idempotent enough for toggles.
  */
 export function getOrCreateGalleryVisitorId(): string | null {
   try {
@@ -101,12 +141,12 @@ export function aggregateGalleryEmoji(
 }
 
 /**
- * Live map of uploadId → emoji counts for all community photos.
+ * Live map of photoKey → emoji counts for all gallery photos.
  * Concurrency: one listener per subscribe; caller must unsubscribe.
  * Security: only allowlisted emojis and safe path keys are counted.
  */
 export function subscribeGalleryEmoji(
-  onChange: (byUploadId: Record<string, GalleryEmojiCounts>) => void,
+  onChange: (byPhotoKey: Record<string, GalleryEmojiCounts>) => void,
   onError?: (err: Error) => void
 ): Unsubscribe {
   if (typeof onChange !== 'function') {
@@ -120,9 +160,9 @@ export function subscribeGalleryEmoji(
       const val = snap.val();
       const out: Record<string, GalleryEmojiCounts> = {};
       if (val && typeof val === 'object' && !Array.isArray(val)) {
-        for (const [uploadId, row] of Object.entries(val as Record<string, unknown>)) {
-          if (!UPLOAD_ID_RE.test(uploadId)) continue;
-          out[uploadId] = aggregateGalleryEmoji(row, visitorId);
+        for (const [photoKey, row] of Object.entries(val as Record<string, unknown>)) {
+          if (!PHOTO_KEY_RE.test(photoKey)) continue;
+          out[photoKey] = aggregateGalleryEmoji(row, visitorId);
         }
       }
       onChange(out);
@@ -135,17 +175,16 @@ export function subscribeGalleryEmoji(
 }
 
 /**
- * Attach or clear this visitor's emoji on a community upload.
- * Same emoji again → remove; different emoji → replace.
+ * Attach this visitor's emoji on a gallery photo.
  *
  * Concurrency: last write wins per visitorId path (no shared counter).
  * Security: allowlisted emoji + validated path segments; no auth (public feature).
  */
 export async function setGalleryEmoji(
-  uploadIdInput: unknown,
+  photoKeyInput: unknown,
   emojiInput: unknown
 ): Promise<void> {
-  const uploadId = parseGalleryUploadId(uploadIdInput);
+  const photoKey = parseGalleryPhotoKey(photoKeyInput);
   if (!isGalleryEmoji(emojiInput)) {
     throw new Error('Choose a supported emoji icon.');
   }
@@ -154,29 +193,26 @@ export async function setGalleryEmoji(
     throw new Error('Could not save emoji in this browser. Check storage permissions.');
   }
 
-  const emojiRef = ref(db, `${GALLERY_EMOJI_PATH}/${uploadId}/${visitorId}`);
-  // Read current via a one-shot is unnecessary if caller already knows mine;
-  // toggle is handled by caller. This helper always sets the given emoji.
-  await set(emojiRef, emojiInput);
+  await set(ref(db, `${GALLERY_EMOJI_PATH}/${photoKey}/${visitorId}`), emojiInput);
 }
 
 /**
- * Remove this visitor's emoji from a community upload.
+ * Remove this visitor's emoji from a gallery photo.
  */
-export async function clearGalleryEmoji(uploadIdInput: unknown): Promise<void> {
-  const uploadId = parseGalleryUploadId(uploadIdInput);
+export async function clearGalleryEmoji(photoKeyInput: unknown): Promise<void> {
+  const photoKey = parseGalleryPhotoKey(photoKeyInput);
   const visitorId = getOrCreateGalleryVisitorId();
   if (!visitorId) {
     throw new Error('Could not clear emoji in this browser. Check storage permissions.');
   }
-  await remove(ref(db, `${GALLERY_EMOJI_PATH}/${uploadId}/${visitorId}`));
+  await remove(ref(db, `${GALLERY_EMOJI_PATH}/${photoKey}/${visitorId}`));
 }
 
 /**
  * Toggle: if `emoji` is already mine, clear; otherwise attach/replace.
  */
 export async function toggleGalleryEmoji(
-  uploadIdInput: unknown,
+  photoKeyInput: unknown,
   emojiInput: unknown,
   currentMine: GalleryEmoji | null
 ): Promise<void> {
@@ -187,10 +223,10 @@ export async function toggleGalleryEmoji(
     throw new Error('Invalid current emoji state.');
   }
   if (currentMine === emojiInput) {
-    await clearGalleryEmoji(uploadIdInput);
+    await clearGalleryEmoji(photoKeyInput);
     return;
   }
-  await setGalleryEmoji(uploadIdInput, emojiInput);
+  await setGalleryEmoji(photoKeyInput, emojiInput);
 }
 
 /** Sorted emoji chips for display (highest count first, then allowlist order). */
