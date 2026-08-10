@@ -1,0 +1,14 @@
+src/utils/tournamentChat.ts
+  h_d39e845a5ebfa7 129-156,160,164-165,167-172,188-190,206-210,212-214,235-242,245-249,266,270-273,282-293,296-300,315-330,334-335,484,486,488-513,536,551
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "e241c7f70597c2479573438011e1cea4583f56cf",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
