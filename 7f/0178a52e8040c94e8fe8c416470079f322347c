@@ -1,0 +1,16 @@
+public/Gallery/README.md
+  h_d39e845a5ebfa7 22,33-54
+storage-cors.json
+  h_d39e845a5ebfa7 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "7f0178a52e8040c94e8fe8c416470079f322347c",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
