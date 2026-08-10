@@ -5,9 +5,7 @@ import {
   type GalleryMediaItem
 } from '../utils/matchGallery';
 import {
-  GALLERY_MAX_IMAGE_BYTES,
   GALLERY_MAX_TOTAL_BYTES,
-  GALLERY_MAX_VIDEO_BYTES,
   formatGalleryStorageLabel,
   subscribeGalleryStorageUsage,
   subscribeGalleryUploads,
@@ -23,8 +21,8 @@ const ACCEPT =
  * Static files from public/Gallery + community uploads (Firebase Storage + RTDB).
  *
  * Concurrency: component-local state + one RTDB listener; cleaned up on unmount.
- * Security: allowlisted MIME/size on upload; only validated /Gallery/ paths and
- * HTTPS Firebase download URLs are shown.
+ * Security: allowlisted MIME on upload; shared 5 GB RTDB quota; only validated
+ * /Gallery/ paths and HTTPS download URLs are shown.
  */
 export default function MatchPhotosPage() {
   const [staticItems, setStaticItems] = useState<GalleryMediaItem[]>([]);
@@ -163,8 +161,6 @@ export default function MatchPhotosPage() {
   };
 
   const active = activeIndex !== null ? items[activeIndex] ?? null : null;
-  const imageMb = Math.round(GALLERY_MAX_IMAGE_BYTES / (1024 * 1024));
-  const videoMb = Math.round(GALLERY_MAX_VIDEO_BYTES / (1024 * 1024));
 
   return (
     <div className="space-y-5">
@@ -203,7 +199,7 @@ export default function MatchPhotosPage() {
             {uploading ? 'Uploading…' : storageFull ? 'Storage full' : 'Upload photo or clip'}
           </button>
           <p className="text-[11px] text-slate-500">
-            JPG / PNG / WebP / GIF (max {imageMb}MB) · MP4 / WebM (max {videoMb}MB)
+            JPG / PNG / WebP / GIF · MP4 / WebM · shared 5 GB limit
             <span className="block sm:inline sm:before:content-['·_'] mt-0.5 sm:mt-0">
               Used {formatGalleryStorageLabel(usedBytes)}
             </span>

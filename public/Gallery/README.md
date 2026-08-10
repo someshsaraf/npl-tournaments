@@ -69,5 +69,5 @@ firebase deploy --only database
 
 Firebase **Storage** is not required for gallery uploads (R2 holds the files).
 
-**Security note:** public uploads with MIME/size limits and a **5 GB** RTDB quota.
+**Security note:** public uploads with MIME allowlist and a shared **5 GB** RTDB quota (no per-file size cap).
 Monitor R2 usage; tighten later (PIN / auth) if needed.

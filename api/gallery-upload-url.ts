@@ -12,11 +12,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  *   R2_BUCKET_NAME, R2_PUBLIC_BASE_URL
  *
  * Concurrency: stateless per request.
- * Security: secrets server-only; MIME/size validated; object key is UUID-based.
+ * Security: secrets server-only; MIME validated; object key is UUID-based.
+ * Total gallery quota (5 GB) is enforced in RTDB on the client upload path.
  */
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
+/** Absolute ceiling for one object (must fit under the shared 5 GB pool). */
+const MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024;
 const PRESIGN_EXPIRES_SEC = 10 * 60;
 
 const IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -111,12 +112,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
   const kind = IMAGE_MIME.has(contentType) ? 'image' : 'video';
-  const maxBytes = kind === 'image' ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES;
-  if (!Number.isFinite(byteSize) || byteSize <= 0 || byteSize > maxBytes) {
-    const mb = Math.round(maxBytes / (1024 * 1024));
-    res.status(400).json({
-      error: kind === 'image' ? `Image too large (max ${mb}MB).` : `Video too large (max ${mb}MB).`
-    });
+  if (!Number.isFinite(byteSize) || byteSize <= 0) {
+    res.status(400).json({ error: 'File is empty or size is invalid.' });
+    return;
+  }
+  if (byteSize > MAX_TOTAL_BYTES) {
+    res.status(400).json({ error: 'File is larger than the 5 GB gallery storage limit.' });
     return;
   }
 

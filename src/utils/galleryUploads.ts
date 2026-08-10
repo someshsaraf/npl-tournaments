@@ -9,10 +9,7 @@ import {
 import { db, GALLERY_TOTAL_BYTES_PATH, GALLERY_UPLOADS_PATH } from '../firebase';
 import type { GalleryMediaItem, GalleryMediaKind } from './matchGallery';
 
-/** Images up to 8MB; short clips up to 40MB. */
-export const GALLERY_MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-export const GALLERY_MAX_VIDEO_BYTES = 40 * 1024 * 1024;
-/** Hard cap for all community gallery uploads combined. */
+/** Hard cap for all community gallery uploads combined (no per-file size limit). */
 export const GALLERY_MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024;
 
 const IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -116,15 +113,12 @@ export function validateGalleryUploadFile(file: unknown): {
     throw new Error('Unsupported type. Allowed: JPG, PNG, WebP, GIF, MP4, WebM.');
   }
 
-  const max = kind === 'image' ? GALLERY_MAX_IMAGE_BYTES : GALLERY_MAX_VIDEO_BYTES;
   if (!Number.isFinite(file.size) || file.size <= 0) {
     throw new Error('File is empty.');
   }
-  if (file.size > max) {
-    const mb = Math.round(max / (1024 * 1024));
-    throw new Error(
-      kind === 'image' ? `Image too large (max ${mb}MB).` : `Video too large (max ${mb}MB).`
-    );
+  // No per-file cap — only the shared 5 GB gallery quota applies (checked on reserve).
+  if (file.size > GALLERY_MAX_TOTAL_BYTES) {
+    throw new Error('File is larger than the 5 GB gallery storage limit.');
   }
 
   const ext = EXT_BY_MIME[contentType];
@@ -250,7 +244,9 @@ async function reserveGalleryBytes(bytes: number): Promise<void> {
     return used + amount;
   });
   if (!result.committed) {
-    throw new Error('Gallery storage is full (5 GB limit).');
+    throw new Error(
+      'This file would exceed the 5 GB gallery limit (all uploads combined).'
+    );
   }
 }
 
@@ -338,7 +334,8 @@ async function requestR2Presign(input: {
  * Reserves quota first (atomic); rolls back quota on failure.
  *
  * Concurrency: RTDB transaction serializes the 5 GB counter across clients.
- * Security: MIME/size validated client+server; R2 secrets stay on Vercel; object keys are UUID-based.
+ * Security: MIME validated client+server; no per-file size cap; shared 5 GB RTDB
+ * quota; R2 secrets stay on Vercel; object keys are UUID-based.
  * Local: use `npx vercel dev` so /api/gallery-upload-url is available.
  */
 export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUploadRecord> {
