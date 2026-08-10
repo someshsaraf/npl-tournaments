@@ -12,6 +12,8 @@ export type GalleryMediaItem = {
   file: string;
   kind: GalleryMediaKind;
   title: string;
+  /** Tournament / calendar year for year tabs (e.g. 2026). */
+  year: number;
   /** Present for community uploads (RTDB id). */
   id?: string;
 };
@@ -19,8 +21,13 @@ export type GalleryMediaItem = {
 export type GalleryManifest = {
   generatedAt?: string;
   folder?: string;
+  defaultYear?: number;
+  years?: number[];
   items: GalleryMediaItem[];
 };
+
+/** Default year for curated flat files and current season. */
+export const GALLERY_DEFAULT_YEAR = 2026;
 
 const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const VIDEO_EXT = new Set(['.mp4', '.webm']);
@@ -38,13 +45,26 @@ function isSafeFileName(name: unknown): name is string {
   return true;
 }
 
-function isSafeGallerySrc(src: unknown, file: string): src is string {
+function isValidGalleryYear(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 2000 &&
+    value <= 2100
+  );
+}
+
+/**
+ * Accepts /Gallery/file.jpg or /Gallery/2026/file.jpg matching basename `file`.
+ */
+function isSafeGallerySrc(src: unknown, file: string, year: number): src is string {
   if (typeof src !== 'string' || !src.startsWith('/Gallery/')) return false;
   if (src.includes('..')) return false;
-  // Must resolve to the same basename we trust.
   try {
-    const decoded = decodeURIComponent(src.slice('/Gallery/'.length));
-    return decoded === file;
+    const rest = decodeURIComponent(src.slice('/Gallery/'.length));
+    if (rest === file) return true;
+    const yearPrefix = `${year}/`;
+    return rest === `${yearPrefix}${file}`;
   } catch {
     return false;
   }
@@ -55,8 +75,13 @@ function isSafeGallerySrc(src: unknown, file: string): src is string {
  */
 export function parseGalleryManifest(raw: unknown): GalleryMediaItem[] {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
-  const items = (raw as { items?: unknown }).items;
+  const root = raw as Record<string, unknown>;
+  const items = root.items;
   if (!Array.isArray(items)) return [];
+
+  const defaultYear = isValidGalleryYear(root.defaultYear)
+    ? root.defaultYear
+    : GALLERY_DEFAULT_YEAR;
 
   const out: GalleryMediaItem[] = [];
   for (const entry of items) {
@@ -72,12 +97,26 @@ export function parseGalleryManifest(raw: unknown): GalleryMediaItem[] {
         : null;
     if (!kind) continue;
     if (row.kind !== kind) continue;
-    if (!isSafeGallerySrc(row.src, file)) continue;
+    const year = isValidGalleryYear(row.year) ? row.year : defaultYear;
+    if (!isSafeGallerySrc(row.src, file, year)) continue;
     const title =
       typeof row.title === 'string' && row.title.trim() ? row.title.trim() : file;
-    out.push({ src: row.src, file, kind, title });
+    out.push({ src: row.src as string, file, kind, title, year });
   }
   return out;
+}
+
+/**
+ * Unique years present in items, newest first.
+ * Input: validated gallery items (year already checked when parsed).
+ */
+export function galleryYearsFromItems(items: GalleryMediaItem[]): number[] {
+  if (!Array.isArray(items)) return [];
+  const years = new Set<number>();
+  for (const item of items) {
+    if (item && isValidGalleryYear(item.year)) years.add(item.year);
+  }
+  return [...years].sort((a, b) => b - a);
 }
 
 export async function fetchGalleryManifest(

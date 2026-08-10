@@ -1,66 +1,94 @@
 {
-  "generatedAt": "2026-08-08T09:46:49.839Z",
+  "generatedAt": "2026-08-10T06:38:47.812Z",
   "folder": "/Gallery",
+  "defaultYear": 2026,
+  "years": [
+    2026
+  ],
   "items": [
     {
       "src": "/Gallery/Photo-.jpeg",
       "file": "Photo-.jpeg",
       "kind": "image",
-      "title": "Photo"
+      "title": "Photo",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-1.jpeg",
       "file": "Photo-1.jpeg",
       "kind": "image",
-      "title": "Photo 1"
+      "title": "Photo 1",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-2.jpeg",
       "file": "Photo-2.jpeg",
       "kind": "image",
-      "title": "Photo 2"
+      "title": "Photo 2",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-3.jpeg",
       "file": "Photo-3.jpeg",
       "kind": "image",
-      "title": "Photo 3"
+      "title": "Photo 3",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-4.jpeg",
       "file": "Photo-4.jpeg",
       "kind": "image",
-      "title": "Photo 4"
+      "title": "Photo 4",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-5.jpeg",
       "file": "Photo-5.jpeg",
       "kind": "image",
-      "title": "Photo 5"
+      "title": "Photo 5",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-6.jpeg",
       "file": "Photo-6.jpeg",
       "kind": "image",
-      "title": "Photo 6"
+      "title": "Photo 6",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-7.jpeg",
       "file": "Photo-7.jpeg",
       "kind": "image",
-      "title": "Photo 7"
+      "title": "Photo 7",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-8.jpeg",
       "file": "Photo-8.jpeg",
       "kind": "image",
-      "title": "Photo 8"
+      "title": "Photo 8",
+      "year": 2026
     },
     {
       "src": "/Gallery/Photo-9.mp4",
       "file": "Photo-9.mp4",
       "kind": "video",
-      "title": "Photo 9"
+      "title": "Photo 9",
+      "year": 2026
+    },
+    {
+      "src": "/Gallery/Photos-10.jpeg",
+      "file": "Photos-10.jpeg",
+      "kind": "image",
+      "title": "Photos 10",
+      "year": 2026
+    },
+    {
+      "src": "/Gallery/Photos-11.jpeg",
+      "file": "Photos-11.jpeg",
+      "kind": "image",
+      "title": "Photos 11",
+      "year": 2026
     }
   ]
 }

@@ -12,7 +12,15 @@ Or just `npm run build` / `npm run dev` (manifest regenerates automatically).
 
 **Allowed:** `.jpg` `.jpeg` `.png` `.webp` `.gif` `.mp4` `.webm`
 
-Do not put nested folders here — keep files flat in `public/Gallery/`.
+Prefer year folders so the Photos page can show year tabs:
+
+```text
+public/Gallery/2026/Photo-1.jpeg
+public/Gallery/2025/…
+```
+
+Flat files directly in `public/Gallery/` are still supported and tagged as **2026**.
+Do not nest folders other than a 4-digit year.
 
 ## Community uploads (Cloudflare R2 + Realtime Database)
 

@@ -2,6 +2,8 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { Loader2, Play, Upload, X } from 'lucide-react';
 import {
   fetchGalleryManifest,
+  galleryYearsFromItems,
+  GALLERY_DEFAULT_YEAR,
   type GalleryMediaItem
 } from '../utils/matchGallery';
 import {
@@ -18,9 +20,9 @@ const ACCEPT =
 
 /**
  * Public match photos / clips gallery.
- * Static files from public/Gallery + community uploads (Firebase Storage + RTDB).
+ * Static files from public/Gallery + community uploads (R2 + RTDB).
  *
- * Concurrency: component-local state + one RTDB listener; cleaned up on unmount.
+ * Concurrency: component-local state + RTDB listeners; cleaned up on unmount.
  * Security: allowlisted MIME on upload; shared 5 GB RTDB quota; only validated
  * /Gallery/ paths and HTTPS download URLs are shown.
  */
@@ -34,9 +36,13 @@ export default function MatchPhotosPage() {
   const [uploading, setUploading] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [usedBytes, setUsedBytes] = useState(0);
+  const [selectedYear, setSelectedYear] = useState(GALLERY_DEFAULT_YEAR);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const items = [...uploadItems, ...staticItems];
+  const allItems = [...uploadItems, ...staticItems];
+  const yearsFromItems = galleryYearsFromItems(allItems);
+  const years = yearsFromItems.length > 0 ? yearsFromItems : [GALLERY_DEFAULT_YEAR];
+  const items = allItems.filter((item) => item.year === selectedYear);
   const storageFull = usedBytes >= GALLERY_MAX_TOTAL_BYTES;
 
   useEffect(() => {
@@ -52,7 +58,6 @@ export default function MatchPhotosPage() {
       } catch (err) {
         if (cancelled) return;
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        // Static manifest missing is OK if uploads exist — soft-fail.
         console.error('Static gallery load failed:', err);
         setStaticItems([]);
         setError(err instanceof Error ? err.message : 'Failed to load curated photos.');
@@ -74,7 +79,6 @@ export default function MatchPhotosPage() {
       },
       (err) => {
         console.error(err);
-        // Do not wipe curated gallery if RTDB rules block uploads list.
       }
     );
     return () => unsub();
@@ -86,6 +90,17 @@ export default function MatchPhotosPage() {
     });
     return () => unsub();
   }, []);
+
+  // Keep selected year valid when the available year list changes.
+  useEffect(() => {
+    if (years.includes(selectedYear)) return;
+    setSelectedYear(years[0] ?? GALLERY_DEFAULT_YEAR);
+  }, [years, selectedYear]);
+
+  // Close lightbox when switching year so indices stay in range.
+  useEffect(() => {
+    setActiveIndex(null);
+  }, [selectedYear]);
 
   const closeLightbox = useCallback(() => setActiveIndex(null), []);
 
@@ -129,6 +144,12 @@ export default function MatchPhotosPage() {
     fileInputRef.current?.click();
   };
 
+  const handleYearSelect = (year: number) => {
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) return;
+    if (!years.includes(year)) return;
+    setSelectedYear(year);
+  };
+
   const handleFilesSelected = async (list: FileList | null) => {
     if (!list || list.length === 0) return;
     const file = list[0];
@@ -140,14 +161,15 @@ export default function MatchPhotosPage() {
     try {
       const record = await uploadGalleryMedia(file);
       setUploadMessage('Uploaded. Thanks!');
-      // RTDB listener will refresh the grid; optimistically prepend.
+      setSelectedYear(record.year);
       setUploadItems((prev) => {
         const next: GalleryMediaItem = {
           id: record.id,
           src: record.url,
           file: record.fileName,
           kind: record.kind,
-          title: record.title
+          title: record.title,
+          year: record.year
         };
         if (prev.some((p) => p.id === record.id)) return prev;
         return [next, ...prev];
@@ -170,9 +192,35 @@ export default function MatchPhotosPage() {
             Match photos
           </h1>
           <p className="text-sm text-slate-400">
-            Court photos and short clips from NPL 2026
+            NPL-{selectedYear} Photos
             {items.length > 0 ? ` · ${items.length} item${items.length === 1 ? '' : 's'}` : ''}
           </p>
+        </div>
+
+        <div
+          className="flex flex-wrap gap-2"
+          role="tablist"
+          aria-label="Gallery year"
+        >
+          {years.map((year) => {
+            const selected = year === selectedYear;
+            return (
+              <button
+                key={year}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => handleYearSelect(year)}
+                className={
+                  selected
+                    ? 'rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-950'
+                    : 'rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-300 hover:border-emerald-500/50 hover:text-white'
+                }
+              >
+                {year}
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -218,14 +266,14 @@ export default function MatchPhotosPage() {
         ) : null}
       </header>
 
-      {loading && items.length === 0 ? (
+      {loading && allItems.length === 0 ? (
         <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
           <Loader2 className="size-5 animate-spin" aria-hidden />
           <span className="text-sm font-medium">Loading gallery…</span>
         </div>
       ) : null}
 
-      {!loading && error && items.length === 0 ? (
+      {!loading && error && allItems.length === 0 ? (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-5">
           <p className="text-sm text-amber-100 font-medium">{error}</p>
           <p className="text-xs text-amber-100/70 mt-2">
@@ -236,15 +284,21 @@ export default function MatchPhotosPage() {
 
       {!loading && items.length === 0 && !error ? (
         <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
-          No photos yet — be the first to upload, or add files under{' '}
-          <code className="text-slate-300">public/Gallery</code>.
+          No photos for {selectedYear} yet — be the first to upload, or add files under{' '}
+          <code className="text-slate-300">public/Gallery/{selectedYear}</code>.
+        </p>
+      ) : null}
+
+      {!loading && items.length === 0 && error && allItems.length > 0 ? (
+        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+          No photos for {selectedYear} yet.
         </p>
       ) : null}
 
       {items.length > 0 ? (
         <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {items.map((item, index) => (
-            <li key={item.id ?? `static:${item.file}`}>
+            <li key={item.id ?? `static:${item.year}:${item.file}`}>
               <button
                 type="button"
                 onClick={() => setActiveIndex(index)}

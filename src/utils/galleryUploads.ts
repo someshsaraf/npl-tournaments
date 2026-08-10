@@ -7,7 +7,11 @@ import {
   type Unsubscribe
 } from 'firebase/database';
 import { db, GALLERY_TOTAL_BYTES_PATH, GALLERY_UPLOADS_PATH } from '../firebase';
-import type { GalleryMediaItem, GalleryMediaKind } from './matchGallery';
+import {
+  GALLERY_DEFAULT_YEAR,
+  type GalleryMediaItem,
+  type GalleryMediaKind
+} from './matchGallery';
 
 /** Hard cap for all community gallery uploads combined (no per-file size limit). */
 export const GALLERY_MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024;
@@ -35,6 +39,8 @@ export type GalleryUploadRecord = {
   createdAt: string;
   /** File size in bytes (for quota accounting). */
   byteSize: number;
+  /** Season year for year tabs (e.g. 2026). */
+  year: number;
 };
 
 type PresignResponse = {
@@ -74,6 +80,33 @@ function sanitizeTitle(name: string): string {
 function normalizeUsedBytes(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return 0;
   return Math.floor(value);
+}
+
+function isValidGalleryYear(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 2000 &&
+    value <= 2100
+  );
+}
+
+/** Year for a new community upload (calendar year, clamped). */
+export function galleryUploadYearNow(now: Date = new Date()): number {
+  if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
+    return GALLERY_DEFAULT_YEAR;
+  }
+  const y = now.getFullYear();
+  if (!isValidGalleryYear(y)) return GALLERY_DEFAULT_YEAR;
+  return y;
+}
+
+function yearFromCreatedAt(createdAt: string, fallback: number): number {
+  if (typeof createdAt !== 'string' || !createdAt.trim()) return fallback;
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return fallback;
+  const y = d.getFullYear();
+  return isValidGalleryYear(y) ? y : fallback;
 }
 
 /** Human-readable storage usage, e.g. "1.2 GB / 5 GB". */
@@ -148,6 +181,9 @@ function parseUploadRecord(id: string, raw: unknown): GalleryUploadRecord | null
       ? row.createdAt.trim()
       : new Date(0).toISOString();
   const byteSize = normalizeUsedBytes(row.byteSize);
+  const year = isValidGalleryYear(row.year)
+    ? row.year
+    : yearFromCreatedAt(createdAt, GALLERY_DEFAULT_YEAR);
 
   return {
     id,
@@ -158,7 +194,8 @@ function parseUploadRecord(id: string, raw: unknown): GalleryUploadRecord | null
     contentType: row.contentType.trim().slice(0, 80),
     storagePath: row.storagePath.trim(),
     createdAt,
-    byteSize
+    byteSize,
+    year
   };
 }
 
@@ -170,7 +207,8 @@ export function uploadsToGalleryItems(records: GalleryUploadRecord[]): GalleryMe
     src: r.url,
     file: r.fileName,
     kind: r.kind,
-    title: r.title
+    title: r.title,
+    year: r.year
   }));
 }
 
@@ -370,6 +408,8 @@ export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUpl
       throw new Error('Could not allocate gallery metadata id. Try again.');
     }
 
+    const createdAt = new Date().toISOString();
+    const year = galleryUploadYearNow(new Date(createdAt));
     const record: GalleryUploadRecord = {
       id: rtdbId,
       url: presign.publicUrl,
@@ -378,8 +418,9 @@ export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUpl
       fileName: presign.fileName,
       contentType: presign.contentType,
       storagePath: presign.storagePath,
-      createdAt: new Date().toISOString(),
-      byteSize
+      createdAt,
+      byteSize,
+      year
     };
 
     await set(metaRef, {
@@ -390,7 +431,8 @@ export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUpl
       contentType: record.contentType,
       storagePath: record.storagePath,
       createdAt: record.createdAt,
-      byteSize: record.byteSize
+      byteSize: record.byteSize,
+      year: record.year
     });
 
     return record;
