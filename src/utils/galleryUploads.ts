@@ -6,13 +6,7 @@ import {
   set,
   type Unsubscribe
 } from 'firebase/database';
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
-import {
-  db,
-  GALLERY_TOTAL_BYTES_PATH,
-  GALLERY_UPLOADS_PATH,
-  storage
-} from '../firebase';
+import { db, GALLERY_TOTAL_BYTES_PATH, GALLERY_UPLOADS_PATH } from '../firebase';
 import type { GalleryMediaItem, GalleryMediaKind } from './matchGallery';
 
 /** Images up to 8MB; short clips up to 40MB. */
@@ -46,12 +40,23 @@ export type GalleryUploadRecord = {
   byteSize: number;
 };
 
+type PresignResponse = {
+  id: string;
+  uploadUrl: string;
+  publicUrl: string;
+  storagePath: string;
+  fileName: string;
+  contentType: string;
+  kind: GalleryMediaKind;
+  byteSize: number;
+};
+
 /**
- * True for HTTPS Firebase Storage / Google download URLs only.
- * Concurrency: pure; Security: rejects non-https and unexpected hosts.
+ * True for HTTPS media URLs (R2 public URL / CDN). Rejects non-https.
+ * Concurrency: pure; Security: https-only, no credentials in URL.
  */
 export function isSafeGalleryDownloadUrl(value: unknown): value is string {
-  if (typeof value !== 'string' || !value.trim()) return false;
+  if (typeof value !== 'string' || !value.trim() || value.length > 2000) return false;
   let parsed: URL;
   try {
     parsed = new URL(value.trim());
@@ -59,29 +64,14 @@ export function isSafeGalleryDownloadUrl(value: unknown): value is string {
     return false;
   }
   if (parsed.protocol !== 'https:') return false;
-  const host = parsed.hostname.toLowerCase();
-  return (
-    host === 'firebasestorage.googleapis.com' ||
-    host.endsWith('.firebasestorage.app') ||
-    host.endsWith('.googleapis.com') ||
-    host.endsWith('.googleusercontent.com')
-  );
+  if (parsed.username || parsed.password) return false;
+  return true;
 }
 
 function sanitizeTitle(name: string): string {
   const base = name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
   const clipped = base.slice(0, 80);
   return clipped || 'Upload';
-}
-
-function sanitizeFileStem(name: string): string {
-  const stem = name
-    .replace(/\.[^.]+$/, '')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^[.-]+|[.-]+$/g, '')
-    .slice(0, 48);
-  return stem || 'photo';
 }
 
 function normalizeUsedBytes(value: unknown): number {
@@ -193,7 +183,7 @@ export function uploadsToGalleryItems(records: GalleryUploadRecord[]): GalleryMe
 /**
  * Live list of community gallery uploads from RTDB.
  * Concurrency: one listener per subscribe call; caller must unsubscribe.
- * Security: only accepts HTTPS Firebase download URLs + gallery/ paths.
+ * Security: only accepts https URLs + gallery/ paths.
  */
 export function subscribeGalleryUploads(
   onChange: (items: GalleryUploadRecord[]) => void,
@@ -247,10 +237,6 @@ export function subscribeGalleryStorageUsage(
   );
 }
 
-/**
- * Atomically reserve `bytes` against the 5 GB gallery quota.
- * Returns false / aborts when the reservation would exceed the cap.
- */
 async function reserveGalleryBytes(bytes: number): Promise<void> {
   if (!Number.isFinite(bytes) || bytes <= 0) {
     throw new Error('reserveGalleryBytes: positive byte count required');
@@ -259,7 +245,7 @@ async function reserveGalleryBytes(bytes: number): Promise<void> {
   const result = await runTransaction(ref(db, GALLERY_TOTAL_BYTES_PATH), (current) => {
     const used = normalizeUsedBytes(current);
     if (used + amount > GALLERY_MAX_TOTAL_BYTES) {
-      return; // abort transaction
+      return;
     }
     return used + amount;
   });
@@ -268,7 +254,6 @@ async function reserveGalleryBytes(bytes: number): Promise<void> {
   }
 }
 
-/** Release previously reserved bytes (e.g. after a failed Storage upload). */
 async function releaseGalleryBytes(bytes: number): Promise<void> {
   if (!Number.isFinite(bytes) || bytes <= 0) return;
   const amount = Math.floor(bytes);
@@ -278,55 +263,124 @@ async function releaseGalleryBytes(bytes: number): Promise<void> {
   });
 }
 
+async function requestR2Presign(input: {
+  contentType: string;
+  byteSize: number;
+  fileName: string;
+}): Promise<PresignResponse> {
+  const res = await fetch('/api/gallery-upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      contentType: input.contentType,
+      byteSize: input.byteSize,
+      fileName: input.fileName
+    })
+  });
+
+  let payload: unknown = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+  const errMsg =
+    payload &&
+    typeof payload === 'object' &&
+    !Array.isArray(payload) &&
+    typeof (payload as { error?: unknown }).error === 'string'
+      ? (payload as { error: string }).error
+      : `Upload setup failed (${res.status}).`;
+
+  if (!res.ok) {
+    throw new Error(errMsg);
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('Invalid upload URL response.');
+  }
+  const row = payload as Record<string, unknown>;
+  if (
+    typeof row.id !== 'string' ||
+    typeof row.uploadUrl !== 'string' ||
+    typeof row.publicUrl !== 'string' ||
+    typeof row.storagePath !== 'string' ||
+    typeof row.fileName !== 'string' ||
+    typeof row.contentType !== 'string' ||
+    (row.kind !== 'image' && row.kind !== 'video') ||
+    typeof row.byteSize !== 'number'
+  ) {
+    throw new Error('Invalid upload URL response.');
+  }
+  if (!row.uploadUrl.startsWith('https://')) {
+    throw new Error('Invalid presigned upload URL.');
+  }
+  if (!isSafeGalleryDownloadUrl(row.publicUrl)) {
+    throw new Error('Invalid public media URL from server.');
+  }
+  if (!row.storagePath.startsWith('gallery/') || row.storagePath.includes('..')) {
+    throw new Error('Invalid storage path from server.');
+  }
+
+  return {
+    id: row.id,
+    uploadUrl: row.uploadUrl,
+    publicUrl: row.publicUrl.trim(),
+    storagePath: row.storagePath,
+    fileName: row.fileName,
+    contentType: row.contentType,
+    kind: row.kind,
+    byteSize: Math.floor(row.byteSize)
+  };
+}
+
 /**
- * Upload a gallery file to Storage and register metadata in RTDB.
- * Reserves quota first (atomic), then uploads; rolls back quota on failure.
+ * Upload a gallery file to Cloudflare R2 (presigned PUT) and register metadata in RTDB.
+ * Reserves quota first (atomic); rolls back quota on failure.
  *
  * Concurrency: RTDB transaction serializes the 5 GB counter across clients.
- * Security: MIME/size validated; path is push-id based (not user-controlled).
- * Tradeoff: open public write requires Storage + RTDB rules (see storage.rules).
+ * Security: MIME/size validated client+server; R2 secrets stay on Vercel; object keys are UUID-based.
+ * Local: use `npx vercel dev` so /api/gallery-upload-url is available.
  */
 export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUploadRecord> {
-  const { file, kind, contentType, ext } = validateGalleryUploadFile(fileInput);
+  const { file, kind, contentType } = validateGalleryUploadFile(fileInput);
   const byteSize = Math.floor(file.size);
 
   await reserveGalleryBytes(byteSize);
 
-  const metaRef = push(ref(db, GALLERY_UPLOADS_PATH));
-  const id = metaRef.key;
-  if (!id) {
-    await releaseGalleryBytes(byteSize);
-    throw new Error('Could not allocate upload id. Try again.');
-  }
-
-  const stem = sanitizeFileStem(file.name);
-  const fileName = `${stem}${ext}`;
-  const storagePath = `gallery/${id}/${fileName}`;
-  const objectRef = storageRef(storage, storagePath);
-
   try {
-    await uploadBytes(objectRef, file, {
+    const presign = await requestR2Presign({
       contentType,
-      customMetadata: {
-        kind,
-        originalName: file.name.slice(0, 120),
-        byteSize: String(byteSize)
-      }
+      byteSize,
+      fileName: file.name || `photo${EXT_BY_MIME[contentType] ?? '.jpg'}`
     });
 
-    const url = await getDownloadURL(objectRef);
-    if (!isSafeGalleryDownloadUrl(url)) {
-      throw new Error('Upload succeeded but returned an unexpected URL.');
+    const putRes = await fetch(presign.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: file
+    });
+    if (!putRes.ok) {
+      throw new Error(
+        putRes.status === 403
+          ? 'R2 rejected the upload (check bucket CORS allows PUT from this site).'
+          : `R2 upload failed (${putRes.status}).`
+      );
+    }
+
+    const metaRef = push(ref(db, GALLERY_UPLOADS_PATH));
+    const rtdbId = metaRef.key;
+    if (!rtdbId) {
+      throw new Error('Could not allocate gallery metadata id. Try again.');
     }
 
     const record: GalleryUploadRecord = {
-      id,
-      url,
-      kind,
+      id: rtdbId,
+      url: presign.publicUrl,
+      kind: presign.kind || kind,
       title: sanitizeTitle(file.name),
-      fileName,
-      contentType,
-      storagePath,
+      fileName: presign.fileName,
+      contentType: presign.contentType,
+      storagePath: presign.storagePath,
       createdAt: new Date().toISOString(),
       byteSize
     };

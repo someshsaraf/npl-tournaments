@@ -14,45 +14,60 @@ Or just `npm run build` / `npm run dev` (manifest regenerates automatically).
 
 Do not put nested folders here — keep files flat in `public/Gallery/`.
 
-## Community uploads (Photos page)
+## Community uploads (Cloudflare R2 + Realtime Database)
 
-Visitors can upload from `/photos`. Files go to Firebase Storage `gallery/{id}/…`
-and metadata to RTDB `galleryUploads/{id}`.
+Visitors upload from `/photos`:
 
-### 1) Deploy Storage + RTDB rules
+1. Browser asks `/api/gallery-upload-url` for a **presigned PUT** (Vercel serverless).
+2. File goes **directly to Cloudflare R2** (`gallery/{id}/…`).
+3. Metadata + 5 GB quota counter stay in **Firebase RTDB** (`galleryUploads`, `galleryUploadsMeta`).
 
-```bash
-firebase deploy --only storage,database
+### Cloudflare setup
+
+1. Create an R2 bucket (e.g. `npl-gallery`).
+2. Enable public access: **R2.dev subdomain** or a custom domain.  
+   Set `R2_PUBLIC_BASE_URL` to that base (no trailing slash), e.g. `https://pub-xxxxx.r2.dev`.
+3. Create an **R2 API token** with Object Read & Write on that bucket.  
+   Copy Account ID, Access Key ID, Secret Access Key.
+4. In the bucket **Settings → CORS**, allow your site to PUT:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://npl-tournaments.vercel.app",
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
 ```
 
-Rule sources in the repo root:
+### Vercel env vars
 
-- [`storage.rules`](../../storage.rules)
-- [`database.rules.json`](../../database.rules.json)
+Set (Production + Preview):
 
-If rules are not deployed, browsers often report a **CORS** error on upload even though the real issue is a 403 from Storage.
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET_NAME`
+- `R2_PUBLIC_BASE_URL`
 
-### 2) Allow browser CORS on the Storage bucket (required for Vercel)
+Redeploy after saving env vars. Locally use `npx vercel dev`.
 
-Firebase Storage buckets do **not** allow `https://npl-tournaments.vercel.app` until you set CORS once:
+### RTDB rules
 
-```bash
-# Needs Google Cloud SDK (gsutil) logged into the same GCP project
-gsutil cors set storage-cors.json gs://npl-tournaments.firebasestorage.app
-
-# Verify
-gsutil cors get gs://npl-tournaments.firebasestorage.app
-```
-
-Config file: [`storage-cors.json`](../../storage-cors.json)
-
-If your bucket still uses the older name, try:
+Still deploy database rules for metadata/quota:
 
 ```bash
-gsutil cors set storage-cors.json gs://npl-tournaments.appspot.com
+firebase deploy --only database
 ```
 
-**Security note:** public create-only writes with MIME/size limits. Total community
-gallery storage is capped at **5 GB** (`galleryUploadsMeta/totalBytes`). Anyone with
-the site URL can upload within those limits — monitor usage and tighten rules
-(auth / PIN) if needed.
+Firebase **Storage** is not required for gallery uploads (R2 holds the files).
+
+**Security note:** public uploads with MIME/size limits and a **5 GB** RTDB quota.
+Monitor R2 usage; tighten later (PIN / auth) if needed.
