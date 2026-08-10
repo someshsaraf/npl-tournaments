@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import SchedulePage from './pages/SchedulePage';
 import TeamsPage from './pages/TeamsPage';
 import ResultsPage from './pages/ResultsPage';
+import StatsPage from './pages/StatsPage';
 import RulesPage from './pages/RulesPage';
 import AskPage from './pages/AskPage';
 import RecordingsPage from './pages/RecordingsPage';
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/teams" element={<TeamsPage />} />
           <Route path="/results" element={<ResultsPage />} />
+          <Route path="/stats" element={<StatsPage />} />
           <Route path="/rules" element={<RulesPage />} />
           <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/photos" element={<MatchPhotosPage />} />

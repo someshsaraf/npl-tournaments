@@ -1,6 +1,7 @@
 import type { CompletedMatch, Fixture, MatchState, Team } from '../data/tournamentData';
 import { FIXTURES, TEAMS } from '../data/tournamentData';
 import { hasSeriesWinner } from './matchState';
+import { computeTournamentStats } from './resultStats';
 
 export type ChatKnowledge = {
   fixtures: Fixture[];
@@ -435,12 +436,14 @@ export function answerTournamentQuestion(
           '• Boys Singles schedule on 9-Aug\n' +
           '• Who is on Team C?\n' +
           '• Recent results / who won?\n' +
+          '• Tournament stats / nail-biters\n' +
           '• What’s on court now?',
         links: [
           { label: 'Schedule', to: '/schedule' },
           { label: 'Rules', to: '/rules' },
           { label: 'Teams', to: '/teams' },
-          { label: 'Results', to: '/results' }
+          { label: 'Results', to: '/results' },
+          { label: 'Stats', to: '/stats' }
         ]
       };
     }
@@ -451,6 +454,49 @@ export function answerTournamentQuestion(
     return answerLive(knowledge.live) ?? {
       text: 'Check the live stream for the current match.',
       links: [{ label: 'Live stream', to: '/live' }]
+    };
+  }
+
+  // Tournament stats overview
+  if (
+    includesAny(lower, ['stats', 'statistics', 'nailbiter', 'nail-biter', 'blowout', 'undefeated']) ||
+    (includesAny(lower, ['interesting', 'highlight']) && includesAny(lower, ['result', 'results', 'match']))
+  ) {
+    if (completed.length === 0) {
+      return {
+        text: 'No completed matches yet — stats will appear after games are saved.',
+        links: [
+          { label: 'Stats', to: '/stats' },
+          { label: 'Results', to: '/results' }
+        ]
+      };
+    }
+    const s = computeTournamentStats(completed);
+    const top = s.topWinners.slice(0, 3).map((w) => `${w.name} (${w.count})`).join(', ');
+    const champ =
+      s.champions.length > 0
+        ? `\nFinals champions: ${s.champions
+            .slice(0, 6)
+            .map((c) => `${c.category} — ${c.winner}`)
+            .join('; ')}.`
+        : '';
+    const tight =
+      s.avgMarginByCategory[0]
+        ? `\nTightest category: ${s.avgMarginByCategory[0].name} (~${s.avgMarginByCategory[0].avgMargin} pt avg margin).`
+        : '';
+    return {
+      text:
+        `Across ${s.totalMatches} completed matches (${s.totalPoints.toLocaleString()} points played): ` +
+        `${s.nailbiterCount} nail-biters` +
+        (s.byDay[0] ? `; busiest day ${s.byDay[0].name} (${s.byDay[0].count})` : '') +
+        (top ? `. Most wins: ${top}.` : '.') +
+        champ +
+        tight +
+        '\nOpen Stats for the full breakdown.',
+      links: [
+        { label: 'Tournament stats', to: '/stats' },
+        { label: 'All results', to: '/results' }
+      ]
     };
   }
 
@@ -604,5 +650,6 @@ export const SUGGESTED_PROMPTS = [
   'Who is on Team C?',
   'What is golden point?',
   'What’s on court now?',
-  'Show recent results'
+  'Show recent results',
+  'Show tournament stats'
 ] as const;

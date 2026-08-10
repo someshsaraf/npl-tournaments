@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
+import { BarChart3 } from 'lucide-react';
 import { db } from '../firebase';
 import type { CompletedMatch } from '../data/tournamentData';
 import {
@@ -35,12 +37,23 @@ export default function ResultsPage() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Results</h1>
-        <p className="text-sm text-slate-400">
-          {filtered.length} completed match{filtered.length === 1 ? '' : 'es'}
-          {rows.length > 0 ? ` · newest first` : ''}
-        </p>
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Results</h1>
+          <p className="text-sm text-slate-400">
+            {filtered.length} completed match{filtered.length === 1 ? '' : 'es'}
+            {rows.length > 0 ? ` · newest first` : ''}
+          </p>
+        </div>
+        {rows.length > 0 ? (
+          <Link
+            to="/stats"
+            className="inline-flex items-center gap-1.5 self-start text-xs font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300"
+          >
+            <BarChart3 className="size-3.5" aria-hidden />
+            Tournament stats
+          </Link>
+        ) : null}
       </header>
 
       {categories.length > 1 && (

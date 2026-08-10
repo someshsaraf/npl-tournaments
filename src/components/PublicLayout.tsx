@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
+  BarChart3,
   CalendarDays,
   Camera,
   Film,
@@ -24,6 +25,7 @@ const NAV: ReadonlyArray<{
   { to: '/schedule', label: 'Schedule', end: false, icon: CalendarDays },
   { to: '/teams', label: 'Teams', end: false, icon: Users },
   { to: '/results', label: 'Results', end: false, icon: Trophy },
+  { to: '/stats', label: 'Stats', end: false, icon: BarChart3 },
   { to: '/photos', label: 'Photos', end: false, icon: Camera },
   { to: '/live', label: 'Live Stream', end: false, icon: Radio },
   { to: '/recordings', label: 'Recordings', end: false, icon: Film },
