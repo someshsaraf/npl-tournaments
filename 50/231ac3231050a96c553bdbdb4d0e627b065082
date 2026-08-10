@@ -1,0 +1,33 @@
+.env.example
+  s_3c78cb30116443::t_ecc449ca75c3bf 2-3,9-19
+.firebaserc
+  s_3c78cb30116443::t_94208360c49126 1-5
+api/gallery-upload-url.ts
+  s_3c78cb30116443::t_b3b36ab89aba97 1-169
+database.rules.json
+  s_3c78cb30116443::t_28fb7d5096bcd5 13-16,33
+package-lock.json
+  s_3c78cb30116443::t_3f765da0d73f6a 11-12,34-358,2474-2554,3516-3521
+package.json
+  s_3c78cb30116443::t_d3f9eb9e3eafe1 14-15
+public/Gallery/README.md
+  s_3c78cb30116443::t_7a62db59c5dabe 17-47,50,52,54-58,60,62,64,67,70-73
+src/utils/galleryUploads.ts
+  s_3c78cb30116443::t_68afe2f00d7dc2 9,43-53,55-56,59,67-68,186,248,266-335,337-338,341-342,345,351,353-354,357-373,377-379,381-383
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "50231ac3231050a96c553bdbdb4d0e627b065082",
+  "prompts": {},
+  "sessions": {
+    "s_3c78cb30116443": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "45a69166-841b-446c-98c2-26c989507097",
+        "model": "unknown"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
