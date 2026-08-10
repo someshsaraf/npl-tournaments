@@ -1,0 +1,24 @@
+.env.example
+  h_d39e845a5ebfa7 10-13
+package.json
+  h_d39e845a5ebfa7 9
+public/Gallery/README.md
+  h_d39e845a5ebfa7 28-34
+src/components/GalleryReactionBar.tsx
+  h_d39e845a5ebfa7 1-99
+src/pages/AskPage.tsx
+  h_d39e845a5ebfa7 296-301,303
+src/pages/MatchPhotosPage.tsx
+  h_d39e845a5ebfa7 25,32,44-45,211-216,219-238,242-249,371,485-494,578-586,599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "34d62616c44e46f72b16639c55573ef322c15495",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
