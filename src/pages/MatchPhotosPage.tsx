@@ -21,14 +21,15 @@ import {
   uploadsToGalleryItems
 } from '../utils/galleryUploads';
 import {
-  GALLERY_EMOJI_OPTIONS,
   galleryPhotoEmojiKey,
+  getOrCreateGalleryVisitorId,
   rankedGalleryEmoji,
   subscribeGalleryEmoji,
   toggleGalleryEmoji,
   type GalleryEmoji,
   type GalleryEmojiCounts
 } from '../utils/galleryEmoji';
+import { GalleryReactionBar } from '../components/GalleryReactionBar';
 
 const ACCEPT =
   'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm';
@@ -40,8 +41,8 @@ const ACCEPT =
  * Concurrency: component-local state + RTDB listeners; cleaned up on unmount.
  * Security: allowlisted MIME + season tags (npl-2023…2026); shared 5 GB quota;
  * only validated /Gallery/ paths and HTTPS download URLs are shown.
- * Emoji icons: allowlisted set on every photo (static + uploads); one per visitor
- * (localStorage visitor id). Keys: upload id or s-{year}-{file}.
+ * Reactions: visitors can react with allowlisted emoji on any gallery photo
+ * while browsing; one reaction per visitor (localStorage id).
  */
 export default function MatchPhotosPage() {
   const [staticItems, setStaticItems] = useState<GalleryMediaItem[]>([]);
@@ -207,12 +208,45 @@ export default function MatchPhotosPage() {
     mine: GalleryEmoji | null
   ) => {
     if (!photoKey || emojiBusyId) return;
+    const visitorId = getOrCreateGalleryVisitorId();
+    if (!visitorId) {
+      setEmojiError('Could not save reaction in this browser. Check storage permissions.');
+      return;
+    }
+
     setEmojiBusyId(photoKey);
     setEmojiError(null);
+
+    // Optimistic update so the gallery reacts immediately.
+    setEmojiByPhotoKey((prev) => {
+      const current = prev[photoKey] ?? { counts: {}, mine: null };
+      const nextCounts: Partial<Record<GalleryEmoji, number>> = { ...current.counts };
+      if (mine && nextCounts[mine]) {
+        const n = (nextCounts[mine] ?? 1) - 1;
+        if (n <= 0) delete nextCounts[mine];
+        else nextCounts[mine] = n;
+      }
+      let nextMine: GalleryEmoji | null = mine;
+      if (mine === emoji) {
+        nextMine = null;
+      } else {
+        nextCounts[emoji] = (nextCounts[emoji] ?? 0) + 1;
+        nextMine = emoji;
+      }
+      return { ...prev, [photoKey]: { counts: nextCounts, mine: nextMine } };
+    });
+
     try {
       await toggleGalleryEmoji(photoKey, emoji, mine);
     } catch (err) {
-      setEmojiError(err instanceof Error ? err.message : 'Could not save emoji.');
+      // Listener will resync; surface error for permission/rules issues.
+      setEmojiError(
+        err instanceof Error
+          ? err.message.includes('PERMISSION_DENIED')
+            ? 'Reactions are blocked until Firebase galleryEmoji rules are deployed.'
+            : err.message
+          : 'Could not save reaction.'
+      );
     } finally {
       setEmojiBusyId(null);
     }
@@ -334,7 +368,7 @@ export default function MatchPhotosPage() {
               Used {formatGalleryStorageLabel(usedBytes)}
             </span>
             <span className="block sm:inline sm:before:content-['·_'] mt-0.5 sm:mt-0">
-              Tap an emoji under any photo
+              React to photos below
             </span>
           </p>
         </div>
@@ -448,44 +482,16 @@ export default function MatchPhotosPage() {
                 </button>
 
                 {photoKey ? (
-                  <div
-                    className="flex flex-wrap items-center justify-center gap-0.5 border-t border-slate-800 bg-slate-900/80 px-1 py-1"
-                    role="group"
-                    aria-label="Attach emoji to this photo"
-                  >
-                    {GALLERY_EMOJI_OPTIONS.map((emoji) => {
-                      const count = emojiState.counts[emoji] ?? 0;
-                      const selected = emojiState.mine === emoji;
-                      return (
-                        <button
-                          key={emoji}
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            void handleEmojiToggle(photoKey, emoji, emojiState.mine)
-                          }
-                          className={
-                            selected
-                              ? 'rounded-md bg-emerald-500/25 px-1.5 py-0.5 text-sm hover:bg-emerald-500/40 disabled:opacity-50'
-                              : 'rounded-md px-1.5 py-0.5 text-sm opacity-80 hover:bg-slate-800 hover:opacity-100 disabled:opacity-50'
-                          }
-                          aria-pressed={selected}
-                          aria-label={
-                            selected
-                              ? `Remove ${emoji} emoji`
-                              : `Attach ${emoji} emoji${count > 0 ? `, ${count} so far` : ''}`
-                          }
-                          title={selected ? 'Remove your emoji' : 'Attach emoji'}
-                        >
-                          <span aria-hidden>{emoji}</span>
-                          {count > 0 ? (
-                            <span className="ml-0.5 text-[9px] font-bold text-slate-400">
-                              {count}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
+                  <div className="border-t border-slate-800 bg-slate-900/80 px-1 py-1">
+                    <GalleryReactionBar
+                      photoKey={photoKey}
+                      state={emojiState}
+                      busy={busy}
+                      size="compact"
+                      onToggle={(key, emoji, mine) => {
+                        void handleEmojiToggle(key, emoji, mine);
+                      }}
+                    />
                   </div>
                 ) : null}
               </li>
@@ -569,46 +575,15 @@ export default function MatchPhotosPage() {
             const busy = emojiBusyId === activeKey;
             return (
               <div className="border-t border-white/10 px-3 sm:px-5 py-3 space-y-2">
-                <p className="text-center text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                  Attach emoji
-                </p>
-                <div
-                  className="flex flex-wrap items-center justify-center gap-2"
-                  role="group"
-                  aria-label="Emoji icons for this photo"
-                >
-                  {GALLERY_EMOJI_OPTIONS.map((emoji) => {
-                    const count = state.counts[emoji] ?? 0;
-                    const selected = state.mine === emoji;
-                    return (
-                      <button
-                        key={emoji}
-                        type="button"
-                        disabled={busy}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleEmojiToggle(activeKey, emoji, state.mine);
-                        }}
-                        className={
-                          selected
-                            ? 'inline-flex items-center gap-1 rounded-full border border-emerald-400/80 bg-emerald-500/20 px-3 py-1.5 text-lg hover:bg-emerald-500/30 disabled:opacity-50'
-                            : 'inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1.5 text-lg hover:border-white/40 hover:bg-slate-800 disabled:opacity-50'
-                        }
-                        aria-pressed={selected}
-                        aria-label={
-                          selected
-                            ? `Remove ${emoji} emoji`
-                            : `Attach ${emoji} emoji${count > 0 ? `, ${count} so far` : ''}`
-                        }
-                      >
-                        <span aria-hidden>{emoji}</span>
-                        {count > 0 ? (
-                          <span className="text-[11px] font-bold text-slate-300">{count}</span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
+                <GalleryReactionBar
+                  photoKey={activeKey}
+                  state={state}
+                  busy={busy}
+                  size="comfortable"
+                  onToggle={(key, emoji, mine) => {
+                    void handleEmojiToggle(key, emoji, mine);
+                  }}
+                />
                 {emojiError ? (
                   <p className="text-center text-xs text-amber-200" role="alert">
                     {emojiError}
@@ -621,7 +596,7 @@ export default function MatchPhotosPage() {
           <p className="text-center text-[11px] text-slate-500 py-2">
             {activeIndex + 1} / {items.length}
             {active.kind === 'video' ? ' · Video' : ''}
-            {' · Tap an emoji to react'}
+            {' · React with an emoji below'}
           </p>
         </div>
       ) : null}

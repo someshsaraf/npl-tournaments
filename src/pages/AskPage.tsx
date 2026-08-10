@@ -293,9 +293,14 @@ export default function AskPage() {
           return;
         }
 
-        let data: { configured?: unknown; message?: unknown; model?: unknown } | null = null;
+        type AskHealth = {
+          configured?: unknown;
+          message?: unknown;
+          model?: unknown;
+        };
+        let data: AskHealth | null = null;
         try {
-          data = (await res.json()) as typeof data;
+          data = (await res.json()) as AskHealth;
         } catch {
           setAskStatus({
             state: 'unreachable',

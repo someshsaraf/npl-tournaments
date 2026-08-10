@@ -6,6 +6,7 @@
   "scripts": {
     "gallery:manifest": "node scripts/generate-gallery-manifest.mjs",
     "dev": "npm run gallery:manifest && vite",
+    "dev:ask": "npm run gallery:manifest && vercel dev",
     "build": "npm run gallery:manifest && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
