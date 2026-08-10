@@ -1,0 +1,26 @@
+api/ask.ts
+  h_d39e845a5ebfa7 116-133,135,142-143
+database.rules.json
+  h_d39e845a5ebfa7 44-45
+public/Gallery/README.md
+  h_d39e845a5ebfa7 28-31
+src/firebase.ts
+  h_d39e845a5ebfa7 53-54
+src/pages/AskPage.tsx
+  h_d39e845a5ebfa7 211-214,274-337,417-438
+src/pages/MatchPhotosPage.tsx
+  h_d39e845a5ebfa7 25,43-44,60,119-120,205,209-210,213,337,386-396,398-401,405,449-490,497-502,560-573,575-619,624
+src/utils/galleryEmoji.ts
+  h_d39e845a5ebfa7 9,11,18-19,40,43,45,48-49,54-92,96,144,149,163-165,178,184,187,196,200,202-203,208,215,226,229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "c9fd5030ef024fde4652cb4f61f45114c8282d91",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
