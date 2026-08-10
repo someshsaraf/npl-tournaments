@@ -1,0 +1,16 @@
+api/ask.ts
+  h_d39e845a5ebfa7 35-38,111,114-123,135,148-158,204,213-216,223-226,230-231,390-391,400-405,408
+src/pages/AskPage.tsx
+  h_d39e845a5ebfa7 204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "6190a3163500c50273590cc573cd63e60a9fa014",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
