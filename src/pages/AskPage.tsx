@@ -201,7 +201,7 @@ async function fetchGeminiAnswer(
           .slice(0, 4)
       : suggestAskLinks(question);
 
-  return { answer: { text: data.text.trim().slice(0, 4000), links }, reason: null };
+  return { answer: { text: data.text.trim().slice(0, 12000), links }, reason: null };
 }
 
 /**
