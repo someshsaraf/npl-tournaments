@@ -1,0 +1,24 @@
+src/App.tsx
+  h_d39e845a5ebfa7 8,49
+src/components/PublicLayout.tsx
+  h_d39e845a5ebfa7 3,28
+src/pages/ResultsPage.tsx
+  h_d39e845a5ebfa7 2,4,40-56
+src/pages/StatsPage.tsx
+  h_d39e845a5ebfa7 1-344
+src/utils/resultStats.ts
+  h_d39e845a5ebfa7 1-313
+src/utils/tournamentChat.ts
+  h_d39e845a5ebfa7 4,439,445-446,460-502,653-654
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "e11a31b3e08bba5f7b6fa78b6b4185184dc8aa90",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
