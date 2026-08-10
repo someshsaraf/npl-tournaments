@@ -25,14 +25,6 @@ Do not nest folders other than a 4-digit year.
 Community uploads must choose a season tag: `npl-2026`, `npl-2025`, `npl-2024`, or `npl-2023`.
 Photos are filtered by that tag on the year tabs.
 
-Any visitor browsing the gallery can **react** on the top-right of each photo
-(`👍 ❤️ 🔥 😊 🏸`, one reaction per browser). Counts update live.
-Data: RTDB `galleryEmoji/{photoKey}/{visitorId}` — deploy rules:
-
-```bash
-firebase deploy --only database
-```
-
 ## Community uploads (Cloudflare R2 + Realtime Database)
 
 Visitors upload from `/photos`:

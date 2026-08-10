@@ -48,9 +48,3 @@ export const GALLERY_UPLOADS_PATH = 'galleryUploads';
 
 /** RTDB path for running total of community gallery bytes (5 GB cap). */
 export const GALLERY_TOTAL_BYTES_PATH = 'galleryUploadsMeta/totalBytes';
-
-/**
- * RTDB path for per-visitor emoji icons on gallery photos (static + uploads).
- * Shape: galleryEmoji/{photoKey}/{visitorId} → allowlisted emoji string.
- */
-export const GALLERY_EMOJI_PATH = 'galleryEmoji';

@@ -20,15 +20,6 @@ import {
   uploadGalleryMedia,
   uploadsToGalleryItems
 } from '../utils/galleryUploads';
-import {
-  galleryPhotoEmojiKey,
-  getOrCreateGalleryVisitorId,
-  subscribeGalleryEmoji,
-  toggleGalleryEmoji,
-  type GalleryEmoji,
-  type GalleryEmojiCounts
-} from '../utils/galleryEmoji';
-import { GalleryReactionBar } from '../components/GalleryReactionBar';
 
 const ACCEPT =
   'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm';
@@ -40,8 +31,6 @@ const ACCEPT =
  * Concurrency: component-local state + RTDB listeners; cleaned up on unmount.
  * Security: allowlisted MIME + season tags (npl-2023…2026); shared 5 GB quota;
  * only validated /Gallery/ paths and HTTPS download URLs are shown.
- * Reactions: visitors can react with allowlisted emoji on any gallery photo
- * while browsing; one reaction per visitor (localStorage id).
  */
 export default function MatchPhotosPage() {
   const [staticItems, setStaticItems] = useState<GalleryMediaItem[]>([]);
@@ -57,11 +46,6 @@ export default function MatchPhotosPage() {
   const [uploadTag, setUploadTag] = useState<GalleryYearTag>(
     galleryTagFromYear(GALLERY_DEFAULT_YEAR)
   );
-  const [emojiByPhotoKey, setEmojiByPhotoKey] = useState<
-    Record<string, GalleryEmojiCounts>
-  >({});
-  const [emojiBusyId, setEmojiBusyId] = useState<string | null>(null);
-  const [emojiError, setEmojiError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const allItems = [...uploadItems, ...staticItems];
@@ -114,27 +98,10 @@ export default function MatchPhotosPage() {
     return () => unsub();
   }, []);
 
-  useEffect(() => {
-    const unsub = subscribeGalleryEmoji(
-      (byKey) => {
-        setEmojiByPhotoKey(byKey);
-      },
-      (err) => {
-        console.error(err);
-      }
-    );
-    return () => unsub();
-  }, []);
-
   // Close lightbox when switching year so indices stay in range.
   useEffect(() => {
     setActiveIndex(null);
-    setEmojiError(null);
   }, [selectedYear]);
-
-  useEffect(() => {
-    setEmojiError(null);
-  }, [activeIndex]);
 
   const closeLightbox = useCallback(() => setActiveIndex(null), []);
 
@@ -198,56 +165,6 @@ export default function MatchPhotosPage() {
       setUploadError(null);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Invalid season tag.');
-    }
-  };
-
-  const handleEmojiToggle = async (
-    photoKey: string,
-    emoji: GalleryEmoji,
-    mine: GalleryEmoji | null
-  ) => {
-    if (!photoKey || emojiBusyId) return;
-    const visitorId = getOrCreateGalleryVisitorId();
-    if (!visitorId) {
-      setEmojiError('Could not save reaction in this browser. Check storage permissions.');
-      return;
-    }
-
-    setEmojiBusyId(photoKey);
-    setEmojiError(null);
-
-    // Optimistic update so the gallery reacts immediately.
-    setEmojiByPhotoKey((prev) => {
-      const current = prev[photoKey] ?? { counts: {}, mine: null };
-      const nextCounts: Partial<Record<GalleryEmoji, number>> = { ...current.counts };
-      if (mine && nextCounts[mine]) {
-        const n = (nextCounts[mine] ?? 1) - 1;
-        if (n <= 0) delete nextCounts[mine];
-        else nextCounts[mine] = n;
-      }
-      let nextMine: GalleryEmoji | null = mine;
-      if (mine === emoji) {
-        nextMine = null;
-      } else {
-        nextCounts[emoji] = (nextCounts[emoji] ?? 0) + 1;
-        nextMine = emoji;
-      }
-      return { ...prev, [photoKey]: { counts: nextCounts, mine: nextMine } };
-    });
-
-    try {
-      await toggleGalleryEmoji(photoKey, emoji, mine);
-    } catch (err) {
-      // Listener will resync; surface error for permission/rules issues.
-      setEmojiError(
-        err instanceof Error
-          ? err.message.includes('PERMISSION_DENIED')
-            ? 'Reactions are blocked until Firebase galleryEmoji rules are deployed.'
-            : err.message
-          : 'Could not save reaction.'
-      );
-    } finally {
-      setEmojiBusyId(null);
     }
   };
 
@@ -366,9 +283,6 @@ export default function MatchPhotosPage() {
             <span className="block sm:inline sm:before:content-['·_'] mt-0.5 sm:mt-0">
               Used {formatGalleryStorageLabel(usedBytes)}
             </span>
-            <span className="block sm:inline sm:before:content-['·_'] mt-0.5 sm:mt-0">
-              React on the right of each photo
-            </span>
           </p>
         </div>
 
@@ -415,79 +329,43 @@ export default function MatchPhotosPage() {
 
       {items.length > 0 ? (
         <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-          {items.map((item, index) => {
-            let photoKey = '';
-            try {
-              photoKey = galleryPhotoEmojiKey(item);
-            } catch {
-              photoKey = '';
-            }
-            const emojiState = photoKey
-              ? emojiByPhotoKey[photoKey] ?? { counts: {}, mine: null }
-              : { counts: {}, mine: null };
-            const busy = Boolean(photoKey && emojiBusyId === photoKey);
-            return (
-              <li
-                key={item.id ?? `static:${item.year}:${item.file}`}
-                className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950"
+          {items.map((item, index) => (
+            <li key={item.id ?? `static:${item.year}:${item.file}`}>
+              <button
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                className="group relative w-full aspect-square overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+                aria-label="Open gallery item"
               >
-                <button
-                  type="button"
-                  onClick={() => setActiveIndex(index)}
-                  className="group relative block w-full aspect-square overflow-hidden text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-inset"
-                  aria-label="Open gallery item"
-                >
-                  {item.kind === 'image' ? (
-                    <img
+                {item.kind === 'image' ? (
+                  <img
+                    src={item.src}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                    loading="lazy"
+                    draggable={false}
+                  />
+                ) : (
+                  <>
+                    <video
                       src={item.src}
-                      alt=""
-                      className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
-                      loading="lazy"
-                      draggable={false}
+                      className="h-full w-full object-cover"
+                      muted
+                      playsInline
+                      preload="metadata"
+                      aria-hidden
                     />
-                  ) : (
-                    <>
-                      <video
-                        src={item.src}
-                        className="h-full w-full object-cover"
-                        muted
-                        playsInline
-                        preload="metadata"
-                        aria-hidden
-                      />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/35">
-                        <span className="inline-flex size-12 items-center justify-center rounded-full bg-emerald-500 text-slate-950 shadow-lg">
-                          <Play className="size-6 fill-current ml-0.5" aria-hidden />
-                        </span>
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/35">
+                      <span className="inline-flex size-12 items-center justify-center rounded-full bg-emerald-500 text-slate-950 shadow-lg">
+                        <Play className="size-6 fill-current ml-0.5" aria-hidden />
                       </span>
-                    </>
-                  )}
-                </button>
-
-                {photoKey ? (
-                  <div className="absolute top-1.5 right-1.5 z-10">
-                    <GalleryReactionBar
-                      photoKey={photoKey}
-                      state={emojiState}
-                      busy={busy}
-                      layout="rail"
-                      size="compact"
-                      onToggle={(key, emoji, mine) => {
-                        void handleEmojiToggle(key, emoji, mine);
-                      }}
-                    />
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
+                    </span>
+                  </>
+                )}
+              </button>
+            </li>
+          ))}
         </ul>
-      ) : null}
-
-      {emojiError && activeIndex === null ? (
-        <p className="text-sm text-amber-200 font-medium" role="alert">
-          {emojiError}
-        </p>
       ) : null}
 
       {active && activeIndex !== null ? (
@@ -521,7 +399,7 @@ export default function MatchPhotosPage() {
                 <button
                   type="button"
                   onClick={showNext}
-                  className="absolute right-2 sm:right-4 z-10 top-1/2 -translate-y-1/2 rounded-full bg-slate-900/80 border border-white/20 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-slate-800"
+                  className="absolute right-2 sm:right-4 z-10 rounded-full bg-slate-900/80 border border-white/20 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-slate-800"
                 >
                   Next
                 </button>
@@ -545,44 +423,11 @@ export default function MatchPhotosPage() {
                 autoPlay
               />
             )}
-
-            {(() => {
-              let activeKey = '';
-              try {
-                activeKey = galleryPhotoEmojiKey(active);
-              } catch {
-                activeKey = '';
-              }
-              if (!activeKey) return null;
-              const state = emojiByPhotoKey[activeKey] ?? { counts: {}, mine: null };
-              const busy = emojiBusyId === activeKey;
-              return (
-                <div className="absolute top-3 right-2 sm:right-4 z-20">
-                  <GalleryReactionBar
-                    photoKey={activeKey}
-                    state={state}
-                    busy={busy}
-                    layout="rail"
-                    size="comfortable"
-                    onToggle={(key, emoji, mine) => {
-                      void handleEmojiToggle(key, emoji, mine);
-                    }}
-                  />
-                </div>
-              );
-            })()}
           </div>
-
-          {emojiError ? (
-            <p className="text-center text-xs text-amber-200 px-3 pb-1" role="alert">
-              {emojiError}
-            </p>
-          ) : null}
 
           <p className="text-center text-[11px] text-slate-500 py-2">
             {activeIndex + 1} / {items.length}
             {active.kind === 'video' ? ' · Video' : ''}
-            {' · React on the right'}
           </p>
         </div>
       ) : null}
