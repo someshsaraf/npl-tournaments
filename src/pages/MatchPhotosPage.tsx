@@ -141,7 +141,7 @@ export default function MatchPhotosPage() {
     setUploadMessage(null);
     try {
       const record = await uploadGalleryMedia(file);
-      setUploadMessage(`Uploaded “${record.title}”. Thanks!`);
+      setUploadMessage('Uploaded. Thanks!');
       // RTDB listener will refresh the grid; optimistically prepend.
       setUploadItems((prev) => {
         const next: GalleryMediaItem = {
@@ -253,7 +253,7 @@ export default function MatchPhotosPage() {
                 type="button"
                 onClick={() => setActiveIndex(index)}
                 className="group relative w-full aspect-square overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
-                aria-label={`Open ${item.title}`}
+                aria-label="Open gallery item"
               >
                 {item.kind === 'image' ? (
                   <img
@@ -280,11 +280,6 @@ export default function MatchPhotosPage() {
                     </span>
                   </>
                 )}
-                <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-2">
-                  <span className="block text-[10px] sm:text-xs font-bold text-white truncate">
-                    {item.title}
-                  </span>
-                </span>
               </button>
             </li>
           ))}
@@ -296,12 +291,9 @@ export default function MatchPhotosPage() {
           className="fixed inset-0 z-[80] flex flex-col bg-black/95"
           role="dialog"
           aria-modal="true"
-          aria-label={active.title}
+          aria-label={active.kind === 'video' ? 'Gallery video' : 'Gallery photo'}
         >
-          <div className="flex items-center justify-between gap-3 px-3 sm:px-5 py-3 border-b border-white/10">
-            <p className="min-w-0 text-sm sm:text-base font-bold text-white truncate">
-              {active.title}
-            </p>
+          <div className="flex items-center justify-end gap-3 px-3 sm:px-5 py-3 border-b border-white/10">
             <button
               type="button"
               onClick={closeLightbox}
@@ -335,7 +327,7 @@ export default function MatchPhotosPage() {
             {active.kind === 'image' ? (
               <img
                 src={active.src}
-                alt={active.title}
+                alt=""
                 className="max-h-full max-w-full object-contain rounded-lg"
                 draggable={false}
               />
