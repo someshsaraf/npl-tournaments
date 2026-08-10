@@ -1,0 +1,24 @@
+public/Gallery/README.md
+  h_d39e845a5ebfa7 15-23
+public/Gallery/manifest.json
+  h_d39e845a5ebfa7 2,4-7,13-14,20-21,27-28,34-35,41-42,48-49,55-56,62-63,69-70,76-91
+scripts/generate-gallery-manifest.mjs
+  h_d39e845a5ebfa7 4,16-18,32-35,48-83,89,91-97,100-106,108,113-114,119-121
+src/pages/MatchPhotosPage.tsx
+  h_d39e845a5ebfa7 5-6,23,25,39,42-45,94-104,147-152,164,171-172,195,200-225,269,276,287-294,301
+src/utils/galleryUploads.ts
+  h_d39e845a5ebfa7 10-14,42-43,85-111,184-186,197-198,210-211,411-412,421-423,434-435
+src/utils/matchGallery.ts
+  h_d39e845a5ebfa7 15-16,24-25,29-31,48-60,64-67,78-79,82-85,100-101,104,109-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "03f493ece20bb3fdb81527d3e1f86d39812342c8",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
