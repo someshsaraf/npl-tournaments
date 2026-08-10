@@ -42,9 +42,15 @@ export const LIVE_VIEWERS_PRESENCE_PATH = 'presence/live';
 
 /**
  * RTDB path for community gallery uploads metadata (one child per upload).
- * Files live in Storage under gallery/{id}/… — see storage.rules.
+ * Files live in R2 under gallery/{id}/… — see api/gallery-upload-url.ts.
  */
 export const GALLERY_UPLOADS_PATH = 'galleryUploads';
 
 /** RTDB path for running total of community gallery bytes (5 GB cap). */
 export const GALLERY_TOTAL_BYTES_PATH = 'galleryUploadsMeta/totalBytes';
+
+/**
+ * RTDB path for per-visitor emoji icons on community uploads.
+ * Shape: galleryEmoji/{uploadId}/{visitorId} → allowlisted emoji string.
+ */
+export const GALLERY_EMOJI_PATH = 'galleryEmoji';

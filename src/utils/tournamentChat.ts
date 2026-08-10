@@ -619,6 +619,25 @@ export function answerTournamentQuestion(
     };
   }
 
+  // How many matches in the whole tournament (no specific date)
+  if (
+    isCountQuery(lower) &&
+    dateKeys.length === 0 &&
+    includesAny(lower, ['played', 'completed', 'total', 'tournament', 'overall', 'altogether'])
+  ) {
+    const n = completed.length;
+    return {
+      text:
+        n === 0
+          ? 'No completed matches are recorded yet.'
+          : `${n} match${n === 1 ? '' : 'es'} have been played (completed) in the tournament so far.`,
+      links: [
+        { label: 'Results', to: '/results' },
+        { label: 'Stats', to: '/stats' }
+      ]
+    };
+  }
+
   // Tournament stats overview
   if (
     includesAny(lower, ['stats', 'statistics', 'nailbiter', 'nail-biter', 'blowout', 'undefeated']) ||

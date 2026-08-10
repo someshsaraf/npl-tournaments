@@ -38,6 +38,16 @@
       "totalBytes": {
         ".write": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5368709120"
       }
+    },
+    "galleryEmoji": {
+      ".read": true,
+      "$uploadId": {
+        ".validate": "$uploadId.matches(/^[a-zA-Z0-9_-]{8,80}$/)",
+        "$visitorId": {
+          ".write": true,
+          ".validate": "$visitorId.matches(/^[a-zA-Z0-9_-]{8,64}$/) && (!newData.exists() || (newData.isString() && (newData.val() == '🔥' || newData.val() == '👏' || newData.val() == '😂' || newData.val() == '❤️' || newData.val() == '🏏' || newData.val() == '💪')))"
+        }
+      }
     }
   }
 }

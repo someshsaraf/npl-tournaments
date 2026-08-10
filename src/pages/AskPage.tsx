@@ -68,19 +68,21 @@ function localFallbackAnswer(
     completed: CompletedMatch[];
     live: MatchState | null;
   },
-  noteOffline: boolean
+  offlineReason: string | null
 ): ChatAnswer {
   try {
     const answer = answerTournamentQuestion(question, knowledge);
-    if (!noteOffline) return answer;
+    if (!offlineReason) return answer;
     return {
-      text: `${answer.text}\n\n(Offline answer — Ask assistant unavailable right now.)`,
+      text: `${answer.text}\n\n(Offline answer — ${offlineReason})`,
       links: answer.links?.length ? answer.links : suggestAskLinks(question)
     };
   } catch (err) {
     console.error('Ask local fallback failed:', err);
     return {
-      text: 'Something went wrong answering that. Try again or browse Schedule / Results / Stats.',
+      text: offlineReason
+        ? `Ask assistant unavailable: ${offlineReason}`
+        : 'Something went wrong answering that. Try again or browse Schedule / Results / Stats.',
       links: [
         { label: 'Schedule', to: '/schedule' },
         { label: 'Results', to: '/results' },
@@ -99,12 +101,13 @@ type GeminiAskResponse = {
 
 /**
  * Call /api/ask (Gemini). Returns null when the route is unavailable so caller can fallback.
+ * On soft failures, returns an answer with a clear setup hint (not null).
  */
 async function fetchGeminiAnswer(
   question: string,
   context: ReturnType<typeof buildAskContext>,
   history: Array<{ role: 'user' | 'assistant'; text: string }>
-): Promise<ChatAnswer | null> {
+): Promise<{ answer: ChatAnswer | null; reason: string | null }> {
   let res: Response;
   try {
     res = await fetch('/api/ask', {
@@ -113,27 +116,65 @@ async function fetchGeminiAnswer(
       body: JSON.stringify({ question, context, history })
     });
   } catch {
-    return null;
+    return {
+      answer: null,
+      reason:
+        'Could not reach /api/ask. Locally run `npx vercel dev` (plain Vite does not serve /api).'
+    };
   }
 
   let data: GeminiAskResponse | null = null;
   try {
     data = (await res.json()) as GeminiAskResponse;
   } catch {
-    return null;
+    if (res.status === 404) {
+      return {
+        answer: null,
+        reason:
+          '/api/ask not found (404). Deploy on Vercel or run `npx vercel dev` with GEMINI_API_KEY set.'
+      };
+    }
+    return { answer: null, reason: `Ask API returned non-JSON (HTTP ${res.status}).` };
   }
 
   if (!res.ok) {
-    // Missing config / Gemini down → local fallback.
-    if (res.status === 503 || res.status === 502 || res.status === 404) return null;
+    const code = typeof data?.code === 'string' ? data.code : '';
     const errText =
-      typeof data?.error === 'string' && data.error.trim()
-        ? data.error.trim()
-        : 'Ask could not answer that right now.';
-    return { text: errText, links: suggestAskLinks(question) };
+      typeof data?.error === 'string' && data.error.trim() ? data.error.trim() : '';
+
+    if (res.status === 503 || code === 'missing_config') {
+      return {
+        answer: null,
+        reason:
+          errText ||
+          'GEMINI_API_KEY is not set on the server. Add it in Vercel env (or .env for vercel dev).'
+      };
+    }
+    if (res.status === 404) {
+      return {
+        answer: null,
+        reason:
+          '/api/ask not found. Deploy on Vercel or run `npx vercel dev` so API routes work.'
+      };
+    }
+    if (res.status === 502 || code === 'http_error' || code === 'timeout' || code === 'empty_answer') {
+      return {
+        answer: null,
+        reason: errText || 'Gemini backend error. Check GEMINI_API_KEY / GEMINI_MODEL and quota.'
+      };
+    }
+    return {
+      answer: {
+        text: errText || 'Ask could not answer that right now.',
+        links: suggestAskLinks(question)
+      },
+      reason: null
+    };
   }
 
-  if (typeof data?.text !== 'string' || !data.text.trim()) return null;
+  if (typeof data?.text !== 'string' || !data.text.trim()) {
+    return { answer: null, reason: 'Gemini returned an empty answer.' };
+  }
 
   const links =
     Array.isArray(data.links) && data.links.length > 0
@@ -150,7 +191,7 @@ async function fetchGeminiAnswer(
           .slice(0, 4)
       : suggestAskLinks(question);
 
-  return { text: data.text.trim().slice(0, 4000), links };
+  return { answer: { text: data.text.trim().slice(0, 4000), links }, reason: null };
 }
 
 /**
@@ -250,16 +291,21 @@ export default function AskPage() {
         .map((m) => ({ role: m.role as 'user' | 'assistant', text: m.text.slice(0, 400) }));
 
       let answer: ChatAnswer | null = null;
+      let offlineReason: string | null = null;
       try {
         const context = buildAskContext(knowledge);
-        answer = await fetchGeminiAnswer(question, context, prior);
+        const gemini = await fetchGeminiAnswer(question, context, prior);
+        answer = gemini.answer;
+        offlineReason = gemini.reason;
       } catch (err) {
         console.error('Ask Gemini path failed:', err);
         answer = null;
+        offlineReason =
+          'Ask assistant crashed before Gemini responded. Check the browser console.';
       }
 
       if (!answer) {
-        answer = localFallbackAnswer(question, knowledge, true);
+        answer = localFallbackAnswer(question, knowledge, offlineReason);
       }
 
       setMessages((prev) => [
