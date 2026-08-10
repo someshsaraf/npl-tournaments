@@ -157,7 +157,17 @@ async function fetchGeminiAnswer(
           '/api/ask not found. Deploy on Vercel or run `npx vercel dev` so API routes work.'
       };
     }
-    if (res.status === 502 || code === 'http_error' || code === 'timeout' || code === 'empty_answer') {
+    if (res.status === 502 || code === 'http_error' || code === 'timeout' || code === 'empty_answer' || code === 'bad_model' || code === 'auth_error' || code === 'quota') {
+      // Surface Gemini setup errors directly (don't hide behind keyword fallback).
+      if (code === 'bad_model' || code === 'auth_error' || code === 'quota' || code === 'missing_config') {
+        return {
+          answer: {
+            text: errText || 'Ask backend is misconfigured.',
+            links: suggestAskLinks(question)
+          },
+          reason: null
+        };
+      }
       return {
         answer: null,
         reason: errText || 'Gemini backend error. Check GEMINI_API_KEY / GEMINI_MODEL and quota.'

@@ -6,13 +6,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  *
  * Env (Vercel, not VITE_):
  * - GEMINI_API_KEY (required)
- * - GEMINI_MODEL (optional; default gemini-2.0-flash)
+ * - GEMINI_MODEL (optional; default gemini-2.5-flash — gemini-2.0-flash shut down June 2026)
  *
  * Concurrency: stateless per request.
  * Security: key never returned; validate/caps on question, history, context size.
  */
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const MODEL_RE = /^[a-zA-Z0-9._-]{3,64}$/;
 const API_HOST = 'https://generativelanguage.googleapis.com';
 const MAX_QUESTION = 500;
@@ -21,6 +21,8 @@ const MAX_HISTORY_TEXT = 400;
 const MAX_CONTEXT_CHARS = 100_000;
 const MAX_BODY_CHARS = 120_000;
 const GEMINI_TIMEOUT_MS = 28_000;
+/** Tried in order if GEMINI_MODEL is unset or the chosen model is unavailable. */
+const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-2.5-flash-lite'] as const;
 
 const SYSTEM_INSTRUCTION = `You are NPL 2026 Ask — the official assistant for the NPL 2026 badminton tournament at Renaissance Nature Walk.
 
@@ -43,6 +45,100 @@ function resolveModel(): string {
     typeof process.env.GEMINI_MODEL === 'string' ? process.env.GEMINI_MODEL.trim() : '';
   if (fromEnv && MODEL_RE.test(fromEnv)) return fromEnv;
   return DEFAULT_MODEL;
+}
+
+function modelsToTry(): string[] {
+  const primary = resolveModel();
+  const list = [primary, ...MODEL_FALLBACKS.filter((m) => m !== primary)];
+  return [...new Set(list)];
+}
+
+/**
+ * Map Gemini error JSON to a safe user-facing message (never includes the API key).
+ */
+function describeGeminiHttpError(status: number, body: unknown): { error: string; code: string } {
+  let geminiMsg = '';
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const err = (body as Record<string, unknown>).error;
+    if (err && typeof err === 'object' && !Array.isArray(err)) {
+      const msg = (err as Record<string, unknown>).message;
+      if (typeof msg === 'string' && msg.trim()) {
+        geminiMsg = msg.trim().slice(0, 240);
+      }
+    }
+  }
+
+  if (status === 400 && /model|not found|not supported/i.test(geminiMsg)) {
+    return {
+      error: `Gemini model is unavailable (${geminiMsg}). Set GEMINI_MODEL to gemini-2.5-flash (or newer) in Vercel and redeploy.`,
+      code: 'bad_model'
+    };
+  }
+  if (status === 403 || status === 401 || /api key|permission|denied/i.test(geminiMsg)) {
+    return {
+      error:
+        'Gemini rejected the API key. Check GEMINI_API_KEY in Vercel (Generative Language API / AI Studio key) and redeploy.',
+      code: 'auth_error'
+    };
+  }
+  if (status === 429 || /quota|rate/i.test(geminiMsg)) {
+    return {
+      error: 'Gemini quota exceeded. Wait a minute or check billing/quota in Google AI Studio.',
+      code: 'quota'
+    };
+  }
+  if (status === 404) {
+    return {
+      error:
+        'Gemini model not found. Set GEMINI_MODEL=gemini-2.5-flash in Vercel env and redeploy.',
+      code: 'bad_model'
+    };
+  }
+  return {
+    error: geminiMsg
+      ? `Gemini error (${status}): ${geminiMsg}`
+      : `Ask backend returned an error (${status}). Try again shortly.`,
+    code: 'http_error'
+  };
+}
+
+async function callGemini(args: {
+  apiKey: string;
+  model: string;
+  contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+  signal: AbortSignal;
+}): Promise<{ ok: true; data: unknown } | { ok: false; status: number; body: unknown }> {
+  const url = `${API_HOST}/v1beta/models/${encodeURIComponent(args.model)}:generateContent?key=${encodeURIComponent(args.apiKey)}`;
+  const geminiRes = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: SYSTEM_INSTRUCTION }]
+      },
+      contents: args.contents,
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 1024
+      }
+    }),
+    signal: args.signal
+  });
+
+  let body: unknown = null;
+  try {
+    body = await geminiRes.json();
+  } catch {
+    body = null;
+  }
+
+  if (!geminiRes.ok) {
+    return { ok: false, status: geminiRes.status, body };
+  }
+  return { ok: true, data: body };
 }
 
 function isNonEmptyString(value: unknown, max: number): value is string {
@@ -193,8 +289,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const history = parseHistory(payload.history);
-  const model = resolveModel();
-
   const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
   for (const turn of history) {
     contents.push({
@@ -213,56 +307,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]
   });
 
-  const url = `${API_HOST}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
-  let geminiRes: Response;
+  let lastFail: { status: number; body: unknown } | null = null;
+  let data: unknown = null;
+  let usedModel = resolveModel();
+
   try {
-    geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: SYSTEM_INSTRUCTION }]
-        },
-        contents,
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 1024
-        }
-      }),
-      signal: controller.signal
-    });
-  } catch (err) {
-    clearTimeout(timer);
-    const aborted = err instanceof Error && err.name === 'AbortError';
-    res.status(502).json({
-      error: aborted ? 'Ask timed out. Try again.' : 'Network error talking to Ask backend.',
-      code: aborted ? 'timeout' : 'http_error'
-    });
-    return;
+    for (const candidate of modelsToTry()) {
+      usedModel = candidate;
+      let result: Awaited<ReturnType<typeof callGemini>>;
+      try {
+        result = await callGemini({
+          apiKey,
+          model: candidate,
+          contents,
+          signal: controller.signal
+        });
+      } catch (err) {
+        const aborted = err instanceof Error && err.name === 'AbortError';
+        res.status(502).json({
+          error: aborted ? 'Ask timed out. Try again.' : 'Network error talking to Ask backend.',
+          code: aborted ? 'timeout' : 'http_error'
+        });
+        return;
+      }
+
+      if (result.ok) {
+        data = result.data;
+        lastFail = null;
+        break;
+      }
+
+      lastFail = { status: result.status, body: result.body };
+      // Retry next model only when this one is missing / unsupported.
+      const msg =
+        result.body &&
+        typeof result.body === 'object' &&
+        !Array.isArray(result.body) &&
+        (result.body as { error?: { message?: string } }).error?.message
+          ? String((result.body as { error: { message?: string } }).error.message)
+          : '';
+      const modelIssue =
+        result.status === 404 ||
+        (result.status === 400 && /model|not found|not supported|not available/i.test(msg));
+      if (!modelIssue) break;
+    }
   } finally {
     clearTimeout(timer);
   }
 
-  if (!geminiRes.ok) {
-    res.status(502).json({
-      error: 'Ask backend returned an error. Try again shortly.',
-      code: 'http_error'
-    });
-    return;
-  }
-
-  let data: unknown;
-  try {
-    data = await geminiRes.json();
-  } catch {
-    res.status(502).json({ error: 'Invalid response from Ask backend.', code: 'parse_error' });
+  if (lastFail || data == null) {
+    const mapped = describeGeminiHttpError(lastFail?.status ?? 502, lastFail?.body ?? null);
+    res.status(502).json(mapped);
     return;
   }
 
@@ -279,6 +377,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
   res.status(200).json({
     text: text.slice(0, 4000),
-    links: suggestLinks(question)
+    links: suggestLinks(question),
+    model: usedModel
   });
 }
