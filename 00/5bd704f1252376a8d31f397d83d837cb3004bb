@@ -1,0 +1,16 @@
+src/pages/AdminResultsPage.tsx
+  h_d39e845a5ebfa7 4,6,8,10-14,20-40,42,44-47,57-61,86-145,197-200,311-317,334-581
+src/utils/completedMatches.ts
+  h_d39e845a5ebfa7 222-433
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "005bd704f1252376a8d31f397d83d837cb3004bb",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
