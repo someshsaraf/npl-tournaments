@@ -57,9 +57,6 @@ export function PublicLayout() {
                 <p className="portal-display text-4xl sm:text-5xl text-white tracking-wide truncate">
                   NPL 2026
                 </p>
-                <p className="text-xs sm:text-sm text-slate-300 font-semibold tracking-wide truncate">
-                  Badminton Live Portal
-                </p>
               </div>
             </div>
             <p className="hidden sm:block text-[10px] uppercase tracking-[0.18em] text-emerald-400/80 font-semibold shrink-0">
