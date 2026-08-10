@@ -22,10 +22,14 @@ import {
   answerTournamentQuestion,
   type ChatAnswer
 } from '../utils/tournamentChat';
+import { buildAskContext, suggestAskLinks } from '../utils/askContext';
 import {
   getPlayerNameAliases,
   renamePlayerInTeams
 } from '../utils/playerRename';
+
+const MAX_QUESTION = 500;
+const HISTORY_TURNS = 8;
 
 type ChatMessage = {
   id: string;
@@ -56,9 +60,103 @@ function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function localFallbackAnswer(
+  question: string,
+  knowledge: {
+    fixtures: Fixture[];
+    teams: Team[];
+    completed: CompletedMatch[];
+    live: MatchState | null;
+  },
+  noteOffline: boolean
+): ChatAnswer {
+  try {
+    const answer = answerTournamentQuestion(question, knowledge);
+    if (!noteOffline) return answer;
+    return {
+      text: `${answer.text}\n\n(Offline answer — Ask assistant unavailable right now.)`,
+      links: answer.links?.length ? answer.links : suggestAskLinks(question)
+    };
+  } catch (err) {
+    console.error('Ask local fallback failed:', err);
+    return {
+      text: 'Something went wrong answering that. Try again or browse Schedule / Results / Stats.',
+      links: [
+        { label: 'Schedule', to: '/schedule' },
+        { label: 'Results', to: '/results' },
+        { label: 'Stats', to: '/stats' }
+      ]
+    };
+  }
+}
+
+type GeminiAskResponse = {
+  text?: unknown;
+  links?: unknown;
+  error?: unknown;
+  code?: unknown;
+};
+
 /**
- * Public Ask portal — answers from schedule, rules, teams, results, live match.
- * Read-only Firebase listeners; answers generated locally (no external AI API).
+ * Call /api/ask (Gemini). Returns null when the route is unavailable so caller can fallback.
+ */
+async function fetchGeminiAnswer(
+  question: string,
+  context: ReturnType<typeof buildAskContext>,
+  history: Array<{ role: 'user' | 'assistant'; text: string }>
+): Promise<ChatAnswer | null> {
+  let res: Response;
+  try {
+    res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, context, history })
+    });
+  } catch {
+    return null;
+  }
+
+  let data: GeminiAskResponse | null = null;
+  try {
+    data = (await res.json()) as GeminiAskResponse;
+  } catch {
+    return null;
+  }
+
+  if (!res.ok) {
+    // Missing config / Gemini down → local fallback.
+    if (res.status === 503 || res.status === 502 || res.status === 404) return null;
+    const errText =
+      typeof data?.error === 'string' && data.error.trim()
+        ? data.error.trim()
+        : 'Ask could not answer that right now.';
+    return { text: errText, links: suggestAskLinks(question) };
+  }
+
+  if (typeof data?.text !== 'string' || !data.text.trim()) return null;
+
+  const links =
+    Array.isArray(data.links) && data.links.length > 0
+      ? data.links
+          .filter(
+            (l): l is { label: string; to: string } =>
+              !!l &&
+              typeof l === 'object' &&
+              typeof (l as { label?: unknown }).label === 'string' &&
+              typeof (l as { to?: unknown }).to === 'string' &&
+              (l as { to: string }).to.startsWith('/')
+          )
+          .map((l) => ({ label: l.label.trim().slice(0, 40), to: l.to.trim().slice(0, 80) }))
+          .slice(0, 4)
+      : suggestAskLinks(question);
+
+  return { text: data.text.trim().slice(0, 4000), links };
+}
+
+/**
+ * Public Ask portal — Gemini answers strictly from live tournament context.
+ * Read-only Firebase; API key stays on the server (/api/ask).
+ * Falls back to local keyword engine when the API is unavailable.
  */
 export default function AskPage() {
   const [fixtures, setFixtures] = useState<Fixture[]>(() =>
@@ -74,9 +172,11 @@ export default function AskPage() {
       id: 'welcome',
       role: 'assistant',
       text:
-        'Hi — ask me about the NPL 2026 schedule, rules, teams, or results. I answer from the live tournament data on this site.',
+        'Hi — ask me anything about NPL 2026. I answer strictly from live schedule, results, teams, rules, and stats on this site.',
       links: [
         { label: 'Schedule', to: '/schedule' },
+        { label: 'Results', to: '/results' },
+        { label: 'Stats', to: '/stats' },
         { label: 'Rules', to: '/rules' }
       ]
     }
@@ -84,6 +184,17 @@ export default function AskPage() {
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const fixturesRef = useRef(fixtures);
+  const teamsRef = useRef(teams);
+  const completedRef = useRef(completed);
+  const liveRef = useRef(live);
+  const messagesRef = useRef(messages);
+
+  fixturesRef.current = fixtures;
+  teamsRef.current = teams;
+  completedRef.current = completed;
+  liveRef.current = live;
+  messagesRef.current = messages;
 
   useEffect(() => {
     const matchRef = ref(db, 'currentMatch');
@@ -92,15 +203,15 @@ export default function AskPage() {
       setLive(normalizeMatchState(raw && typeof raw === 'object' ? raw : INITIAL_MATCH));
     });
 
-    const completedRef = ref(db, 'completedMatches');
-    const unsubCompleted = onValue(completedRef, (snap) => {
+    const completedRefFb = ref(db, 'completedMatches');
+    const unsubCompleted = onValue(completedRefFb, (snap) => {
       const byId = completedMatchesFromFirebase(snap.val());
       setFixtures(mergeFixturesWithResults(FIXTURES, byId));
       setCompleted(sortCompletedMatches(Object.values(byId)));
     });
 
-    const teamsRef = ref(db, 'teams');
-    const unsubTeams = onValue(teamsRef, (snap) => {
+    const teamsRefFb = ref(db, 'teams');
+    const unsubTeams = onValue(teamsRefFb, (snap) => {
       setTeams(normalizeTeams(snap.val()));
     });
 
@@ -116,35 +227,39 @@ export default function AskPage() {
   }, [messages, busy]);
 
   const runAsk = (raw: string) => {
-    const question = typeof raw === 'string' ? raw.trim().slice(0, 400) : '';
+    const question = typeof raw === 'string' ? raw.trim().slice(0, MAX_QUESTION) : '';
     if (!question || busy) return;
 
     setBusy(true);
     setInput('');
-    setMessages((prev) => [
-      ...prev,
-      { id: newId(), role: 'user', text: question }
-    ]);
 
-    // Yield so the user bubble paints before the (sync) answer.
-    window.setTimeout(() => {
-      let answer: ChatAnswer;
+    const userMsg: ChatMessage = { id: newId(), role: 'user', text: question };
+    setMessages((prev) => [...prev, userMsg]);
+
+    void (async () => {
+      const knowledge = {
+        fixtures: fixturesRef.current,
+        teams: teamsRef.current,
+        completed: completedRef.current,
+        live: liveRef.current
+      };
+
+      const prior = messagesRef.current
+        .filter((m) => m.id !== 'welcome' && (m.role === 'user' || m.role === 'assistant'))
+        .slice(-HISTORY_TURNS)
+        .map((m) => ({ role: m.role as 'user' | 'assistant', text: m.text.slice(0, 400) }));
+
+      let answer: ChatAnswer | null = null;
       try {
-        answer = answerTournamentQuestion(question, {
-          fixtures,
-          teams,
-          completed,
-          live
-        });
+        const context = buildAskContext(knowledge);
+        answer = await fetchGeminiAnswer(question, context, prior);
       } catch (err) {
-        console.error('Ask portal failed:', err);
-        answer = {
-          text: 'Something went wrong answering that. Try again or browse Schedule / Rules.',
-          links: [
-            { label: 'Schedule', to: '/schedule' },
-            { label: 'Rules', to: '/rules' }
-          ]
-        };
+        console.error('Ask Gemini path failed:', err);
+        answer = null;
+      }
+
+      if (!answer) {
+        answer = localFallbackAnswer(question, knowledge, true);
       }
 
       setMessages((prev) => [
@@ -152,13 +267,13 @@ export default function AskPage() {
         {
           id: newId(),
           role: 'assistant',
-          text: answer.text,
-          links: answer.links
+          text: answer!.text,
+          links: answer!.links
         }
       ]);
       setBusy(false);
       inputRef.current?.focus();
-    }, 120);
+    })();
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -180,8 +295,8 @@ export default function AskPage() {
           Ask NPL
         </h1>
         <p className="text-sm text-slate-400">
-          Questions about schedule, rules, teams, and results — answered from tournament data
-          (no external AI cloud).
+          Natural questions about schedule, rules, teams, results, and stats — answered strictly
+          from live tournament data on this site.
         </p>
       </header>
 
@@ -252,11 +367,11 @@ export default function AskPage() {
             ref={inputRef}
             type="text"
             value={input}
-            maxLength={400}
+            maxLength={MAX_QUESTION}
             disabled={busy}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="e.g. When does Team B play? Trump rules?"
+            placeholder="e.g. Who won Men’s Singles >35? How many matches on 9th August?"
             className="flex-1 min-w-0 rounded-xl bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 disabled:opacity-50"
             autoComplete="off"
             spellCheck

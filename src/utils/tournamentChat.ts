@@ -72,6 +72,112 @@ const STOP = new Set([
   'games'
 ]);
 
+const MONTH_ALIASES: Record<string, string> = {
+  jan: 'Jan',
+  january: 'Jan',
+  feb: 'Feb',
+  february: 'Feb',
+  mar: 'Mar',
+  march: 'Mar',
+  apr: 'Apr',
+  april: 'Apr',
+  may: 'May',
+  jun: 'Jun',
+  june: 'Jun',
+  jul: 'Jul',
+  july: 'Jul',
+  aug: 'Aug',
+  august: 'Aug',
+  sep: 'Sep',
+  sept: 'Sep',
+  september: 'Sep',
+  oct: 'Oct',
+  october: 'Oct',
+  nov: 'Nov',
+  november: 'Nov',
+  dec: 'Dec',
+  december: 'Dec'
+};
+
+/** Default tournament year suffix used in schedule/result dates (e.g. 9-Aug-26). */
+const TOURNAMENT_YEAR_YY = '26';
+
+/**
+ * Parse natural-language dates from a query into tournament date keys.
+ * Returns keys like "9-Aug" and "9-Aug-26" that match schedule/result date strings.
+ * Input: any; empty array when no date found.
+ */
+export function parseQueryDateKeys(query: unknown): string[] {
+  if (typeof query !== 'string' || !query.trim()) return [];
+  const q = query.toLowerCase();
+  const keys = new Set<string>();
+
+  const add = (day: number, monAbbr: string, yearYy?: string | null) => {
+    if (!Number.isFinite(day) || day < 1 || day > 31 || !monAbbr) return;
+    const d = String(day);
+    keys.add(`${d}-${monAbbr}`);
+    const yy = yearYy && /^\d{2}$/.test(yearYy) ? yearYy : TOURNAMENT_YEAR_YY;
+    keys.add(`${d}-${monAbbr}-${yy}`);
+  };
+
+  // 9-Aug-26 / 9-Aug / 09 Aug 2026
+  for (const m of q.matchAll(
+    /\b(\d{1,2})[-\s\/]+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:[-\s\/]+(?:20)?(\d{2}))?\b/gi
+  )) {
+    const mon = MONTH_ALIASES[m[2].toLowerCase()];
+    if (mon) add(Number(m[1]), mon, m[3] || null);
+  }
+
+  // 9th August / 9 August / August 9th / August 9
+  for (const m of q.matchAll(
+    /\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/gi
+  )) {
+    const mon = MONTH_ALIASES[m[2].toLowerCase()];
+    if (mon) add(Number(m[1]), mon, null);
+  }
+  for (const m of q.matchAll(
+    /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b/gi
+  )) {
+    const mon = MONTH_ALIASES[m[1].toLowerCase()];
+    if (mon) add(Number(m[2]), mon, null);
+  }
+
+  return [...keys];
+}
+
+/** True when a stored date string (e.g. 9-Aug-26) matches any parsed query date key. */
+export function dateMatchesQuery(dateValue: unknown, dateKeys: string[]): boolean {
+  if (typeof dateValue !== 'string' || !dateValue.trim() || dateKeys.length === 0) return false;
+  const m = dateValue.trim().match(/^(\d{1,2})-([A-Za-z]{3})(?:-(\d{2}))?\b/);
+  if (!m) return false;
+  const day = String(Number(m[1]));
+  const mon = m[2];
+  const yy = m[3] || '';
+  const prefix = `${day}-${mon}`;
+  const full = yy ? `${day}-${mon}-${yy}` : prefix;
+  return dateKeys.some((k) => {
+    const key = k.trim();
+    return key === full || key === prefix || (yy !== '' && key === `${day}-${mon}-${yy}`);
+  });
+}
+
+function isCountQuery(lower: string): boolean {
+  return (
+    /\bhow many\b/.test(lower) ||
+    /\bnumber of\b/.test(lower) ||
+    /\bcount of\b/.test(lower) ||
+    /\btotal (?:number of )?matches\b/.test(lower) ||
+    /\bmatches (?:were )?played\b/.test(lower) ||
+    (/\bplayed\b/.test(lower) && /\bon\b/.test(lower))
+  );
+}
+
+function displayDateLabel(dateKeys: string[]): string {
+  const full = dateKeys.find((k) => /^(\d{1,2})-[A-Za-z]{3}-\d{2}$/.test(k));
+  if (full) return full;
+  return dateKeys[0] || '';
+}
+
 const RULES: { keys: string[]; answer: string }[] = [
   {
     keys: ['trump'],
@@ -162,14 +268,20 @@ function ageBandInCategory(category: unknown): AgeBand | null {
  */
 export function tokenizeQuery(query: unknown): string[] {
   if (typeof query !== 'string' || !query.trim()) return [];
-  // Normalize common age phrases before stripping punctuation.
-  const normalized = query
+  // Normalize common age phrases and ordinals before stripping punctuation.
+  let normalized = query
     .toLowerCase()
     .replace(/\bover\s*35\b|\babove\s*35\b|\bolder\s*than\s*35\b|\b35\s*\+/g, '>35')
     .replace(/\bunder\s*35\b|\bbelow\s*35\b|\byounger\s*than\s*35\b/g, '<35')
     .replace(/>\s*35/g, '>35')
     .replace(/<\s*35/g, '<35')
-    .replace(/[^a-z0-9\s'/<>-]/g, ' ');
+    .replace(/\b(\d{1,2})(?:st|nd|rd|th)\b/g, '$1');
+  // Expand month names to schedule abbreviations (august → aug).
+  for (const [full, abbr] of Object.entries(MONTH_ALIASES)) {
+    if (full.length <= 3) continue;
+    normalized = normalized.replace(new RegExp(`\\b${full}\\b`, 'g'), abbr.toLowerCase());
+  }
+  normalized = normalized.replace(/[^a-z0-9\s'/<>-]/g, ' ');
   return normalized
     .split(/\s+/)
     .map((t) => t.trim())
@@ -240,6 +352,7 @@ function findFixtures(
   queryText = ''
 ): Fixture[] {
   const queryBand = detectAgeBand(queryText);
+  const dateKeys = parseQueryDateKeys(queryText);
   const wantsFinal = tokens.includes('final') || /\bfinal\b/i.test(queryText);
   const scored = fixtures
     .map((f) => {
@@ -268,6 +381,7 @@ function findFixtures(
         if (f.date.toLowerCase().includes(t)) score += 4;
         if (f.category.toLowerCase().includes(t)) score += 3;
       }
+      if (dateKeys.length > 0 && dateMatchesQuery(f.date, dateKeys)) score += 14;
       if (queryBand && catBand === queryBand) score += 12;
       if (wantsFinal && typeof f.stage === 'string' && f.stage.toLowerCase() === 'final') {
         score += 10;
@@ -291,6 +405,7 @@ function findCompleted(
   queryText = ''
 ): { rows: CompletedMatch[]; scores: number[] } {
   const queryBand = detectAgeBand(queryText);
+  const dateKeys = parseQueryDateKeys(queryText);
   const wantsFinal = tokens.includes('final') || /\bfinal\b/i.test(queryText);
   const scored = rows
     .map((r) => {
@@ -321,6 +436,7 @@ function findCompleted(
           if (r.category.toLowerCase().includes(t)) score += 4;
         }
       }
+      if (dateKeys.length > 0 && dateMatchesQuery(r.completedDate, dateKeys)) score += 14;
       if (queryBand && catBand === queryBand) score += 12;
       if (wantsFinal && typeof r.stage === 'string' && r.stage.toLowerCase() === 'final') {
         score += 10;
@@ -454,6 +570,52 @@ export function answerTournamentQuestion(
     return answerLive(knowledge.live) ?? {
       text: 'Check the live stream for the current match.',
       links: [{ label: 'Live stream', to: '/live' }]
+    };
+  }
+
+  // How many matches on a date (e.g. "9th August", "9-Aug")
+  const dateKeys = parseQueryDateKeys(q);
+  if (isCountQuery(lower) && dateKeys.length > 0) {
+    const label = displayDateLabel(dateKeys);
+    const playedIntent =
+      /\bplayed\b/.test(lower) ||
+      /\bcompleted\b/.test(lower) ||
+      /\bfinished\b/.test(lower) ||
+      /\btotal\b/.test(lower);
+    const completedOn = completed.filter((r) => dateMatchesQuery(r.completedDate, dateKeys));
+    const scheduledOn = fixtures.filter((f) => dateMatchesQuery(f.date, dateKeys));
+    const scheduledDone = scheduledOn.filter((f) => f.status === 'completed');
+
+    if (playedIntent) {
+      const n = completedOn.length;
+      const sample =
+        n > 0
+          ? `\nExamples:\n${completedOn
+              .slice(0, 4)
+              .map((r) => `• ${formatCompleted(r)}`)
+              .join('\n')}${n > 4 ? `\n• …and ${n - 4} more` : ''}`
+          : '';
+      return {
+        text:
+          n === 0
+            ? `No completed matches are recorded for ${label}.`
+            : `${n} match${n === 1 ? '' : 'es'} played (completed) on ${label}.${sample}`,
+        links: [
+          { label: 'Results', to: '/results' },
+          { label: 'Stats', to: '/stats' }
+        ]
+      };
+    }
+
+    return {
+      text:
+        `On ${label}: ${scheduledOn.length} scheduled` +
+        (scheduledDone.length ? ` (${scheduledDone.length} marked done on the schedule)` : '') +
+        `; ${completedOn.length} completed result${completedOn.length === 1 ? '' : 's'} recorded.`,
+      links: [
+        { label: 'Schedule', to: '/schedule' },
+        { label: 'Results', to: '/results' }
+      ]
     };
   }
 
@@ -646,10 +808,10 @@ export function answerTournamentQuestion(
 export const SUGGESTED_PROMPTS = [
   'What are the trump rules?',
   'When does Team A play?',
-  'Boys Singles schedule',
+  'Who won Men\'s Singles >35 final?',
+  'How many matches played on 9th August?',
   'Who is on Team C?',
-  'What is golden point?',
   'What’s on court now?',
-  'Show recent results',
-  'Show tournament stats'
+  'Show tournament stats',
+  'Show recent results'
 ] as const;
