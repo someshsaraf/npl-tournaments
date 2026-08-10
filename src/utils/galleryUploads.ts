@@ -2,6 +2,7 @@ import {
   onValue,
   push,
   ref,
+  remove,
   runTransaction,
   set,
   type Unsubscribe
@@ -465,3 +466,61 @@ export async function uploadGalleryMedia(
     throw err instanceof Error ? err : new Error('Upload failed.');
   }
 }
+
+const UPLOAD_ID_RE = /^[a-zA-Z0-9_-]{8,80}$/;
+
+/**
+ * Delete a community gallery upload (admin).
+ * Removes RTDB metadata, releases quota bytes, then best-effort deletes the R2 object.
+ *
+ * Concurrency: RTDB remove is atomic per key; quota uses a transaction.
+ * Security: validates id + gallery/ storagePath; R2 delete goes through serverless API.
+ * Input: GalleryUploadRecord (or equivalent fields); fails fast on bad values.
+ */
+export async function deleteGalleryUpload(recordInput: unknown): Promise<void> {
+  if (!recordInput || typeof recordInput !== 'object' || Array.isArray(recordInput)) {
+    throw new Error('deleteGalleryUpload: upload record required');
+  }
+  const row = recordInput as Partial<GalleryUploadRecord>;
+  if (typeof row.id !== 'string' || !UPLOAD_ID_RE.test(row.id.trim())) {
+    throw new Error('Invalid upload id.');
+  }
+  const id = row.id.trim();
+  if (
+    typeof row.storagePath !== 'string' ||
+    !row.storagePath.startsWith('gallery/') ||
+    row.storagePath.includes('..')
+  ) {
+    throw new Error('Invalid storage path on upload record.');
+  }
+  const storagePath = row.storagePath.trim();
+  const byteSize = normalizeUsedBytes(row.byteSize);
+
+  await remove(ref(db, `${GALLERY_UPLOADS_PATH}/${id}`));
+  await releaseGalleryBytes(byteSize);
+
+  const res = await fetch('/api/gallery-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ storagePath })
+  });
+
+  if (!res.ok) {
+    let message = `File removed from gallery, but R2 cleanup failed (${res.status}).`;
+    try {
+      const payload: unknown = await res.json();
+      if (
+        payload &&
+        typeof payload === 'object' &&
+        !Array.isArray(payload) &&
+        typeof (payload as { error?: unknown }).error === 'string'
+      ) {
+        message = `File removed from gallery, but R2 cleanup failed: ${(payload as { error: string }).error}`;
+      }
+    } catch {
+      // keep default message
+    }
+    throw new Error(message);
+  }
+}
+

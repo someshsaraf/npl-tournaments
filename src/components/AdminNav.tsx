@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   CalendarDays,
+  Camera,
   ClipboardPen,
   ScrollText,
   Trophy,
@@ -18,6 +19,7 @@ const LINKS: ReadonlyArray<{
   { to: '/admin', label: 'Schedule', end: true, icon: CalendarDays },
   { to: '/admin/score', label: 'Score Desk', end: false, icon: ClipboardPen },
   { to: '/admin/results', label: 'Results', end: false, icon: Trophy },
+  { to: '/admin/photos', label: 'Photos', end: false, icon: Camera },
   { to: '/admin/teams', label: 'Teams', end: false, icon: Users },
   { to: '/rules', label: 'Rules', end: false, icon: ScrollText }
 ];

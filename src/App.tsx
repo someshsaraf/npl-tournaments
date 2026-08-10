@@ -13,6 +13,7 @@ import MatchPhotosPage from './pages/MatchPhotosPage';
 import AdminPanel from './pages/AdminPanel';
 import AdminScorePage from './pages/AdminScorePage';
 import AdminResultsPage from './pages/AdminResultsPage';
+import AdminPhotosPage from './pages/AdminPhotosPage';
 import AdminTeamsPage from './pages/AdminTeamsPage';
 import LiveScoreboard from './pages/LiveScoreboard';
 import StreamOverlay from './pages/StreamOverlay';
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/admin/score" element={<AdminScorePage />} />
         <Route path="/admin/results" element={<AdminResultsPage />} />
+        <Route path="/admin/photos" element={<AdminPhotosPage />} />
         <Route path="/admin/teams" element={<AdminTeamsPage />} />
         <Route path="/scorer" element={<ScoreControl />} />
 

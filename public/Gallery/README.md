@@ -81,4 +81,5 @@ firebase deploy --only database
 Firebase **Storage** is not required for gallery uploads (R2 holds the files).
 
 **Security note:** public uploads with MIME allowlist and a shared **5 GB** RTDB quota (no per-file size cap).
+Admins can delete community uploads from `/admin/photos` (RTDB metadata + R2 object via `/api/gallery-delete`).
 Monitor R2 usage; tighten later (PIN / auth) if needed.

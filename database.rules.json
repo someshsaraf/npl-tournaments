@@ -29,7 +29,7 @@
     "galleryUploads": {
       ".read": true,
       "$uploadId": {
-        ".write": "!data.exists() && newData.exists()",
+        ".write": "(!data.exists() && newData.exists()) || (data.exists() && !newData.exists())",
         ".validate": "newData.hasChildren(['url', 'kind', 'title', 'fileName', 'contentType', 'storagePath', 'createdAt', 'byteSize']) && (newData.child('kind').val() == 'image' || newData.child('kind').val() == 'video') && newData.child('url').isString() && newData.child('url').val().beginsWith('https://') && newData.child('storagePath').isString() && newData.child('storagePath').val().beginsWith('gallery/') && !newData.child('storagePath').val().contains('..') && newData.child('title').isString() && newData.child('title').val().length <= 80 && newData.child('fileName').isString() && newData.child('fileName').val().length <= 120 && newData.child('contentType').isString() && newData.child('createdAt').isString() && newData.child('byteSize').isNumber() && newData.child('byteSize').val() > 0 && newData.child('byteSize').val() <= 41943040"
       }
     },
