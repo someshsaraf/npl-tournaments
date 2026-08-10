@@ -8,8 +8,8 @@ import {
 import { db, GALLERY_EMOJI_PATH } from '../firebase';
 import type { GalleryMediaItem } from './matchGallery';
 
-/** Allowlisted emoji icons visitors may attach to any gallery photo. */
-export const GALLERY_EMOJI_OPTIONS = ['🔥', '👏', '😂', '❤️', '🏏', '💪'] as const;
+/** Allowlisted reaction emojis: thumbs up, heart, fire, smiley, badminton. */
+export const GALLERY_EMOJI_OPTIONS = ['👍', '❤️', '🔥', '😊', '🏸'] as const;
 
 export type GalleryEmoji = (typeof GALLERY_EMOJI_OPTIONS)[number];
 

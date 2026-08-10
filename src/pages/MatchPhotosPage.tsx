@@ -23,7 +23,6 @@ import {
 import {
   galleryPhotoEmojiKey,
   getOrCreateGalleryVisitorId,
-  rankedGalleryEmoji,
   subscribeGalleryEmoji,
   toggleGalleryEmoji,
   type GalleryEmoji,
@@ -368,7 +367,7 @@ export default function MatchPhotosPage() {
               Used {formatGalleryStorageLabel(usedBytes)}
             </span>
             <span className="block sm:inline sm:before:content-['·_'] mt-0.5 sm:mt-0">
-              React to photos below
+              React on the right of each photo
             </span>
           </p>
         </div>
@@ -426,12 +425,11 @@ export default function MatchPhotosPage() {
             const emojiState = photoKey
               ? emojiByPhotoKey[photoKey] ?? { counts: {}, mine: null }
               : { counts: {}, mine: null };
-            const ranked = rankedGalleryEmoji(emojiState.counts);
             const busy = Boolean(photoKey && emojiBusyId === photoKey);
             return (
               <li
                 key={item.id ?? `static:${item.year}:${item.file}`}
-                className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950"
+                className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950"
               >
                 <button
                   type="button"
@@ -464,29 +462,15 @@ export default function MatchPhotosPage() {
                       </span>
                     </>
                   )}
-                  {ranked.length > 0 ? (
-                    <span
-                      className="absolute bottom-1.5 left-1.5 flex max-w-[90%] flex-wrap gap-0.5 rounded-md bg-black/65 px-1.5 py-0.5 text-[11px] leading-none"
-                      aria-hidden
-                    >
-                      {ranked.slice(0, 3).map(({ emoji, count }) => (
-                        <span key={emoji} className="inline-flex items-center gap-0.5 text-white">
-                          <span>{emoji}</span>
-                          {count > 1 ? (
-                            <span className="text-[9px] font-bold text-slate-300">{count}</span>
-                          ) : null}
-                        </span>
-                      ))}
-                    </span>
-                  ) : null}
                 </button>
 
                 {photoKey ? (
-                  <div className="border-t border-slate-800 bg-slate-900/80 px-1 py-1">
+                  <div className="absolute top-1.5 right-1.5 z-10">
                     <GalleryReactionBar
                       photoKey={photoKey}
                       state={emojiState}
                       busy={busy}
+                      layout="rail"
                       size="compact"
                       onToggle={(key, emoji, mine) => {
                         void handleEmojiToggle(key, emoji, mine);
@@ -537,7 +521,7 @@ export default function MatchPhotosPage() {
                 <button
                   type="button"
                   onClick={showNext}
-                  className="absolute right-2 sm:right-4 z-10 rounded-full bg-slate-900/80 border border-white/20 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-slate-800"
+                  className="absolute right-2 sm:right-4 z-10 top-1/2 -translate-y-1/2 rounded-full bg-slate-900/80 border border-white/20 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-slate-800"
                 >
                   Next
                 </button>
@@ -561,42 +545,44 @@ export default function MatchPhotosPage() {
                 autoPlay
               />
             )}
+
+            {(() => {
+              let activeKey = '';
+              try {
+                activeKey = galleryPhotoEmojiKey(active);
+              } catch {
+                activeKey = '';
+              }
+              if (!activeKey) return null;
+              const state = emojiByPhotoKey[activeKey] ?? { counts: {}, mine: null };
+              const busy = emojiBusyId === activeKey;
+              return (
+                <div className="absolute top-3 right-2 sm:right-4 z-20">
+                  <GalleryReactionBar
+                    photoKey={activeKey}
+                    state={state}
+                    busy={busy}
+                    layout="rail"
+                    size="comfortable"
+                    onToggle={(key, emoji, mine) => {
+                      void handleEmojiToggle(key, emoji, mine);
+                    }}
+                  />
+                </div>
+              );
+            })()}
           </div>
 
-          {(() => {
-            let activeKey = '';
-            try {
-              activeKey = galleryPhotoEmojiKey(active);
-            } catch {
-              activeKey = '';
-            }
-            if (!activeKey) return null;
-            const state = emojiByPhotoKey[activeKey] ?? { counts: {}, mine: null };
-            const busy = emojiBusyId === activeKey;
-            return (
-              <div className="border-t border-white/10 px-3 sm:px-5 py-3 space-y-2">
-                <GalleryReactionBar
-                  photoKey={activeKey}
-                  state={state}
-                  busy={busy}
-                  size="comfortable"
-                  onToggle={(key, emoji, mine) => {
-                    void handleEmojiToggle(key, emoji, mine);
-                  }}
-                />
-                {emojiError ? (
-                  <p className="text-center text-xs text-amber-200" role="alert">
-                    {emojiError}
-                  </p>
-                ) : null}
-              </div>
-            );
-          })()}
+          {emojiError ? (
+            <p className="text-center text-xs text-amber-200 px-3 pb-1" role="alert">
+              {emojiError}
+            </p>
+          ) : null}
 
           <p className="text-center text-[11px] text-slate-500 py-2">
             {activeIndex + 1} / {items.length}
             {active.kind === 'video' ? ' · Video' : ''}
-            {' · React with an emoji below'}
+            {' · React on the right'}
           </p>
         </div>
       ) : null}
