@@ -1,0 +1,26 @@
+api/gallery-delete.ts
+  h_d39e845a5ebfa7 1-99
+database.rules.json
+  h_d39e845a5ebfa7 32
+public/Gallery/README.md
+  h_d39e845a5ebfa7 84
+src/App.tsx
+  h_d39e845a5ebfa7 16,66
+src/components/AdminNav.tsx
+  h_d39e845a5ebfa7 4,22
+src/pages/AdminPhotosPage.tsx
+  h_d39e845a5ebfa7 1-201
+src/utils/galleryUploads.ts
+  h_d39e845a5ebfa7 5,469-526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "46c2886eb22ae3c527d2cdac6663ffbedb40042d",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
