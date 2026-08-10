@@ -1,0 +1,22 @@
+.env.example
+  h_d39e845a5ebfa7 9-14,25
+api/ask.ts
+  h_d39e845a5ebfa7 1-267
+src/pages/AskPage.tsx
+  h_d39e845a5ebfa7 25,31-33,63-99,101-159,175,178-179,187-197,206-207,213-214,230,235-252,254-255,257-262,270-271,276,298-299,370,374
+src/utils/askContext.ts
+  h_d39e845a5ebfa7 1-247
+src/utils/tournamentChat.ts
+  h_d39e845a5ebfa7 75-180,271-272,278-284,355,384,408,439,576-621,811-812,815-816
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "38d5ccda187f2660ae465754858d73f7eee54a00",
+  "prompts": {},
+  "humans": {
+    "h_d39e845a5ebfa7": {
+      "author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
