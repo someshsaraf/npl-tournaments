@@ -126,15 +126,50 @@ const RULES: { keys: string[]; answer: string }[] = [
   }
 ];
 
+/** Age-band intent from free text — distinguishes Men's Singles >35 vs <35. */
+export type AgeBand = 'gt35' | 'lt35';
+
+/**
+ * Detect over/under-35 intent. Prefer explicit operators over bare "35".
+ * Input: any; returns band or null when unspecified.
+ */
+export function detectAgeBand(text: unknown): AgeBand | null {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  const t = text.toLowerCase();
+  // Order matters: check both sides; explicit ops / phrases win.
+  const gt =
+    />\s*35|\bover\s*35\b|\babove\s*35\b|\bolder\s*than\s*35\b|\b35\s*\+|\bgt\s*35\b/.test(t);
+  const lt =
+    /<\s*35|\bunder\s*35\b|\bbelow\s*35\b|\byounger\s*than\s*35\b|\blt\s*35\b/.test(t);
+  if (gt && !lt) return 'gt35';
+  if (lt && !gt) return 'lt35';
+  return null;
+}
+
+function ageBandInCategory(category: unknown): AgeBand | null {
+  if (typeof category !== 'string' || !category.trim()) return null;
+  const c = category.toLowerCase();
+  if (c.includes('>35') || c.includes('over 35')) return 'gt35';
+  if (c.includes('<35') || c.includes('under 35')) return 'lt35';
+  return null;
+}
+
 /**
  * Tokenize a user query for matching.
  * Input: any; returns lowercase tokens (stop-words removed).
+ * Preserves age operators as tokens like ">35" / "<35".
  */
 export function tokenizeQuery(query: unknown): string[] {
   if (typeof query !== 'string' || !query.trim()) return [];
-  return query
+  // Normalize common age phrases before stripping punctuation.
+  const normalized = query
     .toLowerCase()
-    .replace(/[^a-z0-9\s'/-]/g, ' ')
+    .replace(/\bover\s*35\b|\babove\s*35\b|\bolder\s*than\s*35\b|\b35\s*\+/g, '>35')
+    .replace(/\bunder\s*35\b|\bbelow\s*35\b|\byounger\s*than\s*35\b/g, '<35')
+    .replace(/>\s*35/g, '>35')
+    .replace(/<\s*35/g, '<35')
+    .replace(/[^a-z0-9\s'/<>-]/g, ' ');
+  return normalized
     .split(/\s+/)
     .map((t) => t.trim())
     .filter((t) => t.length >= 2 && !STOP.has(t));
@@ -150,6 +185,9 @@ function scoreText(text: string, tokens: string[]): number {
   const lower = text.toLowerCase();
   let score = 0;
   for (const t of tokens) {
+    // Bare "35" is too weak alone (matches both >35 and <35); skip unless
+    // paired with an operator token handled elsewhere.
+    if (t === '35') continue;
     if (lower.includes(t)) score += t.length >= 4 ? 3 : 2;
   }
   return score;
@@ -165,9 +203,15 @@ function formatFixture(f: Fixture): string {
 
 function formatCompleted(row: CompletedMatch): string {
   const when = [row.completedDate, row.completedTime].filter(Boolean).join(' ');
+  // Prefer live player order so game tally (e.g. 0-2) aligns with the named sides.
+  const fromPlayers =
+    row.player1 || row.player2
+      ? `${row.player1 || row.teamA || 'Side A'} vs ${row.player2 || row.teamB || 'Side B'}`
+      : '';
   const matchup =
-    row.details || `${row.player1 || row.teamA} vs ${row.player2 || row.teamB}`;
-  return `${when || 'Recent'} — ${row.category || 'Match'}: ${matchup} · ${row.result || '—'}${
+    fromPlayers || row.details || `${row.teamA || 'Side A'} vs ${row.teamB || 'Side B'}`;
+  const stage = row.stage ? ` · ${row.stage}` : '';
+  return `${when || 'Recent'} — ${row.category || 'Match'}${stage}: ${matchup} · ${row.result || '—'}${
     row.winnerName ? ` · Winner ${row.winnerName}` : ''
   }`;
 }
@@ -188,9 +232,21 @@ function findTeams(tokens: string[], teams: Team[]): Team[] {
     .map((h) => h.team);
 }
 
-function findFixtures(tokens: string[], fixtures: Fixture[], limit = 8): Fixture[] {
+function findFixtures(
+  tokens: string[],
+  fixtures: Fixture[],
+  limit = 8,
+  queryText = ''
+): Fixture[] {
+  const queryBand = detectAgeBand(queryText);
+  const wantsFinal = tokens.includes('final') || /\bfinal\b/i.test(queryText);
   const scored = fixtures
     .map((f) => {
+      const catBand = ageBandInCategory(f.category);
+      if (queryBand && catBand && queryBand !== catBand) {
+        return { f, score: 0 };
+      }
+
       const blob = [
         f.date,
         f.time,
@@ -207,8 +263,13 @@ function findFixtures(tokens: string[], fixtures: Fixture[], limit = 8): Fixture
       let score = scoreText(blob, tokens);
       // Boost date-ish tokens (jul, aug, 31, etc.)
       for (const t of tokens) {
+        if (t === '35' || t === '>35' || t === '<35') continue;
         if (f.date.toLowerCase().includes(t)) score += 4;
         if (f.category.toLowerCase().includes(t)) score += 3;
+      }
+      if (queryBand && catBand === queryBand) score += 12;
+      if (wantsFinal && typeof f.stage === 'string' && f.stage.toLowerCase() === 'final') {
+        score += 10;
       }
       return { f, score };
     })
@@ -218,9 +279,25 @@ function findFixtures(tokens: string[], fixtures: Fixture[], limit = 8): Fixture
   return scored.slice(0, limit).map((x) => x.f);
 }
 
-function findCompleted(tokens: string[], rows: CompletedMatch[], limit = 6): CompletedMatch[] {
+/**
+ * Score completed rows for a query. Age-band mismatch is excluded when the
+ * query specifies >35 / <35 so Men's Singles pools do not bleed together.
+ */
+function findCompleted(
+  tokens: string[],
+  rows: CompletedMatch[],
+  limit = 6,
+  queryText = ''
+): { rows: CompletedMatch[]; scores: number[] } {
+  const queryBand = detectAgeBand(queryText);
+  const wantsFinal = tokens.includes('final') || /\bfinal\b/i.test(queryText);
   const scored = rows
     .map((r) => {
+      const catBand = ageBandInCategory(r.category);
+      if (queryBand && catBand && queryBand !== catBand) {
+        return { r, score: 0 };
+      }
+
       const blob = [
         r.category,
         r.stage,
@@ -235,11 +312,27 @@ function findCompleted(tokens: string[], rows: CompletedMatch[], limit = 6): Com
       ]
         .filter(Boolean)
         .join(' ');
-      return { r, score: scoreText(blob, tokens) };
+      let score = scoreText(blob, tokens);
+
+      if (r.category) {
+        for (const t of tokens) {
+          if (t === '35' || t === '>35' || t === '<35') continue;
+          if (r.category.toLowerCase().includes(t)) score += 4;
+        }
+      }
+      if (queryBand && catBand === queryBand) score += 12;
+      if (wantsFinal && typeof r.stage === 'string' && r.stage.toLowerCase() === 'final') {
+        score += 10;
+      } else if (wantsFinal && typeof r.stage === 'string' && r.stage.toLowerCase().includes('final')) {
+        score += 6;
+      }
+
+      return { r, score };
     })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit).map((x) => x.r);
+  const top = scored.slice(0, limit);
+  return { rows: top.map((x) => x.r), scores: top.map((x) => x.score) };
 }
 
 function upcomingFixtures(fixtures: Fixture[], limit = 6): Fixture[] {
@@ -388,10 +481,36 @@ export function answerTournamentQuestion(
     }
   }
 
-  // Results
+  // Results / who won
   if (includesAny(lower, ['result', 'results', 'winner', 'won', 'completed', 'finished', 'final'])) {
-    const hits = findCompleted(tokens, completed, 6);
+    const { rows: hits, scores } = findCompleted(tokens, completed, 6, q);
     if (hits.length > 0) {
+      const whoWon =
+        includesAny(lower, ['who won', 'winner', 'won']) ||
+        (includesAny(lower, ['final']) && includesAny(lower, ['who', 'winner', 'won']));
+      const top = hits[0];
+      const topScore = scores[0] ?? 0;
+      const secondScore = scores[1] ?? 0;
+      const clearWinnerAsk =
+        whoWon &&
+        top.winnerName &&
+        (hits.length === 1 || topScore >= secondScore + 8);
+
+      if (clearWinnerAsk) {
+        const when = [top.completedDate, top.completedTime].filter(Boolean).join(' ');
+        const matchup =
+          top.player1 || top.player2
+            ? `${top.player1 || top.teamA || 'Side A'} vs ${top.player2 || top.teamB || 'Side B'}`
+            : top.details || `${top.teamA || 'Side A'} vs ${top.teamB || 'Side B'}`;
+        const stage = top.stage ? ` (${top.stage})` : '';
+        return {
+          text: `${top.winnerName} won${stage} — ${top.category || 'Match'}: ${matchup}${
+            top.result ? ` · ${top.result}` : ''
+          }${when ? ` · ${when}` : ''}.`,
+          links: [{ label: 'All results', to: '/results' }]
+        };
+      }
+
       return {
         text: `Completed matches:\n${hits.map((r) => `• ${formatCompleted(r)}`).join('\n')}`,
         links: [{ label: 'All results', to: '/results' }]
@@ -414,7 +533,7 @@ export function answerTournamentQuestion(
 
   // Upcoming / next
   if (includesAny(lower, ['upcoming', 'next', 'up next', 'coming', 'remaining'])) {
-    let list = findFixtures(tokens, fixtures, 10).filter((f) => f.status !== 'completed');
+    let list = findFixtures(tokens, fixtures, 10, q).filter((f) => f.status !== 'completed');
     if (list.length === 0) list = upcomingFixtures(fixtures, 6);
     if (list.length === 0) {
       return {
@@ -429,7 +548,7 @@ export function answerTournamentQuestion(
   }
 
   // Schedule / when / fixtures (default retrieval path)
-  const fixtureHits = findFixtures(tokens, fixtures, 8);
+  const fixtureHits = findFixtures(tokens, fixtures, 8, q);
   const teamHits = findTeams(tokens, teams);
 
   if (fixtureHits.length > 0) {
