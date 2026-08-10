@@ -42,6 +42,9 @@ export type TournamentStats = {
   blowouts: HighlightMatch[];
   champions: HighlightMatch[];
   avgMarginByCategory: Array<{ name: string; avgMargin: number; matches: number }>;
+  /** Short story lines for the Stats page hero. */
+  headline: string;
+  curiosities: string[];
 };
 
 const SCORE_PAIR = /(\d+)\s*[-–]\s*(\d+)/g;
@@ -288,13 +291,27 @@ export function computeTournamentStats(rows: unknown): TournamentStats {
     }))
     .sort((a, b) => a.avgMargin - b.avgMargin);
 
-  // Day order: chronological-ish via completedDate string used in tournament (d-Mon-yy)
-  const byDayList = countMapToList(byDay, 20).sort((a, b) => {
-    // Prefer original map insertion order via parse — keep count sort but stable by date label
-    return a.name.localeCompare(b.name);
-  });
-  // Re-sort days by descending count for "busiest" view, then alpha
+  const byDayList = countMapToList(byDay, 20);
   byDayList.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  const headline = buildHeadline({
+    nailbiters,
+    champions,
+    undefeated,
+    avgMarginByCategory,
+    byDay: byDayList,
+    totalMatches: scored.length
+  });
+  const curiosities = buildCuriosities({
+    champions,
+    undefeated,
+    topWinners: countMapToList(winners, 12),
+    nailbiters,
+    blowouts,
+    avgMarginByCategory,
+    totalPoints,
+    totalMatches: scored.length
+  });
 
   return {
     totalMatches: scored.length,
@@ -308,6 +325,81 @@ export function computeTournamentStats(rows: unknown): TournamentStats {
     nailbiters,
     blowouts,
     champions,
-    avgMarginByCategory
+    avgMarginByCategory,
+    headline,
+    curiosities
   };
+}
+
+function buildHeadline(input: {
+  nailbiters: HighlightMatch[];
+  champions: HighlightMatch[];
+  undefeated: SideRecord[];
+  avgMarginByCategory: Array<{ name: string; avgMargin: number; matches: number }>;
+  byDay: NamedCount[];
+  totalMatches: number;
+}): string {
+  const parts: string[] = [];
+  const topNail = input.nailbiters[0];
+  if (topNail) {
+    parts.push(
+      `Closest scrap: ${topNail.winner} in ${topNail.category}${
+        topNail.stage ? ` (${topNail.stage})` : ''
+      } — ${topNail.result}.`
+    );
+  }
+  if (input.champions.length > 0) {
+    parts.push(`${input.champions.length} category final${input.champions.length === 1 ? '' : 's'} recorded.`);
+  }
+  const tight = input.avgMarginByCategory[0];
+  const wide = input.avgMarginByCategory[input.avgMarginByCategory.length - 1];
+  if (tight && wide && tight.name !== wide.name) {
+    parts.push(
+      `${tight.name} was the tightest (~${tight.avgMargin} pt avg margin); ${wide.name} the widest (~${wide.avgMargin}).`
+    );
+  }
+  if (input.byDay[0]) {
+    parts.push(`Busiest day: ${input.byDay[0].name} with ${input.byDay[0].count} completions.`);
+  }
+  if (parts.length === 0) {
+    return `${input.totalMatches} completed match${input.totalMatches === 1 ? '' : 'es'} so far.`;
+  }
+  return parts.join(' ');
+}
+
+function buildCuriosities(input: {
+  champions: HighlightMatch[];
+  undefeated: SideRecord[];
+  topWinners: NamedCount[];
+  nailbiters: HighlightMatch[];
+  blowouts: HighlightMatch[];
+  avgMarginByCategory: Array<{ name: string; avgMargin: number; matches: number }>;
+  totalPoints: number;
+  totalMatches: number;
+}): string[] {
+  const out: string[] = [];
+  for (const u of input.undefeated.slice(0, 3)) {
+    out.push(`${u.name} finished undefeated at ${u.wins}–0.`);
+  }
+  const multiChamp = input.topWinners.find((w) => w.count >= 4);
+  if (multiChamp && !input.undefeated.some((u) => u.name === multiChamp.name)) {
+    out.push(`${multiChamp.name} leads the board with ${multiChamp.count} recorded wins.`);
+  }
+  const finalNail = input.nailbiters.find((n) => /^final$/i.test(n.stage));
+  if (finalNail) {
+    out.push(
+      `Finals drama: ${finalNail.category} went to ${finalNail.result} — ${finalNail.winner}.`
+    );
+  }
+  if (input.blowouts[0]?.margin != null && input.blowouts[0].margin >= 12) {
+    out.push(
+      `Biggest gap: ${input.blowouts[0].result} in ${input.blowouts[0].category} (Δ ${input.blowouts[0].margin}).`
+    );
+  }
+  if (input.totalMatches > 0) {
+    out.push(
+      `About ${Math.round(input.totalPoints / input.totalMatches)} points per match on average across formats.`
+    );
+  }
+  return out.slice(0, 4);
 }
