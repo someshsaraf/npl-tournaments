@@ -12,7 +12,7 @@ Or just `npm run build` / `npm run dev` (manifest regenerates automatically).
 
 **Allowed:** `.jpg` `.jpeg` `.png` `.webp` `.gif` `.mp4` `.webm`
 
-Prefer year folders so the Photos page can show year tabs:
+Prefer year folders so the Photos page can show season tabs (`npl-2023` … `npl-2026`):
 
 ```text
 public/Gallery/2026/Photo-1.jpeg
@@ -21,6 +21,9 @@ public/Gallery/2025/…
 
 Flat files directly in `public/Gallery/` are still supported and tagged as **2026**.
 Do not nest folders other than a 4-digit year.
+
+Community uploads must choose a season tag: `npl-2026`, `npl-2025`, `npl-2024`, or `npl-2023`.
+Photos are filtered by that tag on the year tabs.
 
 ## Community uploads (Cloudflare R2 + Realtime Database)
 

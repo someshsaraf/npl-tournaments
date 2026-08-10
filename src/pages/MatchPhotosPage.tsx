@@ -2,9 +2,15 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { Loader2, Play, Upload, X } from 'lucide-react';
 import {
   fetchGalleryManifest,
-  galleryYearsFromItems,
   GALLERY_DEFAULT_YEAR,
-  type GalleryMediaItem
+  GALLERY_SEASON_YEARS,
+  GALLERY_YEAR_TAGS,
+  galleryTagFromYear,
+  isGallerySeasonYear,
+  parseGalleryYearTag,
+  yearFromGalleryTag,
+  type GalleryMediaItem,
+  type GalleryYearTag
 } from '../utils/matchGallery';
 import {
   GALLERY_MAX_TOTAL_BYTES,
@@ -23,8 +29,8 @@ const ACCEPT =
  * Static files from public/Gallery + community uploads (R2 + RTDB).
  *
  * Concurrency: component-local state + RTDB listeners; cleaned up on unmount.
- * Security: allowlisted MIME on upload; shared 5 GB RTDB quota; only validated
- * /Gallery/ paths and HTTPS download URLs are shown.
+ * Security: allowlisted MIME + season tags (npl-2023…2026); shared 5 GB quota;
+ * only validated /Gallery/ paths and HTTPS download URLs are shown.
  */
 export default function MatchPhotosPage() {
   const [staticItems, setStaticItems] = useState<GalleryMediaItem[]>([]);
@@ -37,11 +43,12 @@ export default function MatchPhotosPage() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [usedBytes, setUsedBytes] = useState(0);
   const [selectedYear, setSelectedYear] = useState(GALLERY_DEFAULT_YEAR);
+  const [uploadTag, setUploadTag] = useState<GalleryYearTag>(
+    galleryTagFromYear(GALLERY_DEFAULT_YEAR)
+  );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const allItems = [...uploadItems, ...staticItems];
-  const yearsFromItems = galleryYearsFromItems(allItems);
-  const years = yearsFromItems.length > 0 ? yearsFromItems : [GALLERY_DEFAULT_YEAR];
   const items = allItems.filter((item) => item.year === selectedYear);
   const storageFull = usedBytes >= GALLERY_MAX_TOTAL_BYTES;
 
@@ -91,12 +98,6 @@ export default function MatchPhotosPage() {
     return () => unsub();
   }, []);
 
-  // Keep selected year valid when the available year list changes.
-  useEffect(() => {
-    if (years.includes(selectedYear)) return;
-    setSelectedYear(years[0] ?? GALLERY_DEFAULT_YEAR);
-  }, [years, selectedYear]);
-
   // Close lightbox when switching year so indices stay in range.
   useEffect(() => {
     setActiveIndex(null);
@@ -141,13 +142,30 @@ export default function MatchPhotosPage() {
       setUploadError('Gallery storage is full (5 GB limit).');
       return;
     }
+    try {
+      parseGalleryYearTag(uploadTag);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Choose a season tag.');
+      return;
+    }
     fileInputRef.current?.click();
   };
 
   const handleYearSelect = (year: number) => {
-    if (!Number.isInteger(year) || year < 2000 || year > 2100) return;
-    if (!years.includes(year)) return;
+    if (!isGallerySeasonYear(year)) return;
     setSelectedYear(year);
+    setUploadTag(galleryTagFromYear(year));
+  };
+
+  const handleUploadTagChange = (raw: string) => {
+    try {
+      const tag = parseGalleryYearTag(raw);
+      setUploadTag(tag);
+      setSelectedYear(yearFromGalleryTag(tag));
+      setUploadError(null);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Invalid season tag.');
+    }
   };
 
   const handleFilesSelected = async (list: FileList | null) => {
@@ -159,9 +177,10 @@ export default function MatchPhotosPage() {
     setUploadError(null);
     setUploadMessage(null);
     try {
-      const record = await uploadGalleryMedia(file);
-      setUploadMessage('Uploaded. Thanks!');
+      const record = await uploadGalleryMedia(file, uploadTag);
+      setUploadMessage(`Uploaded to ${record.tag}. Thanks!`);
       setSelectedYear(record.year);
+      setUploadTag(record.tag);
       setUploadItems((prev) => {
         const next: GalleryMediaItem = {
           id: record.id,
@@ -169,7 +188,8 @@ export default function MatchPhotosPage() {
           file: record.fileName,
           kind: record.kind,
           title: record.title,
-          year: record.year
+          year: record.year,
+          tag: record.tag
         };
         if (prev.some((p) => p.id === record.id)) return prev;
         return [next, ...prev];
@@ -191,18 +211,14 @@ export default function MatchPhotosPage() {
           <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">
             Match photos
           </h1>
-          <p className="text-sm text-slate-400">
-            NPL-{selectedYear} Photos
-            {items.length > 0 ? ` · ${items.length} item${items.length === 1 ? '' : 's'}` : ''}
-          </p>
         </div>
 
         <div
           className="flex flex-wrap gap-2"
           role="tablist"
-          aria-label="Gallery year"
+          aria-label="Gallery season"
         >
-          {years.map((year) => {
+          {GALLERY_SEASON_YEARS.map((year) => {
             const selected = year === selectedYear;
             return (
               <button
@@ -217,13 +233,29 @@ export default function MatchPhotosPage() {
                     : 'rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-300 hover:border-emerald-500/50 hover:text-white'
                 }
               >
-                {year}
+                npl-{year}
               </button>
             );
           })}
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <label className="flex items-center gap-2 text-[11px] text-slate-400">
+            <span className="uppercase tracking-wide font-bold text-slate-500">Tag</span>
+            <select
+              value={uploadTag}
+              onChange={(e) => handleUploadTagChange(e.target.value)}
+              disabled={uploading || storageFull}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-bold uppercase tracking-wide text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:opacity-50"
+              aria-label="Season tag for upload"
+            >
+              {GALLERY_YEAR_TAGS.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
+          </label>
           <input
             ref={fileInputRef}
             type="file"
@@ -284,14 +316,14 @@ export default function MatchPhotosPage() {
 
       {!loading && items.length === 0 && !error ? (
         <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
-          No photos for {selectedYear} yet — be the first to upload, or add files under{' '}
+          No photos for npl-{selectedYear} yet — pick that tag and upload, or add files under{' '}
           <code className="text-slate-300">public/Gallery/{selectedYear}</code>.
         </p>
       ) : null}
 
       {!loading && items.length === 0 && error && allItems.length > 0 ? (
         <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
-          No photos for {selectedYear} yet.
+          No photos for npl-{selectedYear} yet.
         </p>
       ) : null}
 

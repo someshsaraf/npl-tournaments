@@ -9,8 +9,14 @@ import {
 import { db, GALLERY_TOTAL_BYTES_PATH, GALLERY_UPLOADS_PATH } from '../firebase';
 import {
   GALLERY_DEFAULT_YEAR,
+  galleryTagFromYear,
+  isGallerySeasonYear,
+  isGalleryYearTag,
+  parseGalleryYearTag,
+  yearFromGalleryTag,
   type GalleryMediaItem,
-  type GalleryMediaKind
+  type GalleryMediaKind,
+  type GalleryYearTag
 } from './matchGallery';
 
 /** Hard cap for all community gallery uploads combined (no per-file size limit). */
@@ -39,7 +45,9 @@ export type GalleryUploadRecord = {
   createdAt: string;
   /** File size in bytes (for quota accounting). */
   byteSize: number;
-  /** Season year for year tabs (e.g. 2026). */
+  /** Season tag chosen at upload (npl-2023 … npl-2026). */
+  tag: GalleryYearTag;
+  /** Season year derived from tag (for year tabs). */
   year: number;
 };
 
@@ -82,31 +90,37 @@ function normalizeUsedBytes(value: unknown): number {
   return Math.floor(value);
 }
 
-function isValidGalleryYear(value: unknown): value is number {
-  return (
-    typeof value === 'number' &&
-    Number.isInteger(value) &&
-    value >= 2000 &&
-    value <= 2100
-  );
-}
-
-/** Year for a new community upload (calendar year, clamped). */
-export function galleryUploadYearNow(now: Date = new Date()): number {
-  if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
-    return GALLERY_DEFAULT_YEAR;
-  }
-  const y = now.getFullYear();
-  if (!isValidGalleryYear(y)) return GALLERY_DEFAULT_YEAR;
-  return y;
-}
-
 function yearFromCreatedAt(createdAt: string, fallback: number): number {
   if (typeof createdAt !== 'string' || !createdAt.trim()) return fallback;
   const d = new Date(createdAt);
   if (Number.isNaN(d.getTime())) return fallback;
   const y = d.getFullYear();
-  return isValidGalleryYear(y) ? y : fallback;
+  return isGallerySeasonYear(y) ? y : fallback;
+}
+
+/**
+ * Resolve season tag + year from RTDB row (tag preferred, then year, then createdAt).
+ * Input: untrusted RTDB fields; output always allowlisted.
+ */
+function resolveUploadSeason(row: {
+  tag?: unknown;
+  year?: unknown;
+  createdAt: string;
+}): { tag: GalleryYearTag; year: number } {
+  if (isGalleryYearTag(row.tag) || (typeof row.tag === 'string' && row.tag.trim())) {
+    try {
+      const tag = parseGalleryYearTag(row.tag);
+      return { tag, year: yearFromGalleryTag(tag) };
+    } catch {
+      // fall through
+    }
+  }
+  if (isGallerySeasonYear(row.year)) {
+    return { tag: galleryTagFromYear(row.year), year: row.year };
+  }
+  const year = yearFromCreatedAt(row.createdAt, GALLERY_DEFAULT_YEAR);
+  const safeYear = isGallerySeasonYear(year) ? year : GALLERY_DEFAULT_YEAR;
+  return { tag: galleryTagFromYear(safeYear), year: safeYear };
 }
 
 /** Human-readable storage usage, e.g. "1.2 GB / 5 GB". */
@@ -181,9 +195,11 @@ function parseUploadRecord(id: string, raw: unknown): GalleryUploadRecord | null
       ? row.createdAt.trim()
       : new Date(0).toISOString();
   const byteSize = normalizeUsedBytes(row.byteSize);
-  const year = isValidGalleryYear(row.year)
-    ? row.year
-    : yearFromCreatedAt(createdAt, GALLERY_DEFAULT_YEAR);
+  const { tag, year } = resolveUploadSeason({
+    tag: row.tag,
+    year: row.year,
+    createdAt
+  });
 
   return {
     id,
@@ -195,6 +211,7 @@ function parseUploadRecord(id: string, raw: unknown): GalleryUploadRecord | null
     storagePath: row.storagePath.trim(),
     createdAt,
     byteSize,
+    tag,
     year
   };
 }
@@ -208,7 +225,8 @@ export function uploadsToGalleryItems(records: GalleryUploadRecord[]): GalleryMe
     file: r.fileName,
     kind: r.kind,
     title: r.title,
-    year: r.year
+    year: r.year,
+    tag: r.tag
   }));
 }
 
@@ -372,11 +390,16 @@ async function requestR2Presign(input: {
  * Reserves quota first (atomic); rolls back quota on failure.
  *
  * Concurrency: RTDB transaction serializes the 5 GB counter across clients.
- * Security: MIME validated client+server; no per-file size cap; shared 5 GB RTDB
- * quota; R2 secrets stay on Vercel; object keys are UUID-based.
+ * Security: MIME + allowlisted season tag validated; shared 5 GB RTDB quota;
+ * R2 secrets stay on Vercel; object keys are UUID-based.
  * Local: use `npx vercel dev` so /api/gallery-upload-url is available.
  */
-export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUploadRecord> {
+export async function uploadGalleryMedia(
+  fileInput: unknown,
+  tagInput: unknown = GALLERY_DEFAULT_YEAR
+): Promise<GalleryUploadRecord> {
+  const tag = parseGalleryYearTag(tagInput);
+  const year = yearFromGalleryTag(tag);
   const { file, kind, contentType } = validateGalleryUploadFile(fileInput);
   const byteSize = Math.floor(file.size);
 
@@ -409,7 +432,6 @@ export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUpl
     }
 
     const createdAt = new Date().toISOString();
-    const year = galleryUploadYearNow(new Date(createdAt));
     const record: GalleryUploadRecord = {
       id: rtdbId,
       url: presign.publicUrl,
@@ -420,6 +442,7 @@ export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUpl
       storagePath: presign.storagePath,
       createdAt,
       byteSize,
+      tag,
       year
     };
 
@@ -432,6 +455,7 @@ export async function uploadGalleryMedia(fileInput: unknown): Promise<GalleryUpl
       storagePath: record.storagePath,
       createdAt: record.createdAt,
       byteSize: record.byteSize,
+      tag: record.tag,
       year: record.year
     });
 
