@@ -1,19 +1,18 @@
 rules_version = '2';
 
 // Deploy with Firebase CLI against project npl-tournaments.
-// Public gallery uploads: create-only under gallery/{uploadId}/… with size + contentType limits.
+// Public gallery uploads: create/delete under gallery/{uploadId}/… with contentType limits.
+// No per-file size cap — only the shared 5 GB quota (enforced client-side via RTDB).
 // Score snapshots under photos/ remain as previously configured in the console.
 
 service firebase.storage {
   match /b/{bucket}/o {
     function isGalleryImage() {
-      return request.resource.contentType.matches('image/(jpeg|png|webp|gif)')
-        && request.resource.size < 8 * 1024 * 1024;
+      return request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
     function isGalleryVideo() {
-      return request.resource.contentType.matches('video/(mp4|webm)')
-        && request.resource.size < 40 * 1024 * 1024;
+      return request.resource.contentType.matches('video/(mp4|webm)');
     }
 
     match /gallery/{uploadId}/{fileName} {
@@ -22,7 +21,8 @@ service firebase.storage {
         && uploadId.size() < 64
         && !uploadId.matches('.*\\.\\..*')
         && (isGalleryImage() || isGalleryVideo());
-      allow update, delete: if false;
+      allow delete: if true;
+      allow update: if false;
     }
 
     // Existing score snapshot uploads (adjust if your console rules differ).
