@@ -137,6 +137,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const client = new S3Client({
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      // R2 doesn't support the AWS SDK v3 default flexible-checksum behavior;
+      // leaving it on adds an x-amz-checksum-crc32 param that R2 rejects, which
+      // the browser then reports as an opaque CORS/"Failed to fetch" error.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
       credentials: {
         accessKeyId,
         secretAccessKey
