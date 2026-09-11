@@ -29,6 +29,8 @@ export interface CommunityEvent {
   description?: string;
   /** Path under /public, if a poster/photo is available. */
   imageSrc?: string;
+  /** Extra photos (paths under /public) shown as a slow-panning strip on tile hover. */
+  galleryImages?: string[];
   /** Fallback manual ordering for undated (TBD) events. */
   sortOrder: number;
   /** Admin-posted updates (image and/or text) shown on this event's public page. */
@@ -58,6 +60,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Nature Walk Courts',
     description: 'The flagship NPL badminton tournament — singles, doubles, and Team Championship.',
     imageSrc: '/events/badminton-tournament.jpg',
+    galleryImages: ['/events/badminton-tournament-2.jpg', '/events/badminton-tournament-3.jpg'],
     sortOrder: 1
   },
   {
@@ -71,6 +74,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Flag hoisting, drawing competition, and community celebrations.',
     imageSrc: '/events/independence-day.jpg',
+    galleryImages: ['/events/independence-day-2.jpg', '/events/independence-day-3.jpg'],
     sortOrder: 2
   },
   {
@@ -84,6 +88,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Ganpati installation, aarti, and cultural programs.',
     imageSrc: '/events/ganesh-utsav.jpg',
+    galleryImages: ['/events/ganesh-utsav-2.jpg', '/events/ganesh-utsav-3.jpg'],
     sortOrder: 3
   },
   {
@@ -96,6 +101,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Nature Walk Courts',
     description: 'Singles and doubles tennis tournament — qualifiers, semifinals, and final.',
     imageSrc: '/events/tennis-tournament.jpg',
+    galleryImages: ['/events/tennis-tournament-2.jpg', '/events/tennis-tournament-3.jpg'],
     sortOrder: 4
   },
   {
@@ -109,6 +115,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Karnataka Rajyotsava celebrations.',
     imageSrc: '/events/rajotsav.svg',
+    galleryImages: ['/events/rajotsav-2.jpg', '/events/rajotsav-3.jpg'],
     sortOrder: 5
   },
   {
@@ -120,6 +127,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Dussehra and Diwali festivities.',
     imageSrc: '/events/dussehra-diwali.jpg',
+    galleryImages: ['/events/dussehra-diwali-2.jpg'],
     sortOrder: 6
   },
   {

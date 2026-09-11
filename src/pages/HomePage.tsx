@@ -1,8 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { db } from '../firebase';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
-import { getEventStatus, type CommunityEvent, type EventStatus } from '../data/communityEvents';
+import {
+  getEventStatus,
+  selectFeaturedEvent,
+  type CommunityEvent,
+  type EventStatus
+} from '../data/communityEvents';
 import { subscribeCommunityEvents } from '../utils/communityEvents';
 
 const STATUS_LABEL: Record<EventStatus, string> = {
@@ -53,8 +59,12 @@ export default function HomePage() {
     return { active: activeList, completed: completedList };
   }, [events]);
 
+  const featured = useMemo(() => selectFeaturedEvent(events), [events]);
+
   return (
     <div className="space-y-8">
+      {featured ? <HeroBanner event={featured} /> : null}
+
       {homeAds.length > 0 ? <HomeEventAdBanner ads={homeAds} /> : null}
 
       <div className="space-y-4">
@@ -70,11 +80,7 @@ export default function HomePage() {
             Nothing live or upcoming right now — check Completed below.
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {active.map((event) => (
-              <EventTile key={event.id} event={event} />
-            ))}
-          </div>
+          <EventCarousel events={active} />
         )}
       </div>
 
@@ -97,16 +103,146 @@ export default function HomePage() {
   );
 }
 
-function EventTile({ event }: { event: CommunityEvent }) {
+function HeroBanner({ event }: { event: CommunityEvent }) {
   const status = getEventStatus(event);
   return (
     <Link
       to={`/events/${event.id}`}
-      className="group rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden flex flex-col transition-colors hover:border-emerald-500/50"
+      className="group relative block w-full h-[52vh] min-h-72 max-h-[560px] rounded-3xl overflow-hidden border border-slate-800"
     >
       {event.imageSrc ? (
         <img
           src={event.imageSrc}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+          loading="eager"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.18),_transparent_65%)] bg-slate-900" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+
+      <div className="relative h-full flex flex-col justify-end p-6 sm:p-10 space-y-3 max-w-2xl">
+        <span
+          className={`w-fit text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+            status === 'ongoing'
+              ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
+              : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+          }`}
+        >
+          {STATUS_LABEL[status]}
+        </span>
+        <p className="text-sm font-mono text-amber-300/90">
+          {event.month} · {event.dateLabel}
+        </p>
+        <h1 className="portal-display text-4xl sm:text-6xl text-white tracking-wide leading-none">
+          {event.title}
+        </h1>
+        {event.description ? (
+          <p className="text-sm sm:text-base text-slate-200/90 max-w-lg">{event.description}</p>
+        ) : null}
+        <span className="mt-2 inline-flex items-center gap-2 w-fit rounded-full bg-white text-slate-950 font-bold text-sm px-5 py-2.5 group-hover:bg-emerald-300 transition-colors">
+          Explore event
+          <ArrowRight className="size-4" aria-hidden />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * Horizontal-scroll card row with a scroll-position progress bar — same
+ * drag-and-scroll pattern as the Google Store's "Popular" product carousel.
+ */
+function EventCarousel({ events }: { events: CommunityEvent[] }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [progress, setProgress] = useState({ thumbPct: 100, leftPct: 0 });
+
+  const updateProgress = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    if (maxScroll <= 4) {
+      setProgress({ thumbPct: 100, leftPct: 0 });
+      return;
+    }
+    const visibleFrac = Math.min(1, el.clientWidth / el.scrollWidth);
+    const scrolledFrac = el.scrollLeft / maxScroll;
+    const thumbPct = visibleFrac * 100;
+    const leftPct = scrolledFrac * (100 - thumbPct);
+    setProgress({ thumbPct, leftPct });
+  };
+
+  useEffect(() => {
+    updateProgress();
+    window.addEventListener('resize', updateProgress);
+    return () => window.removeEventListener('resize', updateProgress);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events.length]);
+
+  const showProgress = progress.thumbPct < 99.5;
+
+  return (
+    <div className="space-y-2.5">
+      <div
+        ref={scrollerRef}
+        onScroll={updateProgress}
+        className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1 scroll-smooth"
+      >
+        {events.map((event) => (
+          <EventTile key={event.id} event={event} />
+        ))}
+      </div>
+      {showProgress ? (
+        <div className="h-1 rounded-full bg-slate-800 overflow-hidden max-w-xs">
+          <div
+            className="h-full rounded-full bg-emerald-400 transition-[width,margin-left] duration-150 ease-out"
+            style={{ width: `${progress.thumbPct}%`, marginLeft: `${progress.leftPct}%` }}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function EventTile({ event }: { event: CommunityEvent }) {
+  const status = getEventStatus(event);
+  const images = [event.imageSrc, ...(event.galleryImages ?? [])].filter(
+    (src): src is string => !!src
+  );
+
+  return (
+    <Link
+      to={`/events/${event.id}`}
+      className="group shrink-0 w-64 sm:w-72 snap-start rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden flex flex-col transition-all duration-300 hover:border-emerald-500/50 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-950/40"
+    >
+      {images.length > 1 ? (
+        <div className="relative w-full h-32 overflow-hidden">
+          <div
+            className="npl-tile-strip flex h-full"
+            style={
+              {
+                width: `${images.length * 100}%`,
+                '--npl-pan-end': `${-((images.length - 1) / images.length) * 100}%`,
+                '--npl-pan-duration': `${images.length * 3}s`
+              } as CSSProperties
+            }
+          >
+            {images.map((src, i) => (
+              <img
+                key={src + i}
+                src={src}
+                alt={i === 0 ? event.title : ''}
+                className="h-full object-cover"
+                style={{ width: `${100 / images.length}%` }}
+                loading="lazy"
+              />
+            ))}
+          </div>
+        </div>
+      ) : images.length === 1 ? (
+        <img
+          src={images[0]}
           alt={event.title}
           className="w-full h-32 object-cover"
           loading="lazy"

@@ -151,7 +151,7 @@ export default function EventDetailPage() {
                   <img
                     src={post.imageUrl}
                     alt=""
-                    className="w-full max-h-96 object-cover"
+                    className="w-full max-h-96 object-contain bg-slate-950"
                     loading="lazy"
                   />
                 ) : null}

@@ -142,6 +142,54 @@ html.npl-live-ios-chrome-collapse body {
   animation: npl-brand-shimmer 2.8s linear infinite;
 }
 
+/* Full-screen nav overlay — backdrop fade + staggered pill entrance */
+@keyframes npl-nav-overlay-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes npl-nav-pill-enter {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.npl-nav-overlay {
+  animation: npl-nav-overlay-fade 0.22s ease-out both;
+}
+
+.npl-nav-pill {
+  animation: npl-nav-pill-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Event tile hover photo strip — slow pan across a few photos while hovered */
+@keyframes npl-tile-pan {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(var(--npl-pan-end, 0%));
+  }
+}
+
+.npl-tile-strip {
+  animation: npl-tile-pan var(--npl-pan-duration, 6s) ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+
+.group:hover .npl-tile-strip {
+  animation-play-state: running;
+}
+
 /* /live match-end celebrate — motion only, no layout change */
 @keyframes npl-live-end-enter {
   from {
