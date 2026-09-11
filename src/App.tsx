@@ -52,7 +52,8 @@ export default function App() {
         <Route path="/ads" element={<AdsTestPage />} />
 
         {/* Staff-only — not in public nav */}
-        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/admin" element={<Navigate to="/admin/events" replace />} />
+        <Route path="/admin/tournament" element={<AdminPanel />} />
         <Route path="/admin/score" element={<AdminScorePage />} />
         <Route path="/admin/results" element={<AdminResultsPage />} />
         <Route path="/admin/photos" element={<AdminPhotosPage />} />

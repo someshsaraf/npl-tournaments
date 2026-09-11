@@ -321,7 +321,7 @@ export default function AdminEventConfigPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Link
-              to="/admin"
+              to="/admin/tournament"
               className="rounded-lg bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wide px-3.5 py-2 hover:bg-amber-300"
             >
               Start / Fixtures

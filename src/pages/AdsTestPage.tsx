@@ -86,7 +86,7 @@ export default function AdsTestPage() {
               Open /live
             </Link>
             <Link
-              to="/admin"
+              to="/admin/tournament"
               className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-100 hover:bg-slate-700"
             >
               Admin

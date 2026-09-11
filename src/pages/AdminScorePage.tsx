@@ -421,7 +421,7 @@ export const AdminScorePage: React.FC = () => {
         View Results
       </Link>
       <Link
-        to="/admin"
+        to="/admin/tournament"
         className="rounded-lg border border-amber-500/40 bg-amber-400/15 text-amber-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-amber-400/25"
       >
         Admin Schedule
@@ -451,7 +451,7 @@ export const AdminScorePage: React.FC = () => {
         </button>
       )}
       <Link
-        to="/admin"
+        to="/admin/tournament"
         className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-300 border border-amber-500/40 active:scale-95"
       >
         Admin
