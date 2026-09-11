@@ -161,6 +161,12 @@ async function callGemini(args: {
   return { ok: true, data: body };
 }
 
+function isGeminiFailure(
+  result: Awaited<ReturnType<typeof callGemini>>
+): result is { ok: false; status: number; body: unknown } {
+  return result.ok === false;
+}
+
 function isNonEmptyString(value: unknown, max: number): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 }
@@ -341,14 +347,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     for (const candidate of modelsToTry()) {
       usedModel = candidate;
-      let result: Awaited<ReturnType<typeof callGemini>>;
+      let resultOk = false;
+      let resultData: unknown = null;
+      let resultStatus = 502;
+      let resultBody: unknown = null;
       try {
-        result = await callGemini({
+        const r = await callGemini({
           apiKey,
           model: candidate,
           contents,
           signal: controller.signal
         });
+        if (isGeminiFailure(r)) {
+          resultStatus = r.status;
+          resultBody = r.body;
+        } else {
+          resultOk = true;
+          resultData = r.data;
+        }
       } catch (err) {
         const aborted = err instanceof Error && err.name === 'AbortError';
         res.status(502).json({
@@ -358,25 +374,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
-      if (result.ok) {
-        data = result.data;
+      if (resultOk) {
+        data = resultData;
         lastFail = null;
         break;
       } else {
-        const failStatus: number = result.status;
-        const failBody: unknown = result.body;
-        lastFail = { status: failStatus, body: failBody };
+        lastFail = { status: resultStatus, body: resultBody };
         // Retry next model only when this one is missing / unsupported.
         const msg =
-          failBody &&
-          typeof failBody === 'object' &&
-          !Array.isArray(failBody) &&
-          (failBody as { error?: { message?: string } }).error?.message
-            ? String((failBody as { error: { message?: string } }).error.message)
+          resultBody &&
+          typeof resultBody === 'object' &&
+          !Array.isArray(resultBody) &&
+          (resultBody as { error?: { message?: string } }).error?.message
+            ? String((resultBody as { error: { message?: string } }).error.message)
             : '';
         const modelIssue =
-          failStatus === 404 ||
-          (failStatus === 400 && /model|not found|not supported|not available/i.test(msg));
+          resultStatus === 404 ||
+          (resultStatus === 400 && /model|not found|not supported|not available/i.test(msg));
         if (!modelIssue) break;
       }
     }
