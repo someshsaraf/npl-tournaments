@@ -143,7 +143,7 @@ export function renderScoreSnapshotCanvas(match: MatchState): HTMLCanvasElement 
   ctx.fillStyle = '#64748b';
   ctx.font = '600 24px "Source Sans 3", system-ui, sans-serif';
   ctx.fillText(
-    `Nature Walk Society · ${isTennis ? 'Tennis' : 'Badminton'}`,
+    `Renaissance Nature Walk · ${isTennis ? 'Tennis' : 'Badminton'}`,
     w / 2,
     1280
   );

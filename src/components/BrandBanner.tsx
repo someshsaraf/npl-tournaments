@@ -15,7 +15,7 @@ const SIZE = {
 } as const;
 
 /**
- * Centered Nature Walk Society brand banner with attention-catching motion.
+ * Centered Renaissance Nature Walk brand banner with attention-catching motion.
  * Stateless presentational component (CSS animation only; no shared timers).
  */
 export function BrandBanner({
@@ -31,7 +31,7 @@ export function BrandBanner({
     <div
       className={`npl-brand-banner flex flex-col items-center justify-center text-center ${className}`.trim()}
       role="banner"
-      aria-label="Nature Walk Society"
+      aria-label="Renaissance Nature Walk"
     >
       <div className={`npl-brand-glow flex items-center justify-center ${s.gap}`}>
         <span
@@ -51,7 +51,7 @@ export function BrandBanner({
           <p
             className={`npl-brand-title font-black tracking-[0.12em] uppercase truncate ${s.title}`}
           >
-            Nature Walk Society
+            Renaissance Nature Walk
           </p>
           {safeSubtitle ? (
             <p className="text-[10px] sm:text-xs text-slate-400 truncate">

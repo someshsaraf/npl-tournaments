@@ -133,7 +133,7 @@ export function buildAskContext(input: unknown): AskContextPack {
   const stats = computeTournamentStats(completed);
 
   const pack: AskContextPack = {
-    tournament: 'Nature Walk Society · Cultural & Sports 2026 · Renaissance Nature Walk (Badminton + Tennis)',
+    tournament: 'Renaissance Nature Walk · Cultural & Sports 2026 (Badminton + Tennis)',
     rules: RULES_DIGEST,
     live: compactLive(live),
     teams: teams

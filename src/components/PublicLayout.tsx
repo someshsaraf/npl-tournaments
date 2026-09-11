@@ -47,8 +47,9 @@ export function PublicLayout() {
   }, [menuOpen]);
 
   return (
-    <div className="npl-portal min-h-full flex flex-col bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-40 border-b border-emerald-900/40 bg-slate-950/90 backdrop-blur-md">
+    <div className="npl-portal min-h-full flex flex-col text-slate-100">
+      <header className="relative sticky top-0 z-40 bg-slate-950/85 backdrop-blur-md">
+        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" aria-hidden />
         <div className="mx-auto w-full max-w-6xl px-3 sm:px-5 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -72,7 +73,7 @@ export function PublicLayout() {
             </span>
             <div className="min-w-0 leading-tight">
               <p className="portal-display text-2xl sm:text-3xl text-white tracking-wide truncate">
-                Nature Walk Society
+                Renaissance Nature Walk
               </p>
             </div>
           </div>
@@ -144,8 +145,9 @@ export function PublicLayout() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-slate-800/80 py-4 text-center text-[11px] text-slate-500">
-        Nature Walk Society · Cultural &amp; Sports 2026 · Renaissance Nature Walk
+      <footer className="relative py-6 text-center text-[11px] text-slate-500 tracking-wide">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-700/70 to-transparent" aria-hidden />
+        Renaissance Nature Walk · Cultural &amp; Sports 2026
       </footer>
     </div>
   );

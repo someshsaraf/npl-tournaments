@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { db } from '../firebase';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
+import { Reveal } from '../components/Reveal';
 import {
   getEventStatus,
   selectFeaturedEvent,
@@ -25,11 +26,17 @@ const STATUS_ORDER: Record<EventStatus, number> = {
   past: 3
 };
 
+/** Bento span pattern — a big featured tile, occasional wide tiles, rest square. */
+function tileSpan(index: number): string {
+  if (index === 0) return 'col-span-2 row-span-2';
+  if (index % 5 === 3) return 'col-span-2 row-span-1';
+  return 'col-span-1 row-span-1';
+}
+
 /**
- * Home = a tiled view of every event (cultural + sports). Live/upcoming
- * events lead in the main grid; completed events sit in their own pane
- * below so they read as an archive, not competing for attention.
- * Clicking a tile opens that event's own page (/events/:id).
+ * Home = a bento-style poster wall of every event (cultural + sports).
+ * Live/upcoming events lead the grid; completed events sit in their own
+ * archive strip below. Clicking a tile opens that event's own page.
  */
 export default function HomePage() {
   const [events, setEvents] = useState<CommunityEvent[]>([]);
@@ -62,17 +69,32 @@ export default function HomePage() {
   const featured = useMemo(() => selectFeaturedEvent(events), [events]);
 
   return (
-    <div className="space-y-8">
-      {featured ? <HeroBanner event={featured} /> : null}
+    <div className="relative space-y-12">
+      <div className="npl-blob -top-24 -left-20 size-80 bg-orange-500/25" aria-hidden />
+      <div className="npl-blob top-32 -right-28 size-96 bg-rose-500/20" aria-hidden />
+      <div className="npl-blob top-[60vh] left-1/3 size-96 bg-indigo-500/15" aria-hidden />
+
+      {featured ? (
+        <Reveal className="relative z-10">
+          <HeroBanner event={featured} />
+        </Reveal>
+      ) : null}
 
       {homeAds.length > 0 ? <HomeEventAdBanner ads={homeAds} /> : null}
 
-      <div className="space-y-4">
-        <header className="space-y-1">
-          <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Events</h1>
-          <p className="text-sm text-slate-400">
-            Cultural celebrations and sports tournaments — tap one for details.
-          </p>
+      <Reveal delayMs={100} className="relative z-10 space-y-4">
+        <header className="flex items-end justify-between gap-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="size-4 text-amber-400" aria-hidden />
+              <h1 className="npl-flame-text portal-display text-3xl sm:text-4xl tracking-wide">
+                All events
+              </h1>
+            </div>
+            <p className="text-sm text-slate-400 pl-6">
+              Cultural celebrations and sports tournaments — tap one for details.
+            </p>
+          </div>
         </header>
 
         {active.length === 0 ? (
@@ -80,24 +102,30 @@ export default function HomePage() {
             Nothing live or upcoming right now — check Completed below.
           </p>
         ) : (
-          <EventCarousel events={active} />
-        )}
-      </div>
-
-      {completed.length > 0 ? (
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/20 p-4 sm:p-5 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
-              Completed
-            </h2>
-            <span className="text-[11px] text-slate-600">{completed.length} wrapped up</span>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
-            {completed.map((event) => (
-              <CompletedTile key={event.id} event={event} />
+          <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[130px] sm:auto-rows-[150px] gap-3 sm:gap-4">
+            {active.map((event, i) => (
+              <EventTile key={event.id} event={event} spanClass={tileSpan(i)} big={i === 0} />
             ))}
           </div>
-        </section>
+        )}
+      </Reveal>
+
+      {completed.length > 0 ? (
+        <Reveal delayMs={150} className="relative z-10">
+          <section className="npl-glass rounded-2xl p-4 sm:p-5 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+                Completed
+              </h2>
+              <span className="text-[11px] text-slate-600">{completed.length} wrapped up</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+              {completed.map((event) => (
+                <CompletedTile key={event.id} event={event} />
+              ))}
+            </div>
+          </section>
+        </Reveal>
       ) : null}
     </div>
   );
@@ -108,7 +136,7 @@ function HeroBanner({ event }: { event: CommunityEvent }) {
   return (
     <Link
       to={`/events/${event.id}`}
-      className="group relative block w-full h-[52vh] min-h-72 max-h-[560px] rounded-3xl overflow-hidden border border-slate-800"
+      className="group relative block w-full h-[56vh] min-h-80 max-h-[600px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50 ring-1 ring-white/5"
     >
       {event.imageSrc ? (
         <img
@@ -118,95 +146,53 @@ function HeroBanner({ event }: { event: CommunityEvent }) {
           loading="eager"
         />
       ) : (
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.18),_transparent_65%)] bg-slate-900" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(251,146,60,0.22),_transparent_65%)] bg-slate-900" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-transparent" />
 
-      <div className="relative h-full flex flex-col justify-end p-6 sm:p-10 space-y-3 max-w-2xl">
+      <div className="relative h-full flex flex-col justify-end p-6 sm:p-12 space-y-3 max-w-2xl">
         <span
-          className={`w-fit text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+          className={`w-fit inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border backdrop-blur-sm ${
             status === 'ongoing'
-              ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
-              : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+              ? 'bg-rose-500/20 text-rose-200 border-rose-400/50'
+              : 'bg-white/10 text-white border-white/30'
           }`}
         >
+          {status === 'ongoing' ? (
+            <span className="npl-glow-pulse size-1.5 rounded-full bg-rose-400" aria-hidden />
+          ) : null}
           {STATUS_LABEL[status]}
         </span>
         <p className="text-sm font-mono text-amber-300/90">
           {event.month} · {event.dateLabel}
         </p>
-        <h1 className="portal-display text-4xl sm:text-6xl text-white tracking-wide leading-none">
+        <h1 className="npl-flame-text portal-display text-5xl sm:text-7xl tracking-wide leading-[0.95] [text-shadow:0_4px_32px_rgba(0,0,0,0.6)]">
           {event.title}
         </h1>
         {event.description ? (
           <p className="text-sm sm:text-base text-slate-200/90 max-w-lg">{event.description}</p>
         ) : null}
-        <span className="mt-2 inline-flex items-center gap-2 w-fit rounded-full bg-white text-slate-950 font-bold text-sm px-5 py-2.5 group-hover:bg-emerald-300 transition-colors">
+        <span className="mt-2 inline-flex items-center gap-2 w-fit rounded-full bg-white text-slate-950 font-bold text-sm px-5 py-2.5 shadow-lg shadow-black/30 transition-all group-hover:gap-3 group-hover:shadow-orange-500/30">
           Explore event
-          <ArrowRight className="size-4" aria-hidden />
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
         </span>
       </div>
     </Link>
   );
 }
 
-/**
- * Horizontal-scroll card row with a scroll-position progress bar — same
- * drag-and-scroll pattern as the Google Store's "Popular" product carousel.
- */
-function EventCarousel({ events }: { events: CommunityEvent[] }) {
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const [progress, setProgress] = useState({ thumbPct: 100, leftPct: 0 });
-
-  const updateProgress = () => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const maxScroll = el.scrollWidth - el.clientWidth;
-    if (maxScroll <= 4) {
-      setProgress({ thumbPct: 100, leftPct: 0 });
-      return;
-    }
-    const visibleFrac = Math.min(1, el.clientWidth / el.scrollWidth);
-    const scrolledFrac = el.scrollLeft / maxScroll;
-    const thumbPct = visibleFrac * 100;
-    const leftPct = scrolledFrac * (100 - thumbPct);
-    setProgress({ thumbPct, leftPct });
-  };
-
-  useEffect(() => {
-    updateProgress();
-    window.addEventListener('resize', updateProgress);
-    return () => window.removeEventListener('resize', updateProgress);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events.length]);
-
-  const showProgress = progress.thumbPct < 99.5;
-
-  return (
-    <div className="space-y-2.5">
-      <div
-        ref={scrollerRef}
-        onScroll={updateProgress}
-        className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1 scroll-smooth"
-      >
-        {events.map((event) => (
-          <EventTile key={event.id} event={event} />
-        ))}
-      </div>
-      {showProgress ? (
-        <div className="h-1 rounded-full bg-slate-800 overflow-hidden max-w-xs">
-          <div
-            className="h-full rounded-full bg-emerald-400 transition-[width,margin-left] duration-150 ease-out"
-            style={{ width: `${progress.thumbPct}%`, marginLeft: `${progress.leftPct}%` }}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function EventTile({ event }: { event: CommunityEvent }) {
+function EventTile({
+  event,
+  spanClass,
+  big
+}: {
+  event: CommunityEvent;
+  spanClass: string;
+  big: boolean;
+}) {
   const status = getEventStatus(event);
+  const isCultural = event.category !== 'sports';
   const images = [event.imageSrc, ...(event.galleryImages ?? [])].filter(
     (src): src is string => !!src
   );
@@ -214,10 +200,12 @@ function EventTile({ event }: { event: CommunityEvent }) {
   return (
     <Link
       to={`/events/${event.id}`}
-      className="group shrink-0 w-64 sm:w-72 snap-start rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden flex flex-col transition-all duration-300 hover:border-emerald-500/50 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-950/40"
+      className={`group relative overflow-hidden rounded-2xl border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl ${
+        isCultural ? 'hover:shadow-rose-950/60' : 'hover:shadow-indigo-950/60'
+      } ${spanClass}`}
     >
-      {images.length > 1 ? (
-        <div className="relative w-full h-32 overflow-hidden">
+      <div className="absolute inset-0 bg-slate-900">
+        {images.length > 1 ? (
           <div
             className="npl-tile-strip flex h-full"
             style={
@@ -239,45 +227,59 @@ function EventTile({ event }: { event: CommunityEvent }) {
               />
             ))}
           </div>
-        </div>
-      ) : images.length === 1 ? (
-        <img
-          src={images[0]}
-          alt={event.title}
-          className="w-full h-32 object-cover"
-          loading="lazy"
-        />
-      ) : (
-        <div className="w-full h-32 bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.14),_transparent_60%)] flex items-center justify-center">
-          <img
-            src="/nature-walk-logo-1.png"
-            alt=""
-            className="h-12 w-12 rounded-lg object-cover ring-1 ring-emerald-500/30 bg-white"
-            draggable={false}
-          />
-        </div>
-      )}
-      <div className="p-3.5 space-y-1 flex-1">
-        <div className="flex items-center gap-1.5 flex-wrap">
+        ) : images.length === 1 ? (
+          <img src={images[0]} alt={event.title} className="h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <div className="h-full w-full bg-[radial-gradient(ellipse_at_center,_rgba(251,146,60,0.18),_transparent_60%)] flex items-center justify-center">
+            <img
+              src="/nature-walk-logo-1.png"
+              alt=""
+              className="h-10 w-10 rounded-lg object-cover ring-1 ring-white/20 bg-white"
+              draggable={false}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/25 to-transparent" />
+      <div
+        className={`absolute inset-0 rounded-2xl ring-1 ring-inset opacity-0 group-hover:opacity-100 transition-opacity ${
+          isCultural ? 'ring-rose-400/40' : 'ring-indigo-400/40'
+        }`}
+        aria-hidden
+      />
+
+      <div className="relative h-full flex flex-col justify-between p-2.5 sm:p-3.5">
+        <div className="flex items-center justify-between gap-1.5">
           <span
-            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+            className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border backdrop-blur-sm ${
               status === 'ongoing'
-                ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
-                : 'bg-slate-800 text-slate-400 border-slate-700'
+                ? 'bg-rose-500/20 text-rose-200 border-rose-400/50'
+                : 'bg-white/10 text-white/90 border-white/25'
             }`}
           >
             {STATUS_LABEL[status]}
           </span>
-          <span className="text-[10px] uppercase tracking-wide text-indigo-300/80">
-            {event.category === 'sports' ? 'Sports' : 'Cultural'}
+          <span
+            className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+              isCultural ? 'bg-rose-400/15 text-rose-300' : 'bg-indigo-400/15 text-indigo-300'
+            }`}
+          >
+            {isCultural ? 'Cultural' : 'Sports'}
           </span>
         </div>
-        <h2 className="font-semibold text-slate-100 truncate group-hover:text-emerald-300">
-          {event.title}
-        </h2>
-        <p className="text-xs font-mono text-amber-300/90">
-          {event.month} · {event.dateLabel}
-        </p>
+        <div className="space-y-0.5">
+          <h2
+            className={`portal-display text-white tracking-wide leading-none truncate ${
+              big ? 'text-2xl sm:text-4xl' : 'text-sm sm:text-lg'
+            }`}
+          >
+            {event.title}
+          </h2>
+          <p className="text-[10px] sm:text-xs font-mono text-amber-300/90 truncate">
+            {event.month} · {event.dateLabel}
+          </p>
+        </div>
       </div>
     </Link>
   );
@@ -291,7 +293,7 @@ function CompletedTile({ event }: { event: CommunityEvent }) {
   return (
     <Link
       to={`/events/${event.id}`}
-      className="group shrink-0 w-40 rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden flex flex-col opacity-70 hover:opacity-100 transition-opacity"
+      className="group shrink-0 w-40 rounded-xl border border-white/10 bg-slate-900/40 overflow-hidden flex flex-col opacity-70 hover:opacity-100 transition-opacity"
     >
       {images.length > 1 ? (
         <div className="relative w-full h-20 overflow-hidden">
@@ -330,7 +332,7 @@ function CompletedTile({ event }: { event: CommunityEvent }) {
         </div>
       )}
       <div className="p-2.5 space-y-0.5">
-        <h3 className="text-xs font-semibold text-slate-300 truncate group-hover:text-emerald-300">
+        <h3 className="text-xs font-semibold text-slate-300 truncate group-hover:text-white">
           {event.title}
         </h3>
         <p className="text-[10px] font-mono text-slate-500 truncate">{event.dateLabel}</p>

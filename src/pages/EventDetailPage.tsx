@@ -4,6 +4,7 @@ import { ArrowLeft, Camera } from 'lucide-react';
 import { db } from '../firebase';
 import { subscribeCommunityEvents } from '../utils/communityEvents';
 import { getEventStatus, type CommunityEvent } from '../data/communityEvents';
+import { Reveal } from '../components/Reveal';
 import { ScheduleView } from '../components/tournament/ScheduleView';
 import { ResultsView } from '../components/tournament/ResultsView';
 import { StatsView } from '../components/tournament/StatsView';
@@ -78,44 +79,44 @@ export default function EventDetailPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="relative space-y-6">
+      <div className="npl-blob -top-16 -right-24 size-80 bg-orange-500/20" aria-hidden />
+
       <BackLink />
 
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr]">
+      <Reveal className="relative z-10">
+        <section className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50 ring-1 ring-white/5 min-h-[280px] sm:min-h-[340px]">
           {event.imageSrc ? (
             <img
               src={event.imageSrc}
-              alt={event.title}
-              className="w-full h-48 md:h-full object-cover"
-              loading="lazy"
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="eager"
             />
           ) : (
-            <div className="hidden md:flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.14),_transparent_60%)]">
-              <img
-                src="/nature-walk-logo-1.png"
-                alt=""
-                className="h-20 w-20 rounded-xl object-cover ring-1 ring-emerald-500/30 bg-white"
-                draggable={false}
-              />
-            </div>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(251,146,60,0.2),_transparent_65%)] bg-slate-900" />
           )}
-          <div className="p-5 sm:p-6 space-y-2.5">
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+
+          <div className="relative h-full flex flex-col justify-end p-5 sm:p-8 space-y-2.5 max-w-2xl">
             <div className="flex items-center gap-2 flex-wrap">
               <span
-                className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border backdrop-blur-sm ${
                   status === 'ongoing'
-                    ? 'bg-rose-500/15 text-rose-300 border-rose-500/40 animate-pulse'
-                    : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                    ? 'bg-rose-500/20 text-rose-200 border-rose-400/50'
+                    : 'bg-white/10 text-white border-white/30'
                 }`}
               >
+                {status === 'ongoing' ? (
+                  <span className="npl-glow-pulse size-1.5 rounded-full bg-rose-400" aria-hidden />
+                ) : null}
                 {STATUS_LABEL[status]}
               </span>
-              <span className="text-[11px] uppercase tracking-wide text-indigo-300/90 font-semibold">
+              <span className="text-[11px] uppercase tracking-wide text-amber-300/90 font-semibold">
                 {event.category === 'sports' ? 'Sports' : 'Cultural'}
               </span>
             </div>
-            <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">
+            <h1 className="npl-flame-text portal-display text-4xl sm:text-5xl tracking-wide leading-[0.95] [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
               {event.title}
             </h1>
             <p className="text-sm font-mono text-amber-300/90">
@@ -123,29 +124,32 @@ export default function EventDetailPage() {
               {event.location ? ` · ${event.location}` : ''}
             </p>
             {event.description ? (
-              <p className="text-sm text-slate-300 leading-relaxed">{event.description}</p>
+              <p className="text-sm text-slate-200/90 leading-relaxed max-w-lg">{event.description}</p>
             ) : null}
             <div className="pt-1">
               <Link
                 to={`/photos?event=${event.id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-100 font-bold text-xs uppercase tracking-wide px-3.5 py-2 hover:bg-slate-700"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-950 font-bold text-xs uppercase tracking-wide px-4 py-2.5 shadow-lg shadow-black/30 transition-all hover:gap-2.5 hover:shadow-orange-500/30"
               >
                 <Camera className="size-3.5" aria-hidden />
                 View Photos
               </Link>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </Reveal>
 
       {Array.isArray(event.posts) && event.posts.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">Updates</h2>
+        <Reveal delayMs={80} className="relative z-10 space-y-3">
+          <div className="flex items-center gap-2.5">
+            <span className="h-4 w-1 rounded-full bg-gradient-to-b from-orange-400 to-rose-400" aria-hidden />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">Updates</h2>
+          </div>
           <ul className="space-y-3">
             {event.posts.map((post) => (
               <li
                 key={post.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden"
+                className="rounded-2xl border border-slate-800/80 bg-slate-900/40 overflow-hidden transition-colors hover:border-slate-700"
               >
                 {post.imageUrl ? (
                   <img
@@ -168,20 +172,20 @@ export default function EventDetailPage() {
               </li>
             ))}
           </ul>
-        </section>
+        </Reveal>
       ) : null}
 
       {tabs.length > 0 && (
-        <>
+        <Reveal delayMs={120} className="relative z-10">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
             {tabs.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
-                className={`text-xs px-3.5 py-1.5 rounded-lg whitespace-nowrap font-bold uppercase tracking-wide transition-colors ${
+                className={`text-xs px-3.5 py-1.5 rounded-lg whitespace-nowrap font-bold uppercase tracking-wide transition-all ${
                   tab === t.key
-                    ? 'bg-indigo-500 text-white shadow-md'
+                    ? 'bg-indigo-500 text-white shadow-md shadow-indigo-950/50'
                     : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80'
                 }`}
               >
@@ -190,7 +194,7 @@ export default function EventDetailPage() {
             ))}
           </div>
 
-          <div>
+          <div className="mt-4">
             {tab === 'schedule' && event.sport ? <ScheduleView sport={event.sport} /> : null}
             {tab === 'results' && event.sport ? <ResultsView sport={event.sport} /> : null}
             {tab === 'stats' && event.sport ? <StatsView sport={event.sport} /> : null}
@@ -199,7 +203,7 @@ export default function EventDetailPage() {
             {tab === 'recordings' ? <RecordingsView /> : null}
             {tab === 'rules' && event.sport ? <RulesView sport={event.sport} /> : null}
           </div>
-        </>
+        </Reveal>
       )}
     </div>
   );
@@ -209,9 +213,9 @@ function BackLink() {
   return (
     <Link
       to="/"
-      className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300"
+      className="group inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300"
     >
-      <ArrowLeft className="size-3.5" aria-hidden />
+      <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
       Back to Home
     </Link>
   );

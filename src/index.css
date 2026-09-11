@@ -21,6 +21,77 @@
   letter-spacing: 0.04em;
 }
 
+/* Public portal — a warm, saturated gradient mesh over a near-black base
+   (not cool corporate slate), plus a faint dot-grid for texture. Fixed so
+   it reads as ambient light rather than a per-page graphic. */
+.npl-portal {
+  position: relative;
+  background:
+    radial-gradient(1200px 620px at 0% -10%, rgba(251, 146, 60, 0.16), transparent 58%),
+    radial-gradient(1000px 580px at 100% -5%, rgba(244, 63, 94, 0.14), transparent 55%),
+    radial-gradient(1100px 700px at 85% 105%, rgba(99, 102, 241, 0.14), transparent 58%),
+    radial-gradient(900px 600px at 5% 105%, rgba(16, 185, 129, 0.1), transparent 55%),
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.045) 1px, transparent 0) 0 0/26px 26px,
+    #08060a;
+  background-attachment: fixed;
+}
+
+/* Warm signature gradient — the site's primary identity color, used for
+   headline shimmer, glows, and key accents instead of a single flat hue. */
+.npl-flame-text {
+  background: linear-gradient(90deg, #fb923c 0%, #f43f5e 35%, #fbbf24 70%, #fb923c 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: npl-brand-shimmer 6s linear infinite;
+}
+
+.npl-glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+@keyframes npl-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.npl-reveal {
+  animation: npl-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes npl-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.npl-glow-pulse {
+  animation: npl-glow-pulse 3.5s ease-in-out infinite;
+}
+
+/* Soft blurred color blobs for ambient depth behind hero content. */
+.npl-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* /live CSS immersive / iOS cinema when native Fullscreen API is unavailable. */
 .npl-live-immersive {
   position: fixed !important;
