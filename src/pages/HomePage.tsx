@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Camera, Info, MessageCircleQuestion, Sparkles } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { db } from '../firebase';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
 import { Reveal } from '../components/Reveal';
@@ -25,6 +26,14 @@ const STATUS_ORDER: Record<EventStatus, number> = {
   undated: 2,
   past: 3
 };
+
+// Ask and About RNW are temporarily disabled — shown greyed out with a
+// "Soon" tag rather than removed. Flip `disabled` to re-enable.
+const QUICK_LINKS: ReadonlyArray<{ to: string; label: string; icon: LucideIcon; disabled?: boolean }> = [
+  { to: '/photos', label: 'Photos', icon: Camera },
+  { to: '/ask', label: 'Ask', icon: MessageCircleQuestion, disabled: true },
+  { to: '/about', label: 'About RNW', icon: Info, disabled: true }
+];
 
 /** Bento span pattern — a big featured tile, occasional wide tiles, rest square. */
 function tileSpan(index: number): string {
@@ -81,6 +90,48 @@ export default function HomePage() {
       ) : null}
 
       {homeAds.length > 0 ? <HomeEventAdBanner ads={homeAds} /> : null}
+
+      {QUICK_LINKS.length > 0 ? (
+        <Reveal
+          delayMs={60}
+          className={`relative z-10 grid gap-2.5 sm:gap-3.5 ${
+            QUICK_LINKS.length === 3
+              ? 'grid-cols-3'
+              : QUICK_LINKS.length === 2
+                ? 'grid-cols-2'
+                : 'grid-cols-1'
+          }`}
+        >
+          {QUICK_LINKS.map((link) => {
+            const Icon = link.icon;
+            if (link.disabled) {
+              return (
+                <div
+                  key={link.to}
+                  aria-disabled="true"
+                  className="npl-glass flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 sm:py-4 opacity-50 cursor-not-allowed"
+                >
+                  <Icon className="size-4 sm:size-5 text-slate-400 shrink-0" aria-hidden />
+                  <span className="text-xs sm:text-sm font-bold text-slate-400 truncate">{link.label}</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-500 shrink-0">
+                    Soon
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="npl-glass group flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 sm:py-4 transition-all hover:-translate-y-0.5 hover:border-white/25"
+              >
+                <Icon className="size-4 sm:size-5 text-amber-300 shrink-0" aria-hidden />
+                <span className="text-xs sm:text-sm font-bold text-white truncate">{link.label}</span>
+              </Link>
+            );
+          })}
+        </Reveal>
+      ) : null}
 
       <Reveal delayMs={100} className="relative z-10 space-y-4">
         <header className="flex items-end justify-between gap-3">

@@ -4,6 +4,7 @@ import { PublicLayout } from './components/PublicLayout';
 import HomePage from './pages/HomePage';
 import EventDetailPage from './pages/EventDetailPage';
 import AskPage from './pages/AskPage';
+import AboutPage from './pages/AboutPage';
 import MatchPhotosPage from './pages/MatchPhotosPage';
 import AdminPanel from './pages/AdminPanel';
 import AdminScorePage from './pages/AdminScorePage';
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/events/:id" element={<EventDetailPage />} />
           <Route path="/photos" element={<MatchPhotosPage />} />
           <Route path="/ask" element={<AskPage />} />
+          <Route path="/about" element={<AboutPage />} />
         </Route>
 
         {/* Immersive displays (no portal chrome) */}

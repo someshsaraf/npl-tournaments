@@ -1,21 +1,24 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Camera, Home, Menu, MessageCircleQuestion, X } from 'lucide-react';
+import { Camera, Home, Info, Menu, MessageCircleQuestion, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 const LOGO_SRC = '/nature-walk-logo-1.png';
 
-type NavItem = { to: string; label: string; end: boolean; icon: LucideIcon };
+type NavItem = { to: string; label: string; end: boolean; icon: LucideIcon; disabled?: boolean };
 
 /**
  * Whole-site nav. Sport-specific pages (Schedule/Results/Stats/Teams/Live/
  * Recordings/Rules) are NOT here — they live inside each sport event's own
  * page (/events/:id), reached by tapping that event's tile on Home.
+ * Ask and About RNW are temporarily disabled — shown greyed out with a
+ * "Soon" tag rather than removed. Flip `disabled` to re-enable.
  */
 const NAV: ReadonlyArray<NavItem> = [
   { to: '/', label: 'Home', end: true, icon: Home },
   { to: '/photos', label: 'Photos', end: false, icon: Camera },
-  { to: '/ask', label: 'Ask', end: false, icon: MessageCircleQuestion }
+  { to: '/ask', label: 'Ask', end: false, icon: MessageCircleQuestion, disabled: true },
+  { to: '/about', label: 'About RNW', end: false, icon: Info, disabled: true }
 ];
 
 /**
@@ -115,6 +118,26 @@ export function PublicLayout() {
           <nav className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-6 space-y-3">
             {NAV.map((item, i) => {
               const Icon = item.icon;
+              if (item.disabled) {
+                return (
+                  <div
+                    key={item.to}
+                    aria-disabled="true"
+                    className="npl-nav-pill flex items-center justify-between gap-4 rounded-2xl px-5 sm:px-6 py-4 sm:py-5 text-lg sm:text-xl font-semibold bg-slate-900/40 text-slate-600 cursor-not-allowed"
+                    style={{ animationDelay: `${i * 60}ms` }}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      {item.label}
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-800 text-slate-500">
+                        Soon
+                      </span>
+                    </span>
+                    <span className="shrink-0 inline-flex items-center justify-center size-11 sm:size-12 rounded-full bg-slate-950/20">
+                      <Icon className="size-5 sm:size-6" aria-hidden />
+                    </span>
+                  </div>
+                );
+              }
               return (
                 <NavLink
                   key={item.to}
@@ -124,7 +147,7 @@ export function PublicLayout() {
                     [
                       'npl-nav-pill group flex items-center justify-between gap-4 rounded-2xl px-5 sm:px-6 py-4 sm:py-5 text-lg sm:text-xl font-semibold transition-colors',
                       isActive
-                        ? 'bg-emerald-500 text-slate-950'
+                        ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white'
                         : 'bg-slate-900 text-slate-100 hover:bg-slate-800'
                     ].join(' ')
                   }
