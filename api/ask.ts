@@ -363,18 +363,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         lastFail = null;
         break;
       } else {
-        lastFail = { status: result.status, body: result.body };
+        const failStatus: number = result.status;
+        const failBody: unknown = result.body;
+        lastFail = { status: failStatus, body: failBody };
         // Retry next model only when this one is missing / unsupported.
         const msg =
-          result.body &&
-          typeof result.body === 'object' &&
-          !Array.isArray(result.body) &&
-          (result.body as { error?: { message?: string } }).error?.message
-            ? String((result.body as { error: { message?: string } }).error.message)
+          failBody &&
+          typeof failBody === 'object' &&
+          !Array.isArray(failBody) &&
+          (failBody as { error?: { message?: string } }).error?.message
+            ? String((failBody as { error: { message?: string } }).error.message)
             : '';
         const modelIssue =
-          result.status === 404 ||
-          (result.status === 400 && /model|not found|not supported|not available/i.test(msg));
+          failStatus === 404 ||
+          (failStatus === 400 && /model|not found|not supported|not available/i.test(msg));
         if (!modelIssue) break;
       }
     }
