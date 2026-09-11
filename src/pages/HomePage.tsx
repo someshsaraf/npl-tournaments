@@ -284,13 +284,41 @@ function EventTile({ event }: { event: CommunityEvent }) {
 }
 
 function CompletedTile({ event }: { event: CommunityEvent }) {
+  const images = [event.imageSrc, ...(event.galleryImages ?? [])].filter(
+    (src): src is string => !!src
+  );
+
   return (
     <Link
       to={`/events/${event.id}`}
       className="group shrink-0 w-40 rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden flex flex-col opacity-70 hover:opacity-100 transition-opacity"
     >
-      {event.imageSrc ? (
-        <img src={event.imageSrc} alt={event.title} className="w-full h-20 object-cover grayscale-[40%]" loading="lazy" />
+      {images.length > 1 ? (
+        <div className="relative w-full h-20 overflow-hidden">
+          <div
+            className="npl-tile-strip flex h-full grayscale-[40%] group-hover:grayscale-0 transition-[filter]"
+            style={
+              {
+                width: `${images.length * 100}%`,
+                '--npl-pan-end': `${-((images.length - 1) / images.length) * 100}%`,
+                '--npl-pan-duration': `${images.length * 3}s`
+              } as CSSProperties
+            }
+          >
+            {images.map((src, i) => (
+              <img
+                key={src + i}
+                src={src}
+                alt={i === 0 ? event.title : ''}
+                className="h-full object-cover"
+                style={{ width: `${100 / images.length}%` }}
+                loading="lazy"
+              />
+            ))}
+          </div>
+        </div>
+      ) : images.length === 1 ? (
+        <img src={images[0]} alt={event.title} className="w-full h-20 object-cover grayscale-[40%]" loading="lazy" />
       ) : (
         <div className="w-full h-20 bg-slate-800/60 flex items-center justify-center">
           <img
