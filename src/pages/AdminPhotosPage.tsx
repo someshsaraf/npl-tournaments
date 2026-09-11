@@ -24,7 +24,9 @@ export default function AdminPhotosPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeGalleryUploads(
@@ -53,7 +55,7 @@ export default function AdminPhotosPage() {
       setActionError('Cannot delete: missing upload id.');
       return;
     }
-    if (deletingId) return;
+    if (deletingIds.size > 0) return;
 
     const label = record.title || record.fileName || record.id;
     const ok = window.confirm(
@@ -61,18 +63,83 @@ export default function AdminPhotosPage() {
     );
     if (!ok) return;
 
-    setDeletingId(record.id);
+    setDeletingIds(new Set([record.id]));
     setActionError(null);
     setActionMessage(null);
     try {
       await deleteGalleryUpload(record);
       setActionMessage(`Deleted “${label}”.`);
+      setSelectedIds((prev) => {
+        if (!prev.has(record.id)) return prev;
+        const next = new Set(prev);
+        next.delete(record.id);
+        return next;
+      });
     } catch (err) {
       console.error('Gallery delete failed:', err);
       setActionError(err instanceof Error ? err.message : 'Failed to delete photo.');
     } finally {
-      setDeletingId(null);
+      setDeletingIds(new Set());
     }
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => (prev.size === uploads.length ? new Set() : new Set(uploads.map((u) => u.id))));
+  };
+
+  const handleBulkDelete = async () => {
+    if (deletingIds.size > 0 || selectedIds.size === 0) return;
+    const targets = uploads.filter((u) => selectedIds.has(u.id));
+    if (targets.length === 0) return;
+
+    const ok = window.confirm(
+      `Delete ${targets.length} selected upload${targets.length === 1 ? '' : 's'}?\n\nRemoves them from Photos and frees storage quota.`
+    );
+    if (!ok) return;
+
+    setDeletingIds(new Set(targets.map((t) => t.id)));
+    setBulkDeleting(true);
+    setActionError(null);
+    setActionMessage(null);
+
+    let successCount = 0;
+    const failures: string[] = [];
+    for (const record of targets) {
+      try {
+        await deleteGalleryUpload(record);
+        successCount++;
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(record.id);
+          return next;
+        });
+      } catch (err) {
+        failures.push(
+          `${record.title || record.fileName || record.id}: ${err instanceof Error ? err.message : 'Failed.'}`
+        );
+      }
+    }
+
+    if (successCount > 0 && failures.length === 0) {
+      setActionMessage(`Deleted ${successCount} upload${successCount === 1 ? '' : 's'}.`);
+    } else if (successCount > 0) {
+      setActionMessage(`Deleted ${successCount} of ${targets.length}.`);
+      setActionError(failures.join(' · '));
+    } else {
+      setActionError(failures.join(' · ') || 'Bulk delete failed.');
+    }
+
+    setDeletingIds(new Set());
+    setBulkDeleting(false);
   };
 
   return (
@@ -129,16 +196,64 @@ export default function AdminPhotosPage() {
             .
           </p>
         ) : (
-          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {uploads.map((item) => {
-              const busy = deletingId === item.id;
-              return (
-                <li
-                  key={item.id}
-                  className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 flex flex-col"
-                >
-                  <div className="relative aspect-square bg-slate-900">
-                    {item.kind === 'image' ? (
+          <>
+            <div className="flex flex-wrap items-center gap-3 text-[11px]">
+              <label className="inline-flex items-center gap-1.5 text-slate-400 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={uploads.length > 0 && selectedIds.size === uploads.length}
+                  ref={(el) => {
+                    if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < uploads.length;
+                  }}
+                  onChange={toggleSelectAll}
+                  disabled={deletingIds.size > 0}
+                  className="size-3.5 accent-emerald-500"
+                />
+                Select all
+              </label>
+              {selectedIds.size > 0 ? (
+                <>
+                  <span className="text-slate-500">{selectedIds.size} selected</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleBulkDelete()}
+                    disabled={deletingIds.size > 0}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-950/50 text-red-300 border border-red-500/40 px-3 py-1.5 font-bold uppercase tracking-wide hover:bg-red-900/70 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkDeleting ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="size-3.5" aria-hidden />
+                    )}
+                    {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size} selected`}
+                  </button>
+                </>
+              ) : null}
+            </div>
+
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {uploads.map((item) => {
+                const busy = deletingIds.has(item.id);
+                const selected = selectedIds.has(item.id);
+                return (
+                  <li
+                    key={item.id}
+                    className={`overflow-hidden rounded-xl border bg-slate-950 flex flex-col ${
+                      selected ? 'border-emerald-500/70 ring-1 ring-emerald-500/40' : 'border-slate-800'
+                    }`}
+                  >
+                    <div className="relative aspect-square bg-slate-900">
+                      <label className="absolute top-2 left-2 z-10 inline-flex items-center justify-center rounded-md bg-slate-950/70 p-1">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleSelected(item.id)}
+                          disabled={deletingIds.size > 0}
+                          aria-label={`Select ${item.title || item.fileName}`}
+                          className="size-4 accent-emerald-500"
+                        />
+                      </label>
+                      {item.kind === 'image' ? (
                       <img
                         src={item.url}
                         alt=""
@@ -178,7 +293,7 @@ export default function AdminPhotosPage() {
                     </div>
                     <button
                       type="button"
-                      disabled={busy || Boolean(deletingId)}
+                      disabled={deletingIds.size > 0}
                       onClick={() => void handleDelete(item)}
                       className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-red-950/50 text-red-300 border border-red-500/40 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide hover:bg-red-900/70 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -193,7 +308,8 @@ export default function AdminPhotosPage() {
                 </li>
               );
             })}
-          </ul>
+            </ul>
+          </>
         )}
       </div>
     </div>
