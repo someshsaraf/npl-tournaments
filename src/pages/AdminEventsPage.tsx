@@ -66,46 +66,66 @@ export default function AdminEventsPage() {
           {sorted.map((event) => {
             const status = getEventStatus(event);
             const postCount = Array.isArray(event.posts) ? event.posts.length : 0;
-            return (
-              <li key={event.id}>
-                <Link
-                  to={`/admin/events/${event.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800/70 hover:border-indigo-500/50 transition-colors p-3"
-                >
-                  {event.imageSrc ? (
-                    <img
-                      src={event.imageSrc}
-                      alt=""
-                      className="w-14 h-14 object-cover rounded-lg shrink-0"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-lg bg-slate-800 shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span
-                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${STATUS_BADGE[status]}`}
-                      >
-                        {status}
+            const isCompleted = status === 'past';
+
+            const rowContent = (
+              <>
+                {event.imageSrc ? (
+                  <img
+                    src={event.imageSrc}
+                    alt=""
+                    className={`w-14 h-14 object-cover rounded-lg shrink-0 ${isCompleted ? 'grayscale opacity-60' : ''}`}
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-slate-800 shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${STATUS_BADGE[status]}`}
+                    >
+                      {status}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-indigo-300/80">
+                      {event.category === 'sports' ? `Sports${event.sport ? ` · ${event.sport}` : ''}` : 'Cultural'}
+                    </span>
+                    {postCount > 0 && (
+                      <span className="text-[10px] uppercase tracking-wide text-amber-300/80">
+                        {postCount} update{postCount === 1 ? '' : 's'}
                       </span>
-                      <span className="text-[10px] uppercase tracking-wide text-indigo-300/80">
-                        {event.category === 'sports' ? `Sports${event.sport ? ` · ${event.sport}` : ''}` : 'Cultural'}
-                      </span>
-                      {postCount > 0 && (
-                        <span className="text-[10px] uppercase tracking-wide text-amber-300/80">
-                          {postCount} update{postCount === 1 ? '' : 's'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-semibold text-slate-100 truncate">{event.title}</p>
-                    <p className="text-xs font-mono text-slate-500">
-                      {event.month} · {event.dateLabel}
-                    </p>
+                    )}
                   </div>
+                  <p className="font-semibold text-slate-100 truncate">{event.title}</p>
+                  <p className="text-xs font-mono text-slate-500">
+                    {event.month} · {event.dateLabel}
+                  </p>
+                </div>
+                {isCompleted ? (
+                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                    Locked
+                  </span>
+                ) : (
                   <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-emerald-400">
                     Configure →
                   </span>
-                </Link>
+                )}
+              </>
+            );
+
+            return (
+              <li key={event.id}>
+                {isCompleted ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-800/20 p-3 opacity-70">
+                    {rowContent}
+                  </div>
+                ) : (
+                  <Link
+                    to={`/admin/events/${event.id}`}
+                    className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800/70 hover:border-indigo-500/50 transition-colors p-3"
+                  >
+                    {rowContent}
+                  </Link>
+                )}
               </li>
             );
           })}

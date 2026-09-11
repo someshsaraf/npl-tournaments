@@ -122,6 +122,7 @@ export default function AdminEventConfigPage() {
 
   const isSportsTournament = event.category === 'sports' && !!event.sport;
   const posts = Array.isArray(event.posts) ? event.posts : [];
+  const isLocked = getEventStatus(event) === 'past';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-4xl mx-auto">
@@ -134,6 +135,13 @@ export default function AdminEventConfigPage() {
       {saveMessage && (
         <p className="text-[11px] text-red-400" role="alert">
           {saveMessage}
+        </p>
+      )}
+
+      {isLocked && (
+        <p className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+          This event is completed — its details, image, and updates are locked. (Tournament admin
+          tools below still work, for post-event corrections.)
         </p>
       )}
 
@@ -159,7 +167,8 @@ export default function AdminEventConfigPage() {
               type="text"
               value={event.title}
               onChange={(e) => updateEvent({ title: e.target.value.slice(0, 80) })}
-              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+              disabled={isLocked}
+              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </label>
 
@@ -168,7 +177,8 @@ export default function AdminEventConfigPage() {
             <select
               value={event.category}
               onChange={(e) => updateEvent({ category: e.target.value as CommunityEventCategory })}
-              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+              disabled={isLocked}
+              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="sports">Sports</option>
               <option value="cultural">Cultural</option>
@@ -190,7 +200,8 @@ export default function AdminEventConfigPage() {
                         : undefined
                   })
                 }
-                className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+                disabled={isLocked}
+                className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">None (not scored in-app)</option>
                 <option value="badminton">Badminton</option>
@@ -207,7 +218,8 @@ export default function AdminEventConfigPage() {
               type="text"
               value={event.month}
               onChange={(e) => updateEvent({ month: e.target.value.slice(0, 40) })}
-              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+              disabled={isLocked}
+              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </label>
 
@@ -219,7 +231,8 @@ export default function AdminEventConfigPage() {
               type="text"
               value={event.dateLabel}
               onChange={(e) => updateEvent({ dateLabel: e.target.value.slice(0, 80) })}
-              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+              disabled={isLocked}
+              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </label>
 
@@ -231,7 +244,8 @@ export default function AdminEventConfigPage() {
               type="date"
               value={event.startDate ?? ''}
               onChange={(e) => updateEvent({ startDate: e.target.value || undefined })}
-              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+              disabled={isLocked}
+              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </label>
 
@@ -241,7 +255,8 @@ export default function AdminEventConfigPage() {
               type="date"
               value={event.endDate ?? ''}
               onChange={(e) => updateEvent({ endDate: e.target.value || undefined })}
-              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+              disabled={isLocked}
+              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </label>
 
@@ -251,7 +266,8 @@ export default function AdminEventConfigPage() {
               type="text"
               value={event.location ?? ''}
               onChange={(e) => updateEvent({ location: e.target.value.slice(0, 80) })}
-              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+              disabled={isLocked}
+              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </label>
 
@@ -264,7 +280,8 @@ export default function AdminEventConfigPage() {
               value={event.imageSrc ?? ''}
               onChange={(e) => updateEvent({ imageSrc: e.target.value.slice(0, 200) || undefined })}
               placeholder="/events/example.jpg"
-              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+              disabled={isLocked}
+              className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </label>
         </div>
@@ -275,19 +292,22 @@ export default function AdminEventConfigPage() {
             value={event.description ?? ''}
             onChange={(e) => updateEvent({ description: e.target.value.slice(0, 400) })}
             rows={2}
-            className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500"
+            disabled={isLocked}
+            className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-2.5 py-1.5 rounded focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </label>
 
-        <div className="pt-2 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={handleRemoveEvent}
-            className="text-[11px] text-red-400 hover:text-red-300 font-semibold"
-          >
-            Remove this event
-          </button>
-        </div>
+        {!isLocked && (
+          <div className="pt-2 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={handleRemoveEvent}
+              className="text-[11px] text-red-400 hover:text-red-300 font-semibold"
+            >
+              Remove this event
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tournament admin (sports only) */}
@@ -341,42 +361,46 @@ export default function AdminEventConfigPage() {
         <div>
           <h2 className="text-lg font-bold text-amber-300">Updates</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Post an image, text, or both — it shows immediately on this event's public page.
+            {isLocked
+              ? 'This event is completed — posting is locked. Existing updates stay visible below.'
+              : "Post an image, text, or both — it shows immediately on this event's public page."}
           </p>
         </div>
 
-        <div className="space-y-2">
-          <textarea
-            value={postText}
-            onChange={(e) => setPostText(e.target.value)}
-            rows={3}
-            placeholder="What's the update?"
-            className="w-full bg-slate-900/90 border border-amber-700/50 text-slate-100 text-sm px-2.5 py-2 rounded focus:outline-none focus:border-amber-500"
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)}
-              className="text-xs text-slate-400 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:font-bold file:uppercase file:text-slate-200"
+        {!isLocked && (
+          <div className="space-y-2">
+            <textarea
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+              rows={3}
+              placeholder="What's the update?"
+              className="w-full bg-slate-900/90 border border-amber-700/50 text-slate-100 text-sm px-2.5 py-2 rounded focus:outline-none focus:border-amber-500"
             />
-            <button
-              type="button"
-              onClick={() => void handlePost()}
-              disabled={posting}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs uppercase tracking-wide px-4 py-2 hover:bg-emerald-400 disabled:opacity-50"
-            >
-              {posting ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Upload className="size-3.5" aria-hidden />}
-              {posting ? 'Posting…' : 'Post'}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)}
+                className="text-xs text-slate-400 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:font-bold file:uppercase file:text-slate-200"
+              />
+              <button
+                type="button"
+                onClick={() => void handlePost()}
+                disabled={posting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs uppercase tracking-wide px-4 py-2 hover:bg-emerald-400 disabled:opacity-50"
+              >
+                {posting ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Upload className="size-3.5" aria-hidden />}
+                {posting ? 'Posting…' : 'Post'}
+              </button>
+            </div>
+            {postError && (
+              <p className="text-[11px] text-amber-300" role="alert">
+                {postError}
+              </p>
+            )}
           </div>
-          {postError && (
-            <p className="text-[11px] text-amber-300" role="alert">
-              {postError}
-            </p>
-          )}
-        </div>
+        )}
 
         {posts.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-6">No updates posted yet.</p>
@@ -401,15 +425,17 @@ export default function AdminEventConfigPage() {
                     {new Date(post.createdAt).toLocaleString()}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void handleDeletePost(post.id)}
-                  className="shrink-0 text-red-400 hover:text-red-300"
-                  aria-label="Delete update"
-                  title="Delete update"
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </button>
+                {!isLocked && (
+                  <button
+                    type="button"
+                    onClick={() => void handleDeletePost(post.id)}
+                    className="shrink-0 text-red-400 hover:text-red-300"
+                    aria-label="Delete update"
+                    title="Delete update"
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </button>
+                )}
               </li>
             ))}
           </ul>

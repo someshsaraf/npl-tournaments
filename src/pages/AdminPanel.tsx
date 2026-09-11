@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ref, set, onValue } from 'firebase/database';
 import { db, LIVE_SCORE_DELAY_MS_PATH, YOUTUBE_LIVE_URL_PATH } from '../firebase';
 import {
@@ -338,6 +338,12 @@ export const AdminPanel: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
 
       <AdminNav />
+      <Link
+        to="/admin/events"
+        className="inline-block text-emerald-400 hover:text-emerald-300 text-sm font-semibold"
+      >
+        ← Back to Events
+      </Link>
       <p className="text-[11px] text-slate-500 text-center max-w-lg mx-auto -mt-4">
         Pick a fixture below (or start a custom match) to open the score desk. After you save,
         you return here to choose the next game.

@@ -1,32 +1,27 @@
 import { NavLink } from 'react-router-dom';
-import {
-  CalendarDays,
-  Camera,
-  ClipboardPen,
-  PartyPopper,
-  Trophy,
-  Users
-} from 'lucide-react';
+import { Camera, PartyPopper } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { BrandBanner } from './BrandBanner';
 
+/**
+ * Score Desk / Results / Teams / (badminton/tennis) Schedule are sport-specific
+ * — reached from a sports event's own config page (its "Tournament Admin"
+ * section), not from this general nav. Only whole-site tools live here.
+ */
 const LINKS: ReadonlyArray<{
   to: string;
   label: string;
   end: boolean;
   icon: LucideIcon;
 }> = [
-  { to: '/admin', label: 'Schedule', end: true, icon: CalendarDays },
-  { to: '/admin/score', label: 'Score Desk', end: false, icon: ClipboardPen },
-  { to: '/admin/results', label: 'Results', end: false, icon: Trophy },
-  { to: '/admin/photos', label: 'Photos', end: false, icon: Camera },
-  { to: '/admin/teams', label: 'Teams', end: false, icon: Users },
-  { to: '/admin/events', label: 'Events', end: false, icon: PartyPopper }
+  { to: '/admin/events', label: 'Events', end: false, icon: PartyPopper },
+  { to: '/admin/photos', label: 'Photos', end: false, icon: Camera }
 ];
 
 /**
- * Shared staff nav for admin pages (schedule / results / teams).
- * /admin/score is linked but renders outside this chrome when opened.
+ * Shared staff nav for admin pages. Sport-specific tools (Score Desk,
+ * Results, Teams, fixtures) are reached from each sports event's own
+ * config page instead of this general nav.
  */
 export function AdminNav({ subtitle = 'Tournament Control' }: { subtitle?: string }) {
   const safeSubtitle =
@@ -47,11 +42,9 @@ export function AdminNav({ subtitle = 'Tournament Control' }: { subtitle?: strin
               className={({ isActive }) =>
                 [
                   'inline-flex items-center gap-1.5 rounded-lg text-xs font-bold uppercase tracking-wide px-3 py-2 transition-colors',
-                  item.to === '/admin/score'
-                    ? 'bg-amber-400 text-slate-950 shadow hover:bg-amber-300'
-                    : isActive
-                      ? 'bg-emerald-500 text-slate-950 shadow'
-                      : 'border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+                  isActive
+                    ? 'bg-emerald-500 text-slate-950 shadow'
+                    : 'border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
                 ].join(' ')
               }
             >
