@@ -6,13 +6,9 @@ import {
   fetchGalleryManifest,
   GALLERY_DEFAULT_YEAR,
   GALLERY_SEASON_YEARS,
-  GALLERY_YEAR_TAGS,
   galleryTagFromYear,
   isGallerySeasonYear,
-  parseGalleryYearTag,
-  yearFromGalleryTag,
-  type GalleryMediaItem,
-  type GalleryYearTag
+  type GalleryMediaItem
 } from '../utils/matchGallery';
 import {
   GALLERY_MAX_TOTAL_BYTES,
@@ -26,7 +22,6 @@ import { type CommunityEvent } from '../data/communityEvents';
 import { subscribeCommunityEvents } from '../utils/communityEvents';
 
 const ALL_EVENTS = 'all';
-const GENERAL_EVENT = 'general';
 
 const ACCEPT =
   'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm';
@@ -51,14 +46,10 @@ export default function MatchPhotosPage() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [usedBytes, setUsedBytes] = useState(0);
   const [selectedYear, setSelectedYear] = useState(GALLERY_DEFAULT_YEAR);
-  const [uploadTag, setUploadTag] = useState<GalleryYearTag>(
-    galleryTagFromYear(GALLERY_DEFAULT_YEAR)
-  );
   const [events, setEvents] = useState<CommunityEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>(
     searchParams.get('event') || ALL_EVENTS
   );
-  const [uploadEventId, setUploadEventId] = useState<string>(GENERAL_EVENT);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -164,30 +155,12 @@ export default function MatchPhotosPage() {
       setUploadError('Gallery storage is full (5 GB limit).');
       return;
     }
-    try {
-      parseGalleryYearTag(uploadTag);
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Choose a season tag.');
-      return;
-    }
     fileInputRef.current?.click();
   };
 
   const handleYearSelect = (year: number) => {
     if (!isGallerySeasonYear(year)) return;
     setSelectedYear(year);
-    setUploadTag(galleryTagFromYear(year));
-  };
-
-  const handleUploadTagChange = (raw: string) => {
-    try {
-      const tag = parseGalleryYearTag(raw);
-      setUploadTag(tag);
-      setSelectedYear(yearFromGalleryTag(tag));
-      setUploadError(null);
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Invalid season tag.');
-    }
   };
 
   const handleFilesSelected = async (list: FileList | null) => {
@@ -197,7 +170,8 @@ export default function MatchPhotosPage() {
     setUploading(true);
     setUploadError(null);
     setUploadMessage(null);
-    const eventIdToSave = uploadEventId === GENERAL_EVENT ? undefined : uploadEventId;
+    const eventIdToSave = selectedEventId === ALL_EVENTS ? undefined : selectedEventId;
+    const tag = galleryTagFromYear(selectedYear);
 
     let successCount = 0;
     const failures: string[] = [];
@@ -208,10 +182,8 @@ export default function MatchPhotosPage() {
         setUploadMessage(`Uploading ${i + 1} of ${files.length}…`);
       }
       try {
-        const record = await uploadGalleryMedia(file, uploadTag, eventIdToSave);
+        const record = await uploadGalleryMedia(file, tag, eventIdToSave);
         successCount++;
-        setSelectedYear(record.year);
-        setUploadTag(record.tag);
         setUploadItems((prev) => {
           const next: GalleryMediaItem = {
             id: record.id,
@@ -234,8 +206,8 @@ export default function MatchPhotosPage() {
     if (successCount > 0 && failures.length === 0) {
       setUploadMessage(
         successCount === 1
-          ? `Uploaded to ${uploadTag}. Thanks!`
-          : `Uploaded all ${successCount} files to ${uploadTag}. Thanks!`
+          ? `Uploaded to ${selectedYear}. Thanks!`
+          : `Uploaded all ${successCount} files to ${selectedYear}. Thanks!`
       );
     } else if (successCount > 0 && failures.length > 0) {
       setUploadMessage(`Uploaded ${successCount} of ${files.length}.`);
@@ -280,56 +252,26 @@ export default function MatchPhotosPage() {
                     : 'rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-300 hover:border-emerald-500/50 hover:text-white'
                 }
               >
-                npl-{year}
+                {year}
               </button>
             );
           })}
         </div>
 
-        <label className="flex items-center gap-2 text-[11px] text-slate-400">
-          <span className="uppercase tracking-wide font-bold text-slate-500">Event</span>
-          <select
-            value={selectedEventId}
-            onChange={(e) => setSelectedEventId(e.target.value)}
-            className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
-            aria-label="Filter photos by event"
-          >
-            <option value={ALL_EVENTS}>All events</option>
-            {events.map((event) => (
-              <option key={event.id} value={event.id}>
-                {event.title}
-              </option>
-            ))}
-          </select>
-        </label>
+        <p className="text-[11px] text-slate-500">
+          Pick the year above and an event below — new uploads are tagged to both.
+        </p>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <label className="flex items-center gap-2 text-[11px] text-slate-400">
-            <span className="uppercase tracking-wide font-bold text-slate-500">Tag</span>
+            <span className="uppercase tracking-wide font-bold text-slate-500">Event</span>
             <select
-              value={uploadTag}
-              onChange={(e) => handleUploadTagChange(e.target.value)}
-              disabled={uploading || storageFull}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-bold uppercase tracking-wide text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:opacity-50"
-              aria-label="Season tag for upload"
+              value={selectedEventId}
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+              aria-label="Filter photos by event, and where new uploads are tagged"
             >
-              {GALLERY_YEAR_TAGS.map((tag) => (
-                <option key={tag} value={tag}>
-                  {tag}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-[11px] text-slate-400">
-            <span className="uppercase tracking-wide font-bold text-slate-500">For event</span>
-            <select
-              value={uploadEventId}
-              onChange={(e) => setUploadEventId(e.target.value)}
-              disabled={uploading || storageFull}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:opacity-50"
-              aria-label="Which event this upload belongs to"
-            >
-              <option value={GENERAL_EVENT}>General (no event)</option>
+              <option value={ALL_EVENTS}>All events</option>
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
                   {event.title}
