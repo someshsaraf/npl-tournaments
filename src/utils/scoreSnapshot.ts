@@ -2,6 +2,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { storage } from '../firebase';
 import type { MatchState } from '../data/tournamentData';
 import { formatGameScoresLine, formatGamesWonLabel, hasSeriesWinner } from './matchState';
+import { formatTennisGameLogLine, formatTennisGamesLabel, formatTennisStageLabel } from './tennisMatchState';
 
 export type ScoreSnapshotResult = {
   blob: Blob;
@@ -44,11 +45,29 @@ export function renderScoreSnapshotCanvas(match: MatchState): HTMLCanvasElement 
   const name2 = (match.player2 || match.teamB || 'Side B').trim().slice(0, 40);
   const winnerSide = match.matchWinner === 2 ? 2 : 1;
   const winnerName = winnerSide === 1 ? name1 : name2;
-  const score1 = Number.isFinite(match.score1) ? match.score1 : 0;
-  const score2 = Number.isFinite(match.score2) ? match.score2 : 0;
+  const isTennis = match.sport === 'tennis';
+  const score1 = isTennis
+    ? match.tennis?.gamesWon1 ?? 0
+    : Number.isFinite(match.score1)
+      ? match.score1
+      : 0;
+  const score2 = isTennis
+    ? match.tennis?.gamesWon2 ?? 0
+    : Number.isFinite(match.score2)
+      ? match.score2
+      : 0;
   const isBo3 = match.bestOf === 3;
-  const series = isBo3 ? formatGamesWonLabel(match) : `${score1}-${score2}`;
-  const gamesLine = isBo3 ? formatGameScoresLine(match) : '';
+  const series = isTennis
+    ? formatTennisGamesLabel(match)
+    : isBo3
+      ? formatGamesWonLabel(match)
+      : `${score1}-${score2}`;
+  const gamesLine = isTennis
+    ? formatTennisGameLogLine(match) ||
+      (match.tennis ? formatTennisStageLabel(match.tennis.tennisStage) : '')
+    : isBo3
+      ? formatGameScoresLine(match)
+      : '';
 
   // Background
   const grad = ctx.createLinearGradient(0, 0, w, h);
@@ -96,11 +115,11 @@ export function renderScoreSnapshotCanvas(match: MatchState): HTMLCanvasElement 
 
   ctx.fillStyle = '#fbbf24';
   ctx.font = '900 140px ui-monospace, SFMono-Regular, Menlo, monospace';
-  if (isBo3) {
+  if (isBo3 || isTennis) {
     ctx.fillText(series, w / 2, 620);
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '700 36px "Source Sans 3", system-ui, sans-serif';
-    ctx.fillText(gamesLine || `Final game ${score1}-${score2}`, w / 2, 700);
+    ctx.fillText(gamesLine || `Final ${score1}-${score2}`, w / 2, 700);
   } else {
     ctx.fillText(`${score1} – ${score2}`, w / 2, 640);
   }
@@ -123,7 +142,11 @@ export function renderScoreSnapshotCanvas(match: MatchState): HTMLCanvasElement 
 
   ctx.fillStyle = '#64748b';
   ctx.font = '600 24px "Source Sans 3", system-ui, sans-serif';
-  ctx.fillText('Renaissance Nature Walk · Badminton', w / 2, 1280);
+  ctx.fillText(
+    `Nature Walk Society · ${isTennis ? 'Tennis' : 'Badminton'}`,
+    w / 2,
+    1280
+  );
 
   return canvas;
 }
@@ -309,9 +332,11 @@ export async function captureAndPersistScoreSnapshot(
     const name2 = match.player2 || match.teamB || 'Side B';
     const winner = match.matchWinner === 2 ? name2 : name1;
     const result =
-      match.bestOf === 3
-        ? `Games ${formatGamesWonLabel(match)}`
-        : `${match.score1}-${match.score2}`;
+      match.sport === 'tennis'
+        ? formatTennisGameLogLine(match) || `Games ${formatTennisGamesLabel(match)}`
+        : match.bestOf === 3
+          ? `Games ${formatGamesWonLabel(match)}`
+          : `${match.score1}-${match.score2}`;
     await shareScoreSnapshot({
       blob,
       fileName,

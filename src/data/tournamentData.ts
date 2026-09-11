@@ -1,3 +1,66 @@
+/** Which tournament's ruleset a match/fixture belongs to. */
+export type Sport = 'badminton' | 'tennis';
+
+export const SPORTS: readonly Sport[] = ['badminton', 'tennis'] as const;
+
+export function isSport(value: unknown): value is Sport {
+  return value === 'badminton' || value === 'tennis';
+}
+
+/** Defaults to 'badminton' — the sport all rows predate the `sport` field belonged to. */
+export function resolveSport(value: unknown): Sport {
+  return value === 'tennis' ? 'tennis' : 'badminton';
+}
+
+export const SPORT_LABEL: Record<Sport, string> = {
+  badminton: 'Badminton',
+  tennis: 'Tennis'
+};
+
+/** Tennis stage drives both the match-win condition and the point-level deuce rule. */
+export type TennisStage = 'qualifier' | 'semifinal' | 'final';
+
+export const TENNIS_STAGES: readonly TennisStage[] = ['qualifier', 'semifinal', 'final'] as const;
+
+export function isTennisStage(value: unknown): value is TennisStage {
+  return value === 'qualifier' || value === 'semifinal' || value === 'final';
+}
+
+/** Label only — doesn't change rules. Doubles sides are combined strings, same as badminton. */
+export type TennisMatchType = 'singles' | 'doubles';
+
+export const TENNIS_MATCH_TYPES: readonly TennisMatchType[] = ['singles', 'doubles'] as const;
+
+export function isTennisMatchType(value: unknown): value is TennisMatchType {
+  return value === 'singles' || value === 'doubles';
+}
+
+/** One finished game (or tiebreak) within a tennis match. */
+export interface TennisPointGame {
+  points1: number;
+  points2: number;
+  winner: 1 | 2;
+  wasTiebreak: boolean;
+}
+
+/** Tennis-only mechanics, nested on MatchState.tennis when sport === 'tennis'. */
+export interface TennisMatchState {
+  tennisStage: TennisStage;
+  matchType: TennisMatchType;
+  /** Raw point count in the current game (0,1,2,3,4…), or tiebreak points when isTiebreak. */
+  points1: number;
+  points2: number;
+  isTiebreak: boolean;
+  /** Number of times the current game has reached deuce; drives golden point in semifinals. */
+  deuceCount: number;
+  server: 1 | 2;
+  /** Winner of the current game/tiebreak (transient; cleared when the next game starts). */
+  gameWinner: 1 | 2 | null;
+  gamesWon1: number;
+  gamesWon2: number;
+  gameLog: TennisPointGame[];
+}
+
 /** Allowed race-to point targets for a game. */
 export type MaxPoints = 11 | 15 | 21;
 
@@ -73,6 +136,8 @@ export interface Fixture {
   category: string;
   stage: string;
   details: string;
+  /** Defaults to 'badminton' when absent (all existing fixtures predate this field). */
+  sport?: Sport;
   teamA?: string;
   teamB?: string;
   /** Runtime fields merged from Firebase when the match has been completed */
@@ -119,6 +184,16 @@ export interface CompletedMatch {
   snapshotUrl?: string;
   /** Storage object path, e.g. `photos/f-12-….png` (optional). */
   snapshotPath?: string;
+  /** Defaults to 'badminton' when absent (all existing rows predate this field). */
+  sport?: Sport;
+  /** Present only when sport === 'tennis'. */
+  tennis?: {
+    tennisStage: TennisStage;
+    matchType: TennisMatchType;
+    gamesWon1: number;
+    gamesWon2: number;
+    gameLog: TennisPointGame[];
+  };
 }
 
 export interface MatchState {
@@ -145,12 +220,16 @@ export interface MatchState {
   gameScores: GameScore[];
   gamesWon1: number;
   gamesWon2: number;
-  /** Winner of the match/series (BO1: same as game; BO3: first to 2 games). */
+  /** Winner of the match/series (BO1: same as game; BO3: first to 2 games; tennis: the set/race winner). */
   matchWinner: 1 | 2 | null;
   isTrump: boolean;
   trumpTeam: 1 | 2 | null;
   /** YouTube live (or VOD) URL consumed by the /live page */
   youtubeLiveUrl: string;
+  /** Defaults to 'badminton' for back-compat with existing Firebase rows. */
+  sport: Sport;
+  /** Present only when sport === 'tennis'; badminton fields above are unused in that case. */
+  tennis?: TennisMatchState;
 }
 
 export const TEAMS: Team[] = [
@@ -223,5 +302,6 @@ export const INITIAL_MATCH: MatchState = {
   matchWinner: null,
   isTrump: false,
   trumpTeam: null,
-  youtubeLiveUrl: ''
+  youtubeLiveUrl: '',
+  sport: 'badminton'
 };

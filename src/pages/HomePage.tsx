@@ -1,221 +1,176 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ref, onValue } from 'firebase/database';
-import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
-import {
-  FIXTURES,
-  INITIAL_MATCH,
-  type Fixture,
-  type MatchState
-} from '../data/tournamentData';
-import {
-  completedMatchesFromFirebase,
-  mergeFixturesWithResults
-} from '../utils/completedMatches';
-import {
-  formatGamesWonLabel,
-  hasSeriesWinner,
-  normalizeMatchState
-} from '../utils/matchState';
-import { toYouTubeEmbedUrl } from '../utils/youtube';
-import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
+import { db } from '../firebase';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
+import { getEventStatus, type CommunityEvent, type EventStatus } from '../data/communityEvents';
+import { subscribeCommunityEvents } from '../utils/communityEvents';
+
+const STATUS_LABEL: Record<EventStatus, string> = {
+  ongoing: 'Happening now',
+  upcoming: 'Coming up',
+  past: 'Wrapped up',
+  undated: 'Date TBD'
+};
+
+const STATUS_ORDER: Record<EventStatus, number> = {
+  ongoing: 0,
+  upcoming: 1,
+  undated: 2,
+  past: 3
+};
 
 /**
- * Public Live Arena: stream + live score summary + upcoming fixtures.
- * Read-only Firebase listeners; no writes. Admin/scorer stay off this surface.
+ * Home = a tiled view of every event (cultural + sports). Live/upcoming
+ * events lead in the main grid; completed events sit in their own pane
+ * below so they read as an archive, not competing for attention.
+ * Clicking a tile opens that event's own page (/events/:id).
  */
 export default function HomePage() {
-  const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [fixtures, setFixtures] = useState<Fixture[]>(() =>
-    mergeFixturesWithResults(FIXTURES, {})
-  );
+  const [events, setEvents] = useState<CommunityEvent[]>([]);
   const homeAds = useHomeEventAds();
 
   useEffect(() => {
-    const matchRef = ref(db, 'currentMatch');
-    const unsubMatch = onValue(matchRef, (snap) => {
-      const raw = snap.val();
-      setMatch(normalizeMatchState(raw && typeof raw === 'object' ? raw : INITIAL_MATCH));
-    });
-
-    const completedRef = ref(db, 'completedMatches');
-    const unsubCompleted = onValue(completedRef, (snap) => {
-      const byId = completedMatchesFromFirebase(snap.val());
-      setFixtures(mergeFixturesWithResults(FIXTURES, byId));
-    });
-
-    const youtubeRef = ref(db, YOUTUBE_LIVE_URL_PATH);
-    const unsubYoutube = onValue(youtubeRef, (snap) => {
-      const val = snap.val();
-      setYoutubeUrl(typeof val === 'string' ? val : '');
-    });
-
-    return () => {
-      unsubMatch();
-      unsubCompleted();
-      unsubYoutube();
-    };
+    const unsubEvents = subscribeCommunityEvents(db, setEvents);
+    return () => unsubEvents();
   }, []);
 
-  const embedUrl = toYouTubeEmbedUrl(youtubeUrl || match.youtubeLiveUrl || '');
-  const seriesOver = hasSeriesWinner(match);
-  const name1 = match.player1 || match.teamA || 'Side A';
-  const name2 = match.player2 || match.teamB || 'Side B';
-  const upcoming = fixtures
-    .filter((f) => f.status !== 'completed')
-    .slice(0, 6);
+  const { active, completed } = useMemo(() => {
+    const byRecency = (a: CommunityEvent, b: CommunityEvent) => {
+      if (a.startDate && b.startDate) return a.startDate.localeCompare(b.startDate);
+      if (a.startDate) return -1;
+      if (b.startDate) return 1;
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    };
 
-  const liveLabel = seriesOver
-    ? 'Match complete'
-    : (match.score1 ?? 0) > 0 || (match.score2 ?? 0) > 0
-      ? 'Live now'
-      : 'On court';
+    const activeList = events
+      .filter((e) => getEventStatus(e) !== 'past')
+      .sort((a, b) => STATUS_ORDER[getEventStatus(a)] - STATUS_ORDER[getEventStatus(b)] || byRecency(a, b));
+
+    const completedList = events
+      .filter((e) => getEventStatus(e) === 'past')
+      .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''));
+
+    return { active: activeList, completed: completedList };
+  }, [events]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {homeAds.length > 0 ? <HomeEventAdBanner ads={homeAds} /> : null}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.9fr] gap-4 sm:gap-5">
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden flex flex-col min-h-[16rem]">
-          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-800">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">Live stream</h2>
-            <Link
-              to="/live"
-              className="text-[11px] font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300"
-            >
-              Cinema view →
-            </Link>
-          </div>
-          <div className="relative aspect-video bg-slate-950">
-            {embedUrl ? (
-              <iframe
-                title="NPL live stream"
-                src={embedUrl}
-                className="absolute inset-0 h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.12),_transparent_60%)]">
-                <img
-                  src="/nature-walk-logo-1.png"
-                  alt="NPL"
-                  className="h-16 w-16 rounded-xl object-cover ring-1 ring-emerald-500/30 bg-white"
-                  draggable={false}
-                />
-                <p className="text-sm font-semibold text-slate-200">Stream offline</p>
-                <p className="text-xs text-slate-500 max-w-xs">
-                  When organisers set a YouTube link in Admin, the live feed appears here.
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
+      <div className="space-y-4">
+        <header className="space-y-1">
+          <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Events</h1>
+          <p className="text-sm text-slate-400">
+            Cultural celebrations and sports tournaments — tap one for details.
+          </p>
+        </header>
 
-        <aside className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-5 flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">Now showing</h2>
-            <span
-              className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-                seriesOver
-                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-                  : 'bg-rose-500/15 text-rose-300 border-rose-500/40 animate-pulse'
-              }`}
-            >
-              {liveLabel}
-            </span>
+        {active.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+            Nothing live or upcoming right now — check Completed below.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {active.map((event) => (
+              <EventTile key={event.id} event={event} />
+            ))}
           </div>
-
-          <div>
-            <p className="text-[11px] text-indigo-300 font-semibold uppercase tracking-wider truncate">
-              {match.category || '—'}
-            </p>
-            <p className="text-xs text-slate-500 truncate">{match.stage || '—'}</p>
-          </div>
-
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-center">
-            <div className="min-w-0">
-              <p className="text-sm sm:text-base font-bold text-indigo-100 truncate">{name1}</p>
-            </div>
-            <div className="font-black tabular-nums text-3xl sm:text-4xl text-amber-300 leading-none px-1">
-              {match.score1 ?? 0}
-              <span className="text-slate-600 mx-1">:</span>
-              {match.score2 ?? 0}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm sm:text-base font-bold text-rose-100 truncate">{name2}</p>
-            </div>
-          </div>
-
-          {match.bestOf === 3 ? (
-            <SeriesScoreStrip match={match} size="sm" className="justify-center py-1" />
-          ) : (
-            <p className="text-center text-[11px] font-mono text-slate-500">
-              Race to {match.maxPoints ?? 11}
-              {match.isTrump ? ' · Trump' : ''}
-            </p>
-          )}
-
-          {match.bestOf === 3 && (
-            <p className="text-center text-[11px] font-mono text-slate-500">
-              Series {formatGamesWonLabel(match)}
-            </p>
-          )}
-
-          <div className="mt-auto flex flex-wrap gap-2 pt-1">
-            <Link
-              to="/photos"
-              className="flex-1 min-w-[7rem] text-center rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs uppercase tracking-wide px-3 py-2.5 hover:bg-emerald-400"
-            >
-              Match photos
-            </Link>
-            <Link
-              to="/results"
-              className="flex-1 min-w-[7rem] text-center rounded-lg bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wide px-3 py-2.5 hover:bg-amber-300"
-            >
-              Results
-            </Link>
-            <Link
-              to="/schedule"
-              className="flex-1 min-w-[7rem] text-center rounded-lg border border-slate-700 bg-slate-800 text-slate-100 font-bold text-xs uppercase tracking-wide px-3 py-2.5 hover:bg-slate-700"
-            >
-              Full schedule
-            </Link>
-          </div>
-        </aside>
+        )}
       </div>
 
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 sm:p-5 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">Up next</h2>
-          <Link to="/schedule" className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 uppercase tracking-wide">
-            All fixtures →
-          </Link>
-        </div>
-        {upcoming.length === 0 ? (
-          <p className="text-sm text-slate-500 py-4 text-center">No upcoming fixtures.</p>
-        ) : (
-          <ul className="divide-y divide-slate-800/80">
-            {upcoming.map((f) => (
-              <li
-                key={f.id}
-                className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 py-2.5 text-sm"
-              >
-                <span className="shrink-0 font-mono text-xs text-amber-400/90 w-[7.5rem]">
-                  {f.date} · {f.time}
-                </span>
-                <span className="text-[11px] uppercase tracking-wide text-indigo-300/90 shrink-0 sm:w-40 truncate">
-                  {f.category}
-                </span>
-                <span className="text-slate-200 min-w-0 truncate">{f.details}</span>
-              </li>
+      {completed.length > 0 ? (
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/20 p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+              Completed
+            </h2>
+            <span className="text-[11px] text-slate-600">{completed.length} wrapped up</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+            {completed.map((event) => (
+              <CompletedTile key={event.id} event={event} />
             ))}
-          </ul>
-        )}
-      </section>
+          </div>
+        </section>
+      ) : null}
     </div>
+  );
+}
+
+function EventTile({ event }: { event: CommunityEvent }) {
+  const status = getEventStatus(event);
+  return (
+    <Link
+      to={`/events/${event.id}`}
+      className="group rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden flex flex-col transition-colors hover:border-emerald-500/50"
+    >
+      {event.imageSrc ? (
+        <img
+          src={event.imageSrc}
+          alt={event.title}
+          className="w-full h-32 object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-full h-32 bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.14),_transparent_60%)] flex items-center justify-center">
+          <img
+            src="/nature-walk-logo-1.png"
+            alt=""
+            className="h-12 w-12 rounded-lg object-cover ring-1 ring-emerald-500/30 bg-white"
+            draggable={false}
+          />
+        </div>
+      )}
+      <div className="p-3.5 space-y-1 flex-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span
+            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+              status === 'ongoing'
+                ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}
+          >
+            {STATUS_LABEL[status]}
+          </span>
+          <span className="text-[10px] uppercase tracking-wide text-indigo-300/80">
+            {event.category === 'sports' ? 'Sports' : 'Cultural'}
+          </span>
+        </div>
+        <h2 className="font-semibold text-slate-100 truncate group-hover:text-emerald-300">
+          {event.title}
+        </h2>
+        <p className="text-xs font-mono text-amber-300/90">
+          {event.month} · {event.dateLabel}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function CompletedTile({ event }: { event: CommunityEvent }) {
+  return (
+    <Link
+      to={`/events/${event.id}`}
+      className="group shrink-0 w-40 rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden flex flex-col opacity-70 hover:opacity-100 transition-opacity"
+    >
+      {event.imageSrc ? (
+        <img src={event.imageSrc} alt={event.title} className="w-full h-20 object-cover grayscale-[40%]" loading="lazy" />
+      ) : (
+        <div className="w-full h-20 bg-slate-800/60 flex items-center justify-center">
+          <img
+            src="/nature-walk-logo-1.png"
+            alt=""
+            className="h-8 w-8 rounded object-cover opacity-70"
+            draggable={false}
+          />
+        </div>
+      )}
+      <div className="p-2.5 space-y-0.5">
+        <h3 className="text-xs font-semibold text-slate-300 truncate group-hover:text-emerald-300">
+          {event.title}
+        </h3>
+        <p className="text-[10px] font-mono text-slate-500 truncate">{event.dateLabel}</p>
+      </div>
+    </Link>
   );
 }

@@ -25,6 +25,14 @@ import {
   isGoldenPoint
 } from '../utils/scoring';
 import {
+  applyTennisScorePoint,
+  applyTennisSetServer,
+  applyTennisSwapSides,
+  applyTennisUndoPoint,
+  formatTennisPointLabel
+} from '../utils/tennisScoring';
+import { formatTennisGameLogLine, formatTennisGamesLabel, formatTennisStageLabel } from '../utils/tennisMatchState';
+import {
   buildCompletedMatch,
   completedMatchStorageKey,
   toFirebaseWritable
@@ -35,6 +43,7 @@ import { WinnerCelebration } from '../components/WinnerCelebration';
 import { BetweenMatchAd } from '../components/BetweenMatchAd';
 import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
+import { TennisScoreDisplay } from '../components/TennisScoreDisplay';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
 import { useVictoryJingle } from '../hooks/useVictoryJingle';
@@ -159,6 +168,31 @@ export const AdminScorePage: React.FC = () => {
     });
   }, [match]);
 
+  // Tennis: celebrate only when the match (set / qualifier race) is decided —
+  // individual games happen too often to celebrate each one.
+  useEffect(() => {
+    if (match.sport !== 'tennis') return;
+    if (!hasSeriesWinner(match)) return;
+    const key = `${match.currentMatchId}:tw${match.matchWinner}:${formatTennisGamesLabel(match)}`;
+    if (promptedKeyRef.current === key) return;
+    promptedKeyRef.current = key;
+    setPendingSaveMatch(match);
+    const side1 = match.player1 || match.teamA || 'Side A';
+    const side2 = match.player2 || match.teamB || 'Side B';
+    const winName = match.matchWinner === 1 ? side1 : side2;
+    const oppName = match.matchWinner === 1 ? side2 : side1;
+    setCelebration({
+      winnerName: winName,
+      opponentName: oppName,
+      scoreLabel: formatTennisGameLogLine(match) || formatTennisGamesLabel(match),
+      subtitle: match.tennis ? `${formatTennisStageLabel(match.tennis.tennisStage)} won` : '',
+      seriesOver: true,
+      gameScores: [],
+      seriesLabel: formatTennisGamesLabel(match),
+      matchWinner: match.matchWinner
+    });
+  }, [match]);
+
   const updateMatchState = (next: MatchState) => {
     setMatch(next);
     set(ref(db, 'currentMatch'), next).catch((err) => {
@@ -166,7 +200,13 @@ export const AdminScorePage: React.FC = () => {
     });
   };
 
+  const isTennis = match.sport === 'tennis';
+
   const handleScorePoint = (side: 1 | 2) => {
+    if (isTennis) {
+      updateMatchState(applyTennisScorePoint(match, side));
+      return;
+    }
     let current = match;
     if (
       current.bestOf === 3 &&
@@ -190,14 +230,26 @@ export const AdminScorePage: React.FC = () => {
     setCelebration(null);
     setResultSaved(false);
     setSaveMessage(null);
+    if (isTennis) {
+      updateMatchState(applyTennisUndoPoint(match, side));
+      return;
+    }
     updateMatchState(applyDecrementScore(match, side));
   };
 
   const handleSetServer = (side: 1 | 2) => {
+    if (isTennis) {
+      updateMatchState(applyTennisSetServer(match, side));
+      return;
+    }
     updateMatchState(applySetServer(match, side));
   };
 
   const handleSwapSides = () => {
+    if (isTennis) {
+      updateMatchState(applyTennisSwapSides(match));
+      return;
+    }
     updateMatchState(applySwapSides(match));
   };
 
@@ -313,14 +365,36 @@ export const AdminScorePage: React.FC = () => {
 
   const hasWinner = hasGameWinner(match);
   const seriesOver = hasSeriesWinner(match);
-  const scoreButtonsLocked = seriesOver || (hasWinner && match.bestOf !== 3);
+  const scoreButtonsLocked = isTennis
+    ? seriesOver
+    : seriesOver || (hasWinner && match.bestOf !== 3);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
+  const tennisServer = match.tennis?.server ?? 1;
+  const tennisDisplay1 = isTennis
+    ? formatTennisPointLabel(match.tennis?.points1 ?? 0, match.tennis?.points2 ?? 0, !!match.tennis?.isTiebreak)
+    : String(score1);
+  const tennisDisplay2 = isTennis
+    ? formatTennisPointLabel(match.tennis?.points2 ?? 0, match.tennis?.points1 ?? 0, !!match.tennis?.isTiebreak)
+    : String(score2);
   const name1 = match.player1 || match.teamA || 'Side A';
   const name2 = match.player2 || match.teamB || 'Side B';
-  const winnerName = match.gameWinner === 1 ? name1 : name2;
-  const opponentName = match.gameWinner === 1 ? name2 : name1;
+  const winnerName = isTennis
+    ? match.matchWinner === 1
+      ? name1
+      : name2
+    : match.gameWinner === 1
+      ? name1
+      : name2;
+  const opponentName = isTennis
+    ? match.matchWinner === 1
+      ? name2
+      : name1
+    : match.gameWinner === 1
+      ? name2
+      : name1;
   const isBo3 = match.bestOf === 3;
+  const currentServer = isTennis ? tennisServer : match.server;
 
   const saveShareLabel = isSavingResult
     ? resultSaved
@@ -382,7 +456,7 @@ export const AdminScorePage: React.FC = () => {
       >
         Admin
       </Link>
-      {speechSupported && (
+      {!isTennis && speechSupported && (
         <button
           type="button"
           onClick={() => (audioEnabled ? disableAudio() : enableAudio())}
@@ -401,21 +475,22 @@ export const AdminScorePage: React.FC = () => {
           {audioEnabled ? 'Audio On' : 'Audio'}
         </button>
       )}
-      {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
-        <button
-          key={pts}
-          type="button"
-          onClick={() => handleSetMaxPoints(pts)}
-          title={`Race to ${pts}`}
-          className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
-            (match.maxPoints ?? 11) === pts
-              ? 'bg-amber-400 text-slate-950 border-amber-300'
-              : 'bg-slate-800 text-slate-300 border-slate-700'
-          }`}
-        >
-          {pts}
-        </button>
-      ))}
+      {!isTennis &&
+        SCORER_MAX_POINTS_OPTIONS.map((pts) => (
+          <button
+            key={pts}
+            type="button"
+            onClick={() => handleSetMaxPoints(pts)}
+            title={`Race to ${pts}`}
+            className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
+              (match.maxPoints ?? 11) === pts
+                ? 'bg-amber-400 text-slate-950 border-amber-300'
+                : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            {pts}
+          </button>
+        ))}
       <button
         type="button"
         onClick={handleSwapSides}
@@ -472,7 +547,27 @@ export const AdminScorePage: React.FC = () => {
         </div>
 
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
-          {hasWinner ? (
+          {isTennis && seriesOver ? (
+            <>
+              <span className="text-sm sm:text-base font-black text-emerald-200 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1.5 rounded-xl text-center leading-snug max-w-[min(92vw,40rem)]">
+                <span className="block whitespace-nowrap truncate">MATCH WIN {winnerName}</span>
+                <span className="block text-white font-black truncate">def. {opponentName}</span>
+                <span className="block text-emerald-300/90 text-[0.85em]">
+                  {formatTennisGameLogLine(match) || formatTennisGamesLabel(match)}
+                </span>
+              </span>
+              {!celebration && (
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmSave()}
+                  disabled={isSavingResult}
+                  className="text-[10px] sm:text-xs font-black px-3 py-1 rounded-full bg-emerald-500 text-slate-950 active:scale-95 disabled:opacity-50"
+                >
+                  {saveShareLabel}
+                </button>
+              )}
+            </>
+          ) : isTennis ? null : hasWinner ? (
             <>
               <span className="text-sm sm:text-base font-black text-emerald-200 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1.5 rounded-xl text-center leading-snug max-w-[min(92vw,40rem)]">
                 <span className="block whitespace-nowrap truncate">
@@ -521,11 +616,15 @@ export const AdminScorePage: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-end gap-1.5">
-          {!isBo3 ? scorerOptionButtons : null}
+          {!isBo3 && !isTennis ? scorerOptionButtons : null}
         </div>
       </header>
 
-      {isBo3 ? (
+      {isTennis ? (
+        <div className="shrink-0 flex items-center gap-2 px-2 py-1 border-b border-slate-800/80 bg-slate-950">
+          <TennisScoreDisplay match={match} size="sm" className="flex-1 min-w-0 py-0" trailing={scorerOptionButtons} />
+        </div>
+      ) : isBo3 ? (
         <div className="shrink-0 flex items-center gap-2 px-2 py-1 border-b border-slate-800/80 bg-slate-950">
           <SeriesScoreStrip match={match} size="sm" className="flex-1 min-w-0 py-0" trailing={scorerOptionButtons} />
         </div>
@@ -537,7 +636,7 @@ export const AdminScorePage: React.FC = () => {
         <section
           className="flex flex-col min-h-0 min-w-0"
           style={{
-            background: match.server === 1
+            background: currentServer === 1
               ? 'linear-gradient(180deg, rgba(67,56,202,0.35) 0%, rgba(2,6,23,1) 55%)'
               : 'rgba(2,6,23,1)',
             borderRight: '1px solid rgba(51,65,85,0.6)'
@@ -557,7 +656,7 @@ export const AdminScorePage: React.FC = () => {
                   aria-label="Edit player 1 name"
                 />
               </label>
-              {match.server === 1 ? (
+              {currentServer === 1 ? (
                 <span className="shrink-0" title="Serving">
                   <ServeRacket active size={28} title="Serving" />
                 </span>
@@ -572,7 +671,7 @@ export const AdminScorePage: React.FC = () => {
                 </button>
               )}
             </div>
-            {match.server === 1 ? (
+            {currentServer === 1 ? (
               <ServingBadge size="md" className="self-start" />
             ) : null}
           </div>
@@ -580,9 +679,9 @@ export const AdminScorePage: React.FC = () => {
           <div className="flex-1 min-h-0 flex items-center justify-center">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-              style={{ fontSize: 'clamp(3.25rem, min(22vw, 32dvh), 11rem)' }}
+              style={{ fontSize: isTennis ? 'clamp(2.25rem, min(16vw, 24dvh), 7rem)' : 'clamp(3.25rem, min(22vw, 32dvh), 11rem)' }}
             >
-              {score1}
+              {isTennis ? tennisDisplay1 : score1}
             </span>
           </div>
         </section>
@@ -591,7 +690,7 @@ export const AdminScorePage: React.FC = () => {
         <section
           className="flex flex-col min-h-0 min-w-0"
           style={{
-            background: match.server === 2
+            background: currentServer === 2
               ? 'linear-gradient(180deg, rgba(190,24,93,0.35) 0%, rgba(2,6,23,1) 55%)'
               : 'rgba(2,6,23,1)'
           }}
@@ -610,7 +709,7 @@ export const AdminScorePage: React.FC = () => {
                   aria-label="Edit player 2 name"
                 />
               </label>
-              {match.server === 2 ? (
+              {currentServer === 2 ? (
                 <span className="shrink-0" title="Serving">
                   <ServeRacket active size={28} title="Serving" />
                 </span>
@@ -625,7 +724,7 @@ export const AdminScorePage: React.FC = () => {
                 </button>
               )}
             </div>
-            {match.server === 2 ? (
+            {currentServer === 2 ? (
               <ServingBadge size="md" className="self-start" />
             ) : null}
           </div>
@@ -633,9 +732,9 @@ export const AdminScorePage: React.FC = () => {
           <div className="flex-1 min-h-0 flex items-center justify-center">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-              style={{ fontSize: 'clamp(3.25rem, min(22vw, 32dvh), 11rem)' }}
+              style={{ fontSize: isTennis ? 'clamp(2.25rem, min(16vw, 24dvh), 7rem)' : 'clamp(3.25rem, min(22vw, 32dvh), 11rem)' }}
             >
-              {score2}
+              {isTennis ? tennisDisplay2 : score2}
             </span>
           </div>
         </section>

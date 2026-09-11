@@ -32,6 +32,18 @@ import { VictoryJinglePlayer } from '../components/VictoryJinglePlayer';
 import { useScoreDaypartAds } from '../hooks/useScoreDaypartAds';
 import { ScoreDaypartAdPlayer } from '../components/ScoreDaypartAdPlayer';
 import { isGoldenPoint } from '../utils/scoring';
+import {
+  formatTennisPointLabel,
+  isTennisDeuce,
+  isTennisGoldenPointActive,
+  isTennisTiebreak
+} from '../utils/tennisScoring';
+import {
+  formatTennisGameLogLine,
+  formatTennisGamesLabel,
+  formatTennisStageLabel
+} from '../utils/tennisMatchState';
+import { TennisScoreDisplay } from '../components/TennisScoreDisplay';
 
 /**
  * Full-viewport audience scoreboard (/score).
@@ -163,6 +175,29 @@ export const LiveScoreboard: React.FC = () => {
     });
   }, [match]);
 
+  // Tennis: celebrate only when the match (set / qualifier race) is decided —
+  // individual games happen too often to celebrate each one.
+  useEffect(() => {
+    if (match.sport !== 'tennis') return;
+    if (!hasSeriesWinner(match)) return;
+    const key = `${match.currentMatchId}:tw${match.matchWinner}:${formatTennisGamesLabel(match)}`;
+    if (promptedKeyRef.current === key) return;
+    promptedKeyRef.current = key;
+    const side1 = match.player1 || match.teamA || 'Side A';
+    const side2 = match.player2 || match.teamB || 'Side B';
+    const winName = match.matchWinner === 1 ? side1 : side2;
+    const oppName = match.matchWinner === 1 ? side2 : side1;
+    setCelebration({
+      winnerName: winName,
+      opponentName: oppName,
+      scoreLabel: formatTennisGameLogLine(match) || formatTennisGamesLabel(match),
+      subtitle: match.tennis ? `${formatTennisStageLabel(match.tennis.tennisStage)} won` : '',
+      gameScores: [],
+      seriesLabel: formatTennisGamesLabel(match),
+      matchWinner: match.matchWinner
+    });
+  }, [match]);
+
   /**
    * Fullscreen the scoreboard root so scores stay visible.
    * Native API on desktop/Android/iPad; CSS immersive fallback (incl. iPhone).
@@ -206,22 +241,52 @@ export const LiveScoreboard: React.FC = () => {
     void enterFullscreen();
   };
 
-  const activeServer = match.server === 2 ? 2 : 1;
+  const isTennis = match.sport === 'tennis';
+  const activeServer = isTennis
+    ? match.tennis?.server === 2
+      ? 2
+      : 1
+    : match.server === 2
+      ? 2
+      : 1;
   const hasWinner = hasGameWinner(match);
   const seriesOver = hasSeriesWinner(match);
   const isFinal = isFinalMatch;
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
+  const tennisDisplay1 = formatTennisPointLabel(
+    match.tennis?.points1 ?? 0,
+    match.tennis?.points2 ?? 0,
+    !!match.tennis?.isTiebreak
+  );
+  const tennisDisplay2 = formatTennisPointLabel(
+    match.tennis?.points2 ?? 0,
+    match.tennis?.points1 ?? 0,
+    !!match.tennis?.isTiebreak
+  );
   const name1 = match.player1 || match.teamA || 'Side A';
   const name2 = match.player2 || match.teamB || 'Side B';
   const team1 = match.teamA || '';
   const team2 = match.teamB || '';
-  const winnerLabel = match.gameWinner === 1 ? name1 : name2;
-  const opponentLabel = match.gameWinner === 1 ? name2 : name1;
-  const showServing = !hasWinner;
+  const showWinnerTakeover = isTennis ? seriesOver : hasWinner;
+  const winnerLabel = isTennis
+    ? match.matchWinner === 1
+      ? name1
+      : name2
+    : match.gameWinner === 1
+      ? name1
+      : name2;
+  const opponentLabel = isTennis
+    ? match.matchWinner === 1
+      ? name2
+      : name1
+    : match.gameWinner === 1
+      ? name2
+      : name1;
+  const showServing = isTennis ? !seriesOver : !hasWinner;
   const winnerFirstScore = formatWinnerFirstScore(score1, score2, match.gameWinner);
   const bo3GameScores =
-    match.bestOf === 3 && Array.isArray(match.gameScores)
+    !isTennis && match.bestOf === 3 && Array.isArray(match.gameScores)
       ? match.gameScores.filter(
           (g) => g && Number.isFinite(g.score1) && Number.isFinite(g.score2)
         )
@@ -302,7 +367,27 @@ export const LiveScoreboard: React.FC = () => {
         </div>
 
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
-          {hasWinner && !celebration ? (
+          {isTennis && showWinnerTakeover && !celebration ? (
+            <span className="text-sm sm:text-base md:text-lg font-black uppercase tracking-[0.2em] text-emerald-300">
+              Match win
+            </span>
+          ) : isTennis && !showWinnerTakeover && isTennisTiebreak(match) ? (
+            <span className="text-sm sm:text-base font-black text-sky-300 bg-sky-500/20 border border-sky-400/50 px-4 py-1.5 rounded-full animate-pulse">
+              TIEBREAK
+            </span>
+          ) : isTennis && !showWinnerTakeover && isTennisGoldenPointActive(match) ? (
+            <span className="text-sm sm:text-base font-black text-amber-300 bg-amber-500/20 border border-amber-400/50 px-4 py-1.5 rounded-full animate-pulse">
+              GOLDEN POINT
+            </span>
+          ) : isTennis && !showWinnerTakeover && isTennisDeuce(match) ? (
+            <span className="text-sm sm:text-base font-black text-red-400 bg-red-500/20 border border-red-500/50 px-4 py-1.5 rounded-full animate-pulse">
+              DEUCE
+            </span>
+          ) : isTennis && !showWinnerTakeover ? (
+            <span className="text-sm sm:text-base font-mono text-amber-300/90 font-bold">
+              Games {formatTennisGamesLabel(match)}
+            </span>
+          ) : hasWinner && !celebration ? (
             <span
               className={`text-sm sm:text-base md:text-lg font-black uppercase tracking-[0.2em] ${
                 isFinal && seriesOver ? 'text-amber-300' : 'text-emerald-300'
@@ -350,7 +435,7 @@ export const LiveScoreboard: React.FC = () => {
             Portal
           </Link>
           <span className="hidden sm:inline text-xs sm:text-sm text-slate-500 font-mono">LIVE</span>
-          {speechSupported && (
+          {!isTennis && speechSupported && (
             <button
               type="button"
               onClick={() => (audioEnabled ? disableAudio() : enableAudio())}
@@ -386,16 +471,26 @@ export const LiveScoreboard: React.FC = () => {
         </div>
       </header>
 
-      <SeriesScoreStrip
-        match={match}
-        size="lg"
-        className={`shrink-0 py-1.5 px-3 border-b bg-slate-950 ${
-          isFinal ? 'border-amber-500/30' : 'border-slate-800/80'
-        }`}
-      />
+      {isTennis ? (
+        <TennisScoreDisplay
+          match={match}
+          size="lg"
+          className={`shrink-0 py-1.5 px-3 border-b bg-slate-950 justify-center ${
+            isFinal ? 'border-amber-500/30' : 'border-slate-800/80'
+          }`}
+        />
+      ) : (
+        <SeriesScoreStrip
+          match={match}
+          size="lg"
+          className={`shrink-0 py-1.5 px-3 border-b bg-slate-950 ${
+            isFinal ? 'border-amber-500/30' : 'border-slate-800/80'
+          }`}
+        />
+      )}
 
       {/* After a win: winner-first hierarchy. During play: split live scores. */}
-      {hasWinner ? (
+      {showWinnerTakeover ? (
         <main
           className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-5 px-4 text-center bg-slate-950"
           aria-live="polite"
@@ -406,7 +501,7 @@ export const LiveScoreboard: React.FC = () => {
             }`}
             style={{ fontSize: 'clamp(1.1rem, 2.8vw, 1.75rem)' }}
           >
-            {seriesOver ? (isFinal ? 'Champion' : 'Match winner') : 'Game winner'}
+            {isTennis ? 'Match winner' : seriesOver ? (isFinal ? 'Champion' : 'Match winner') : 'Game winner'}
           </p>
           <h2
             className="w-full max-w-[min(98vw,80rem)] font-black text-white leading-[1.02]"
@@ -483,7 +578,9 @@ export const LiveScoreboard: React.FC = () => {
                 textShadow: '0 0 36px rgba(251,191,36,0.45)'
               }}
             >
-              {winnerFirstScore}
+              {isTennis
+                ? formatTennisGameLogLine(match) || formatTennisGamesLabel(match)
+                : winnerFirstScore}
             </p>
           )}
           {showBo3Inline ? (
@@ -548,9 +645,9 @@ export const LiveScoreboard: React.FC = () => {
           <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-10 sm:pt-12">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-              style={{ fontSize: 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
+              style={{ fontSize: isTennis ? 'clamp(6rem, min(38vw, 66dvh), 34rem)' : 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
             >
-              {score1}
+              {isTennis ? tennisDisplay1 : score1}
             </span>
           </div>
         </section>
@@ -594,9 +691,9 @@ export const LiveScoreboard: React.FC = () => {
           <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-10 sm:pt-12">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-              style={{ fontSize: 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
+              style={{ fontSize: isTennis ? 'clamp(6rem, min(38vw, 66dvh), 34rem)' : 'clamp(9rem, min(49.5vw, 88dvh), 48rem)' }}
             >
-              {score2}
+              {isTennis ? tennisDisplay2 : score2}
             </span>
           </div>
         </section>

@@ -50,6 +50,8 @@ export type GalleryUploadRecord = {
   tag: GalleryYearTag;
   /** Season year derived from tag (for year tabs). */
   year: number;
+  /** Community event id chosen at upload time, if any. */
+  eventId?: string;
 };
 
 type PresignResponse = {
@@ -201,6 +203,8 @@ function parseUploadRecord(id: string, raw: unknown): GalleryUploadRecord | null
     year: row.year,
     createdAt
   });
+  const eventId =
+    typeof row.eventId === 'string' && row.eventId.trim() ? row.eventId.trim().slice(0, 80) : undefined;
 
   return {
     id,
@@ -213,7 +217,8 @@ function parseUploadRecord(id: string, raw: unknown): GalleryUploadRecord | null
     createdAt,
     byteSize,
     tag,
-    year
+    year,
+    ...(eventId ? { eventId } : {})
   };
 }
 
@@ -227,7 +232,8 @@ export function uploadsToGalleryItems(records: GalleryUploadRecord[]): GalleryMe
     kind: r.kind,
     title: r.title,
     year: r.year,
-    tag: r.tag
+    tag: r.tag,
+    ...(r.eventId ? { eventId: r.eventId } : {})
   }));
 }
 
@@ -397,12 +403,15 @@ async function requestR2Presign(input: {
  */
 export async function uploadGalleryMedia(
   fileInput: unknown,
-  tagInput: unknown = GALLERY_DEFAULT_YEAR
+  tagInput: unknown = GALLERY_DEFAULT_YEAR,
+  eventIdInput?: unknown
 ): Promise<GalleryUploadRecord> {
   const tag = parseGalleryYearTag(tagInput);
   const year = yearFromGalleryTag(tag);
   const { file, kind, contentType } = validateGalleryUploadFile(fileInput);
   const byteSize = Math.floor(file.size);
+  const eventId =
+    typeof eventIdInput === 'string' && eventIdInput.trim() ? eventIdInput.trim().slice(0, 80) : undefined;
 
   await reserveGalleryBytes(byteSize);
 
@@ -444,7 +453,8 @@ export async function uploadGalleryMedia(
       createdAt,
       byteSize,
       tag,
-      year
+      year,
+      ...(eventId ? { eventId } : {})
     };
 
     await set(metaRef, {
@@ -457,7 +467,8 @@ export async function uploadGalleryMedia(
       createdAt: record.createdAt,
       byteSize: record.byteSize,
       tag: record.tag,
-      year: record.year
+      year: record.year,
+      ...(eventId ? { eventId } : {})
     });
 
     return record;

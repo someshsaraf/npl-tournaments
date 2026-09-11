@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db, LIVE_SCORE_DELAY_MS_PATH, YOUTUBE_LIVE_URL_PATH } from '../firebase';
 import { INITIAL_MATCH, isMaxPoints } from '../data/tournamentData';
-import type { CompletedMatch, MatchState, MaxPoints } from '../data/tournamentData';
+import type { CompletedMatch, MatchState, MaxPoints, Sport } from '../data/tournamentData';
 import { parseYouTubeVideoId } from '../utils/youtube';
 import { hasGameWinner, hasSeriesWinner, normalizeMatchState } from '../utils/matchState';
 import {
@@ -15,6 +15,13 @@ import {
   parseLiveScoreDelayMs
 } from '../utils/liveScoreDelay';
 import { isGoldenPoint } from '../utils/scoring';
+import {
+  formatTennisPointLabel,
+  isTennisDeuce,
+  isTennisGoldenPointActive,
+  isTennisTiebreak
+} from '../utils/tennisScoring';
+import { formatTennisGameLogLine, formatTennisStageLabel } from '../utils/tennisMatchState';
 import {
   enterNativeFullscreen,
   exitNativeFullscreen,
@@ -48,6 +55,9 @@ type HeldResult = {
   score2: number;
   maxPoints: MaxPoints;
   winnerSide: 1 | 2;
+  sport: Sport;
+  /** Precomputed final-score text, e.g. "6-4" or "7-6(4)" for tennis. */
+  resultLine: string;
 };
 
 type OverlayPhase = 'live' | 'final' | 'last';
@@ -57,6 +67,9 @@ function heldFromMatch(match: MatchState): HeldResult | null {
     return null;
   }
   const winnerSide = match.matchWinner === 2 ? 2 : 1;
+  const isTennis = match.sport === 'tennis';
+  const score1 = isTennis ? match.tennis?.gamesWon1 ?? 0 : match.score1 ?? 0;
+  const score2 = isTennis ? match.tennis?.gamesWon2 ?? 0 : match.score2 ?? 0;
   return {
     fixtureId: match.currentMatchId || '',
     category: match.category || '',
@@ -65,14 +78,29 @@ function heldFromMatch(match: MatchState): HeldResult | null {
     teamB: match.teamB || 'Team B',
     player1: match.player1 || match.teamA || 'Player 1',
     player2: match.player2 || match.teamB || 'Player 2',
-    score1: match.score1 ?? 0,
-    score2: match.score2 ?? 0,
+    score1,
+    score2,
     maxPoints: isMaxPoints(match.maxPoints) ? match.maxPoints : 11,
-    winnerSide
+    winnerSide,
+    sport: isTennis ? 'tennis' : 'badminton',
+    resultLine: isTennis ? formatTennisGameLogLine(match) || `${score1}-${score2}` : `${score1}-${score2}`
   };
 }
 
 function heldFromCompleted(row: CompletedMatch): HeldResult {
+  const isTennis = row.sport === 'tennis';
+  const score1 = isTennis ? row.tennis?.gamesWon1 ?? 0 : row.score1 ?? 0;
+  const score2 = isTennis ? row.tennis?.gamesWon2 ?? 0 : row.score2 ?? 0;
+  let resultLine = `${score1}-${score2}`;
+  if (isTennis && row.tennis && row.tennis.gameLog.length > 0) {
+    const last = row.tennis.gameLog[row.tennis.gameLog.length - 1];
+    if (last?.wasTiebreak) {
+      const loserPoints = last.winner === 1 ? last.points2 : last.points1;
+      resultLine = `${resultLine}(${loserPoints})`;
+    }
+  } else if (!isTennis && typeof row.result === 'string' && row.result) {
+    resultLine = row.result;
+  }
   return {
     fixtureId: row.fixtureId || row.id || '',
     category: row.category || '',
@@ -81,14 +109,27 @@ function heldFromCompleted(row: CompletedMatch): HeldResult {
     teamB: row.teamB || 'Team B',
     player1: row.player1 || row.teamA || 'Player 1',
     player2: row.player2 || row.teamB || 'Player 2',
-    score1: row.score1 ?? 0,
-    score2: row.score2 ?? 0,
+    score1,
+    score2,
     maxPoints: isMaxPoints(row.maxPoints) ? row.maxPoints : 11,
-    winnerSide: row.winnerSide === 2 ? 2 : 1
+    winnerSide: row.winnerSide === 2 ? 2 : 1,
+    sport: isTennis ? 'tennis' : 'badminton',
+    resultLine
   };
 }
 
 function isMatchInProgress(match: MatchState): boolean {
+  if (match.sport === 'tennis') {
+    const t = match.tennis;
+    return (
+      !!t &&
+      ((t.points1 ?? 0) > 0 ||
+        (t.points2 ?? 0) > 0 ||
+        (t.gamesWon1 ?? 0) > 0 ||
+        (t.gamesWon2 ?? 0) > 0 ||
+        t.isTiebreak)
+    );
+  }
   return (
     (match.score1 ?? 0) > 0 ||
     (match.score2 ?? 0) > 0 ||
@@ -854,32 +895,97 @@ export const StreamOverlay: React.FC = () => {
 
   // Score bug uses scoreMatch (first load immediate; later updates lag 7s).
   const scoreReady = scoreMatch !== null;
+  const liveIsTennis = scoreMatch?.sport === 'tennis';
   let phase: OverlayPhase = 'live';
-  let display = {
-    category: scoreMatch?.category || 'Match',
-    stage: scoreMatch?.stage || '',
-    teamA: scoreMatch?.teamA || '—',
-    teamB: scoreMatch?.teamB || '—',
-    player1: scoreMatch?.player1 || '—',
-    player2: scoreMatch?.player2 || '—',
-    score1: scoreMatch?.score1 ?? 0,
-    score2: scoreMatch?.score2 ?? 0,
-    maxPoints: scoreMatch?.maxPoints ?? 11,
-    server: (scoreMatch?.server === 2 ? 2 : 1) as 1 | 2,
-    winnerSide: null as 1 | 2 | null,
-    deuceActive: !!scoreMatch?.deuceActive,
-    goldenPoint: scoreMatch ? isGoldenPoint(scoreMatch) : false
-  };
+  let display: {
+    category: string;
+    stage: string;
+    teamA: string;
+    teamB: string;
+    player1: string;
+    player2: string;
+    score1: string | number;
+    score2: string | number;
+    maxPoints: number;
+    server: 1 | 2;
+    winnerSide: 1 | 2 | null;
+    deuceActive: boolean;
+    goldenPoint: boolean;
+    tiebreak: boolean;
+    sport: Sport;
+    formatTag: string;
+    resultLine: string;
+  } = liveIsTennis
+    ? {
+        category: scoreMatch?.category || 'Match',
+        stage: scoreMatch?.stage || '',
+        teamA: scoreMatch?.teamA || '—',
+        teamB: scoreMatch?.teamB || '—',
+        player1: scoreMatch?.player1 || '—',
+        player2: scoreMatch?.player2 || '—',
+        score1: formatTennisPointLabel(
+          scoreMatch?.tennis?.points1 ?? 0,
+          scoreMatch?.tennis?.points2 ?? 0,
+          !!scoreMatch?.tennis?.isTiebreak
+        ),
+        score2: formatTennisPointLabel(
+          scoreMatch?.tennis?.points2 ?? 0,
+          scoreMatch?.tennis?.points1 ?? 0,
+          !!scoreMatch?.tennis?.isTiebreak
+        ),
+        maxPoints: 0,
+        server: (scoreMatch?.tennis?.server === 2 ? 2 : 1) as 1 | 2,
+        winnerSide: null,
+        deuceActive: isTennisDeuce(scoreMatch),
+        goldenPoint: isTennisGoldenPointActive(scoreMatch),
+        tiebreak: isTennisTiebreak(scoreMatch),
+        sport: 'tennis',
+        formatTag: scoreMatch?.tennis ? formatTennisStageLabel(scoreMatch.tennis.tennisStage).toUpperCase() : '',
+        resultLine: ''
+      }
+    : {
+        category: scoreMatch?.category || 'Match',
+        stage: scoreMatch?.stage || '',
+        teamA: scoreMatch?.teamA || '—',
+        teamB: scoreMatch?.teamB || '—',
+        player1: scoreMatch?.player1 || '—',
+        player2: scoreMatch?.player2 || '—',
+        score1: scoreMatch?.score1 ?? 0,
+        score2: scoreMatch?.score2 ?? 0,
+        maxPoints: scoreMatch?.maxPoints ?? 11,
+        server: (scoreMatch?.server === 2 ? 2 : 1) as 1 | 2,
+        winnerSide: null,
+        deuceActive: !!scoreMatch?.deuceActive,
+        goldenPoint: scoreMatch ? isGoldenPoint(scoreMatch) : false,
+        tiebreak: false,
+        sport: 'badminton',
+        formatTag: `${scoreMatch?.maxPoints ?? 11}P`,
+        resultLine: ''
+      };
 
   const currentFixtureId =
     typeof scoreMatch?.currentMatchId === 'string' ? scoreMatch.currentMatchId.trim() : '';
 
   if (scoreMatch && hasSeriesWinner(scoreMatch)) {
     phase = 'final';
-    display = {
-      ...display,
-      winnerSide: scoreMatch.matchWinner === 2 ? 2 : 1
-    };
+    if (liveIsTennis) {
+      const t = scoreMatch.tennis;
+      const gamesWon1 = t?.gamesWon1 ?? 0;
+      const gamesWon2 = t?.gamesWon2 ?? 0;
+      display = {
+        ...display,
+        score1: gamesWon1,
+        score2: gamesWon2,
+        winnerSide: scoreMatch.matchWinner === 2 ? 2 : 1,
+        resultLine: formatTennisGameLogLine(scoreMatch) || `${gamesWon1}-${gamesWon2}`
+      };
+    } else {
+      display = {
+        ...display,
+        winnerSide: scoreMatch.matchWinner === 2 ? 2 : 1,
+        resultLine: `${display.score1}-${display.score2}`
+      };
+    }
   } else if (scoreMatch && !isMatchInProgress(scoreMatch) && currentFixtureId) {
     const sticky = heldResult || latestCompleted;
     if (sticky && sticky.fixtureId === currentFixtureId) {
@@ -897,7 +1003,11 @@ export const StreamOverlay: React.FC = () => {
         server: sticky.winnerSide,
         winnerSide: sticky.winnerSide,
         deuceActive: false,
-        goldenPoint: false
+        goldenPoint: false,
+        tiebreak: false,
+        sport: sticky.sport,
+        formatTag: sticky.sport === 'tennis' ? sticky.stage.toUpperCase() : `${sticky.maxPoints}P`,
+        resultLine: sticky.resultLine
       };
     }
   }
@@ -1064,7 +1174,11 @@ export const StreamOverlay: React.FC = () => {
               <p className="text-[10px] text-slate-400 truncate">{display.stage}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              {phase === 'live' && display.goldenPoint ? (
+              {phase === 'live' && display.tiebreak ? (
+                <span className="text-[9px] bg-sky-500/20 text-sky-300 px-1.5 py-0.5 rounded font-bold uppercase animate-pulse border border-sky-400/40">
+                  Tiebreak
+                </span>
+              ) : phase === 'live' && display.goldenPoint ? (
                 <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold uppercase animate-pulse border border-amber-400/40">
                   Golden
                 </span>
@@ -1079,7 +1193,7 @@ export const StreamOverlay: React.FC = () => {
                 </span>
               )}
               <span className="text-[9px] text-amber-300/90 font-mono font-bold">
-                {display.maxPoints}P
+                {display.formatTag}
               </span>
             </div>
           </div>
@@ -1165,7 +1279,7 @@ export const StreamOverlay: React.FC = () => {
                 </p>
               ) : null}
               <p className="text-[10px] font-mono font-bold text-amber-300/90 mt-1">
-                {display.score1}-{display.score2}
+                {display.resultLine || `${display.score1}-${display.score2}`}
                 {phase === 'last' ? ' · Last match' : ' · Final'}
               </p>
             </div>

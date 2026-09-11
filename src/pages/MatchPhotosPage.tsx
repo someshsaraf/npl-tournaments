@@ -1,5 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Loader2, Play, Upload, X } from 'lucide-react';
+import { db } from '../firebase';
 import {
   fetchGalleryManifest,
   GALLERY_DEFAULT_YEAR,
@@ -20,6 +22,11 @@ import {
   uploadGalleryMedia,
   uploadsToGalleryItems
 } from '../utils/galleryUploads';
+import { type CommunityEvent } from '../data/communityEvents';
+import { subscribeCommunityEvents } from '../utils/communityEvents';
+
+const ALL_EVENTS = 'all';
+const GENERAL_EVENT = 'general';
 
 const ACCEPT =
   'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm';
@@ -33,6 +40,7 @@ const ACCEPT =
  * only validated /Gallery/ paths and HTTPS download URLs are shown.
  */
 export default function MatchPhotosPage() {
+  const [searchParams] = useSearchParams();
   const [staticItems, setStaticItems] = useState<GalleryMediaItem[]>([]);
   const [uploadItems, setUploadItems] = useState<GalleryMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,10 +54,24 @@ export default function MatchPhotosPage() {
   const [uploadTag, setUploadTag] = useState<GalleryYearTag>(
     galleryTagFromYear(GALLERY_DEFAULT_YEAR)
   );
+  const [events, setEvents] = useState<CommunityEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>(
+    searchParams.get('event') || ALL_EVENTS
+  );
+  const [uploadEventId, setUploadEventId] = useState<string>(GENERAL_EVENT);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    const unsub = subscribeCommunityEvents(db, setEvents);
+    return () => unsub();
+  }, []);
+
   const allItems = [...uploadItems, ...staticItems];
-  const items = allItems.filter((item) => item.year === selectedYear);
+  const items = allItems.filter(
+    (item) =>
+      item.year === selectedYear &&
+      (selectedEventId === ALL_EVENTS || item.eventId === selectedEventId)
+  );
   const storageFull = usedBytes >= GALLERY_MAX_TOTAL_BYTES;
 
   useEffect(() => {
@@ -98,10 +120,10 @@ export default function MatchPhotosPage() {
     return () => unsub();
   }, []);
 
-  // Close lightbox when switching year so indices stay in range.
+  // Close lightbox when switching year/event so indices stay in range.
   useEffect(() => {
     setActiveIndex(null);
-  }, [selectedYear]);
+  }, [selectedYear, selectedEventId]);
 
   const closeLightbox = useCallback(() => setActiveIndex(null), []);
 
@@ -177,7 +199,8 @@ export default function MatchPhotosPage() {
     setUploadError(null);
     setUploadMessage(null);
     try {
-      const record = await uploadGalleryMedia(file, uploadTag);
+      const eventIdToSave = uploadEventId === GENERAL_EVENT ? undefined : uploadEventId;
+      const record = await uploadGalleryMedia(file, uploadTag, eventIdToSave);
       setUploadMessage(`Uploaded to ${record.tag}. Thanks!`);
       setSelectedYear(record.year);
       setUploadTag(record.tag);
@@ -189,7 +212,8 @@ export default function MatchPhotosPage() {
           kind: record.kind,
           title: record.title,
           year: record.year,
-          tag: record.tag
+          tag: record.tag,
+          ...(record.eventId ? { eventId: record.eventId } : {})
         };
         if (prev.some((p) => p.id === record.id)) return prev;
         return [next, ...prev];
@@ -239,6 +263,23 @@ export default function MatchPhotosPage() {
           })}
         </div>
 
+        <label className="flex items-center gap-2 text-[11px] text-slate-400">
+          <span className="uppercase tracking-wide font-bold text-slate-500">Event</span>
+          <select
+            value={selectedEventId}
+            onChange={(e) => setSelectedEventId(e.target.value)}
+            className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+            aria-label="Filter photos by event"
+          >
+            <option value={ALL_EVENTS}>All events</option>
+            {events.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.title}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <label className="flex items-center gap-2 text-[11px] text-slate-400">
             <span className="uppercase tracking-wide font-bold text-slate-500">Tag</span>
@@ -252,6 +293,23 @@ export default function MatchPhotosPage() {
               {GALLERY_YEAR_TAGS.map((tag) => (
                 <option key={tag} value={tag}>
                   {tag}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-[11px] text-slate-400">
+            <span className="uppercase tracking-wide font-bold text-slate-500">For event</span>
+            <select
+              value={uploadEventId}
+              onChange={(e) => setUploadEventId(e.target.value)}
+              disabled={uploading || storageFull}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:opacity-50"
+              aria-label="Which event this upload belongs to"
+            >
+              <option value={GENERAL_EVENT}>General (no event)</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.title}
                 </option>
               ))}
             </select>

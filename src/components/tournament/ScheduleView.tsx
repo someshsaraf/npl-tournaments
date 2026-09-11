@@ -1,35 +1,42 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ref, onValue } from 'firebase/database';
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import {
   FIXTURES,
   FIXTURE_DATES,
-  type Fixture
-} from '../data/tournamentData';
+  resolveSport,
+  type CompletedMatch,
+  type Fixture,
+  type Sport
+} from '../../data/tournamentData';
 import {
   completedMatchesFromFirebase,
-  mergeFixturesWithResults
-} from '../utils/completedMatches';
+  mergeFixturesWithResults,
+  sortCompletedMatches
+} from '../../utils/completedMatches';
 
 /**
- * Read-only public schedule with date/category filters and completed results.
- * No writes; staff editing stays on /admin.
+ * Schedule for one sport, embedded inside that sport's event detail page.
+ * Badminton has a pre-set fixture list; Tennis matches are started ad hoc by
+ * admins, so its view shows matches played so far instead of a future schedule.
  */
-export default function SchedulePage() {
+export function ScheduleView({ sport }: { sport: Sport }) {
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [fixtures, setFixtures] = useState<Fixture[]>(() =>
-    mergeFixturesWithResults(FIXTURES, {})
-  );
+  const [completedById, setCompletedById] = useState<Record<string, CompletedMatch>>({});
 
   useEffect(() => {
     const completedRef = ref(db, 'completedMatches');
     const unsub = onValue(completedRef, (snap) => {
-      const byId = completedMatchesFromFirebase(snap.val());
-      setFixtures(mergeFixturesWithResults(FIXTURES, byId));
+      setCompletedById(completedMatchesFromFirebase(snap.val()));
     });
     return () => unsub();
   }, []);
+
+  const fixtures = useMemo(
+    () => mergeFixturesWithResults(FIXTURES, completedById),
+    [completedById]
+  );
 
   const categories = useMemo(
     () => ['All', ...Array.from(new Set(FIXTURES.map((f) => f.category)))],
@@ -55,15 +62,71 @@ export default function SchedulePage() {
 
   const completedCount = fixtures.filter((f) => f.status === 'completed').length;
 
+  const tennisCompleted = useMemo(
+    () =>
+      sortCompletedMatches(
+        Object.values(completedById).filter((r) => resolveSport(r.sport) === 'tennis')
+      ),
+    [completedById]
+  );
+
+  if (sport === 'tennis') {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-slate-400 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+          Tennis matches are started ad hoc by admins rather than a pre-set fixture list, so
+          there's no schedule to show ahead of time. Check the Live tab when a match is on
+          court, or browse matches played below.
+        </p>
+        {tennisCompleted.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-10">No tennis matches played yet.</p>
+        ) : (
+          <ul className="rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 bg-slate-900/40">
+            {tennisCompleted.map((row) => (
+              <li
+                key={row.fixtureId || row.id}
+                className="grid grid-cols-1 sm:grid-cols-[7.5rem_1fr_auto] gap-1 sm:gap-3 px-3 sm:px-4 py-3 text-sm"
+              >
+                <span className="font-mono text-xs text-amber-400/90 sm:pt-0.5">
+                  {[row.completedDate, row.completedTime].filter(Boolean).join(' ')}
+                </span>
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-[11px] uppercase tracking-wide text-indigo-300/90 truncate">
+                    {row.category}
+                    {row.stage ? (
+                      <>
+                        <span className="text-slate-600"> · </span>
+                        <span className="text-slate-500 normal-case tracking-normal">{row.stage}</span>
+                      </>
+                    ) : null}
+                  </p>
+                  <p className="font-semibold text-slate-100 truncate">
+                    {row.details || `${row.player1 || row.teamA} vs ${row.player2 || row.teamB}`}
+                  </p>
+                  <p className="text-xs text-emerald-400/90">
+                    Winner: {row.winnerName || '—'}
+                    {row.result ? ` · ${row.result}` : ''}
+                  </p>
+                </div>
+                <div className="sm:justify-self-end sm:self-center">
+                  <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
+                    Completed
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Schedule</h1>
-        <p className="text-sm text-slate-400">
-          {filtered.length} matches shown
-          {completedCount > 0 ? ` · ${completedCount} completed overall` : ''}
-        </p>
-      </header>
+      <p className="text-sm text-slate-400">
+        {filtered.length} matches shown
+        {completedCount > 0 ? ` · ${completedCount} completed overall` : ''}
+      </p>
 
       <div className="space-y-3">
         <FilterRow
@@ -89,7 +152,7 @@ export default function SchedulePage() {
         {Object.entries(byDate).map(([date, dayFixtures]) => (
           <section key={date} className="space-y-2">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h2 className="text-sm font-bold text-amber-400">{date}</h2>
+              <h3 className="text-sm font-bold text-amber-400">{date}</h3>
               <span className="text-[11px] text-slate-500">{dayFixtures.length} matches</span>
             </div>
             <ul className="rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 bg-slate-900/40">

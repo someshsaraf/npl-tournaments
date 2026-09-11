@@ -1,19 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
-import { BarChart3 } from 'lucide-react';
-import { db } from '../firebase';
-import type { CompletedMatch } from '../data/tournamentData';
-import {
-  completedMatchesFromFirebase,
-  sortCompletedMatches
-} from '../utils/completedMatches';
+import { db } from '../../firebase';
+import { resolveSport, type CompletedMatch, type Sport } from '../../data/tournamentData';
+import { completedMatchesFromFirebase, sortCompletedMatches } from '../../utils/completedMatches';
 
-/**
- * Public results list — completed matches only (read-only Firebase).
- * Replaces the portal Score nav entry for online viewers.
- */
-export default function ResultsPage() {
+/** Completed matches for one sport, embedded inside that sport's event detail page. */
+export function ResultsView({ sport }: { sport: Sport }) {
   const [rows, setRows] = useState<CompletedMatch[]>([]);
   const [category, setCategory] = useState('All');
 
@@ -25,36 +17,27 @@ export default function ResultsPage() {
     return () => unsub();
   }, []);
 
+  const sportRows = useMemo(
+    () => rows.filter((r) => resolveSport(r.sport) === sport),
+    [rows, sport]
+  );
+
   const categories = useMemo(
-    () => ['All', ...Array.from(new Set(rows.map((r) => r.category).filter(Boolean)))],
-    [rows]
+    () => ['All', ...Array.from(new Set(sportRows.map((r) => r.category).filter(Boolean)))],
+    [sportRows]
   );
 
   const filtered = useMemo(() => {
-    if (category === 'All') return rows;
-    return rows.filter((r) => r.category === category);
-  }, [rows, category]);
+    if (category === 'All') return sportRows;
+    return sportRows.filter((r) => r.category === category);
+  }, [sportRows, category]);
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Results</h1>
-          <p className="text-sm text-slate-400">
-            {filtered.length} completed match{filtered.length === 1 ? '' : 'es'}
-            {rows.length > 0 ? ` · newest first` : ''}
-          </p>
-        </div>
-        {rows.length > 0 ? (
-          <Link
-            to="/stats"
-            className="inline-flex items-center gap-1.5 self-start text-xs font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300"
-          >
-            <BarChart3 className="size-3.5" aria-hidden />
-            Tournament stats
-          </Link>
-        ) : null}
-      </header>
+    <div className="space-y-4">
+      <p className="text-sm text-slate-400">
+        {filtered.length} completed match{filtered.length === 1 ? '' : 'es'}
+        {sportRows.length > 0 ? ` · newest first` : ''}
+      </p>
 
       {categories.length > 1 && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -91,10 +74,7 @@ export default function ResultsPage() {
             const stageLabel =
               typeof row.stage === 'string' && row.stage.trim() ? row.stage.trim() : '';
             const categoryLabel =
-              typeof row.category === 'string' && row.category.trim()
-                ? row.category.trim()
-                : '';
-            // Badge shows category (Exhibition, League, Boys Singles…), not a blanket "Final".
+              typeof row.category === 'string' && row.category.trim() ? row.category.trim() : '';
             const badgeLabel = categoryLabel || stageLabel || 'Match';
             const isFinalStage = /^final$/i.test(stageLabel);
             return (

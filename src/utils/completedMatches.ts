@@ -1,6 +1,7 @@
 import type { CompletedMatch, Fixture, MatchState } from '../data/tournamentData';
 import { isBestOf, isMaxPoints } from '../data/tournamentData';
 import { formatGameScoresLine, hasSeriesWinner } from './matchState';
+import { formatTennisGameLogLine } from './tennisMatchState';
 import {
   applyPlayerNameAliasesToCompletedMatch,
   applyPlayerNameAliasesToFixture
@@ -75,6 +76,10 @@ export function buildCompletedMatch(
       ? match.currentMatchId.trim()
       : `unknown-${completedAt.getTime()}`;
 
+  if (match.sport === 'tennis') {
+    return buildCompletedTennisMatch(match, fixture, fixtureId, completedAt, extras);
+  }
+
   const bestOf = isBestOf(match.bestOf) ? match.bestOf : 1;
   const gameScores = Array.isArray(match.gameScores) ? match.gameScores : [];
   const gamesWon1 = Number.isFinite(match.gamesWon1) ? match.gamesWon1 : 0;
@@ -131,6 +136,71 @@ export function buildCompletedMatch(
     gamesWon1,
     gamesWon2,
     gameScores,
+    ...(typeof extras?.snapshotUrl === 'string' && extras.snapshotUrl.startsWith('https://')
+      ? { snapshotUrl: extras.snapshotUrl }
+      : {}),
+    ...(typeof extras?.snapshotPath === 'string' && extras.snapshotPath.startsWith('photos/')
+      ? { snapshotPath: extras.snapshotPath }
+      : {})
+  };
+}
+
+/** Tennis branch of buildCompletedMatch — reads match.tennis instead of the badminton fields. */
+function buildCompletedTennisMatch(
+  match: MatchState,
+  fixture: Fixture | undefined,
+  fixtureId: string,
+  completedAt: Date,
+  extras?: { snapshotUrl?: string; snapshotPath?: string }
+): CompletedMatch {
+  const t = match.tennis;
+  const gamesWon1 = t ? t.gamesWon1 : 0;
+  const gamesWon2 = t ? t.gamesWon2 : 0;
+  const winnerSide =
+    match.matchWinner === 1 || match.matchWinner === 2
+      ? match.matchWinner
+      : gamesWon1 >= gamesWon2
+        ? 1
+        : 2;
+  const winnerName =
+    winnerSide === 1
+      ? match.player1 || match.teamA || 'Side A'
+      : match.player2 || match.teamB || 'Side B';
+  const result = formatTennisGameLogLine(match) || `${gamesWon1}-${gamesWon2}`;
+
+  return {
+    id: fixtureId,
+    fixtureId,
+    category: match.category || fixture?.category || '',
+    stage: match.stage || fixture?.stage || '',
+    details: fixture?.details || `${match.player1 || match.teamA} vs ${match.player2 || match.teamB}`,
+    scheduledDate: fixture?.date || '',
+    scheduledTime: fixture?.time || '',
+    teamA: match.teamA || fixture?.teamA || '',
+    teamB: match.teamB || fixture?.teamB || '',
+    player1: match.player1 || '',
+    player2: match.player2 || '',
+    score1: gamesWon1,
+    score2: gamesWon2,
+    maxPoints: 11,
+    winnerSide,
+    winnerName,
+    result,
+    status: 'completed',
+    completedAt: completedAt.toISOString(),
+    completedDate: formatMatchDate(completedAt),
+    completedTime: formatMatchTime(completedAt),
+    isTrump: !!match.isTrump,
+    sport: 'tennis',
+    tennis: t
+      ? {
+          tennisStage: t.tennisStage,
+          matchType: t.matchType,
+          gamesWon1: t.gamesWon1,
+          gamesWon2: t.gamesWon2,
+          gameLog: t.gameLog
+        }
+      : undefined,
     ...(typeof extras?.snapshotUrl === 'string' && extras.snapshotUrl.startsWith('https://')
       ? { snapshotUrl: extras.snapshotUrl }
       : {}),

@@ -7,10 +7,12 @@ import {
   INITIAL_MATCH,
   BEST_OF_OPTIONS,
   SCORER_MAX_POINTS_OPTIONS,
+  TENNIS_STAGES,
+  TENNIS_MATCH_TYPES,
   isBestOf,
   isMaxPoints
 } from '../data/tournamentData';
-import type { BestOf, MatchState, MaxPoints } from '../data/tournamentData';
+import type { BestOf, MatchState, MaxPoints, Sport, TennisStage, TennisMatchType } from '../data/tournamentData';
 import {
   formatGameScoresLine,
   formatGamesWonLabel,
@@ -28,16 +30,26 @@ import {
   isGoldenPoint
 } from '../utils/scoring';
 import {
+  applyTennisScorePoint,
+  applyTennisSetServer,
+  applyTennisSwapSides,
+  applyTennisUndoPoint,
+  formatTennisPointLabel
+} from '../utils/tennisScoring';
+import { formatTennisGameLogLine, formatTennisGamesLabel, formatTennisStageLabel } from '../utils/tennisMatchState';
+import {
   buildCompletedMatch,
   completedMatchStorageKey,
   toFirebaseWritable
 } from '../utils/completedMatches';
 import { buildCustomMatchState } from '../utils/customMatch';
+import { buildCustomTennisMatchState } from '../utils/tennisCustomMatch';
 import { ServeRacket } from '../components/ServeRacket';
 import { WinnerCelebration } from '../components/WinnerCelebration';
 import { BetweenMatchAd } from '../components/BetweenMatchAd';
 import { BrandBanner } from '../components/BrandBanner';
 import { SeriesScoreStrip } from '../components/SeriesScoreStrip';
+import { TennisScoreDisplay } from '../components/TennisScoreDisplay';
 import { useMatchAnnouncer } from '../hooks/useMatchAnnouncer';
 import { useBetweenMatchAd } from '../hooks/useBetweenMatchAd';
 import { useVictoryJingle } from '../hooks/useVictoryJingle';
@@ -58,6 +70,9 @@ export const ScoreControl: React.FC = () => {
   const [newPlayer2, setNewPlayer2] = useState('');
   const [newMaxPoints, setNewMaxPoints] = useState<MaxPoints>(11);
   const [newBestOf, setNewBestOf] = useState<BestOf>(1);
+  const [newSport, setNewSport] = useState<Sport>('badminton');
+  const [newTennisStage, setNewTennisStage] = useState<TennisStage>('qualifier');
+  const [newMatchType, setNewMatchType] = useState<TennisMatchType>('singles');
   const [newMatchError, setNewMatchError] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<{
     winnerName: string;
@@ -166,6 +181,31 @@ export const ScoreControl: React.FC = () => {
     });
   }, [match]);
 
+  // Tennis: celebrate only when the match (set / qualifier race) is decided —
+  // individual games happen too often to celebrate each one.
+  useEffect(() => {
+    if (match.sport !== 'tennis') return;
+    if (!hasSeriesWinner(match)) return;
+    const key = `${match.currentMatchId}:tw${match.matchWinner}:${formatTennisGamesLabel(match)}`;
+    if (promptedKeyRef.current === key) return;
+    promptedKeyRef.current = key;
+    setPendingSaveMatch(match);
+    const side1 = match.player1 || match.teamA || 'Side A';
+    const side2 = match.player2 || match.teamB || 'Side B';
+    const winName = match.matchWinner === 1 ? side1 : side2;
+    const oppName = match.matchWinner === 1 ? side2 : side1;
+    setCelebration({
+      winnerName: winName,
+      opponentName: oppName,
+      scoreLabel: formatTennisGameLogLine(match) || formatTennisGamesLabel(match),
+      subtitle: match.tennis ? `${formatTennisStageLabel(match.tennis.tennisStage)} won` : '',
+      seriesOver: true,
+      gameScores: [],
+      seriesLabel: formatTennisGamesLabel(match),
+      matchWinner: match.matchWinner
+    });
+  }, [match]);
+
   const updateMatchState = (next: MatchState) => {
     setMatch(next);
     set(ref(db, 'currentMatch'), next).catch((err) => {
@@ -173,7 +213,13 @@ export const ScoreControl: React.FC = () => {
     });
   };
 
+  const isTennis = match.sport === 'tennis';
+
   const handleScorePoint = (side: 1 | 2) => {
+    if (isTennis) {
+      updateMatchState(applyTennisScorePoint(match, side));
+      return;
+    }
     let current = match;
     if (
       current.bestOf === 3 &&
@@ -197,14 +243,26 @@ export const ScoreControl: React.FC = () => {
     setCelebration(null);
     setResultSaved(false);
     setSaveMessage(null);
+    if (isTennis) {
+      updateMatchState(applyTennisUndoPoint(match, side));
+      return;
+    }
     updateMatchState(applyDecrementScore(match, side));
   };
 
   const handleSetServer = (side: 1 | 2) => {
+    if (isTennis) {
+      updateMatchState(applyTennisSetServer(match, side));
+      return;
+    }
     updateMatchState(applySetServer(match, side));
   };
 
   const handleSwapSides = () => {
+    if (isTennis) {
+      updateMatchState(applyTennisSwapSides(match));
+      return;
+    }
     updateMatchState(applySwapSides(match));
   };
 
@@ -262,6 +320,9 @@ export const ScoreControl: React.FC = () => {
     setNewPlayer2('');
     setNewMaxPoints(isMaxPoints(match.maxPoints) ? match.maxPoints : 11);
     setNewBestOf(isBestOf(match.bestOf) ? match.bestOf : 1);
+    setNewSport(match.sport === 'tennis' ? 'tennis' : 'badminton');
+    setNewTennisStage(match.tennis?.tennisStage ?? 'qualifier');
+    setNewMatchType(match.tennis?.matchType ?? 'singles');
     setShowNewMatchForm(true);
     setCelebration(null);
     skipQueuedAd();
@@ -288,14 +349,24 @@ export const ScoreControl: React.FC = () => {
   const handleStartNewMatch = () => {
     setNewMatchError(null);
     try {
-      const next = buildCustomMatchState(match, {
-        sideA: newPlayer1,
-        sideB: newPlayer2,
-        maxPoints: newMaxPoints,
-        bestOf: newBestOf,
-        category: match.category?.trim() || 'Exhibition',
-        stage: 'Custom'
-      });
+      const next =
+        newSport === 'tennis'
+          ? buildCustomTennisMatchState(match, {
+              sideA: newPlayer1,
+              sideB: newPlayer2,
+              tennisStage: newTennisStage,
+              matchType: newMatchType,
+              category: match.category?.trim() || 'Tennis Singles',
+              stage: formatTennisStageLabel(newTennisStage)
+            })
+          : buildCustomMatchState(match, {
+              sideA: newPlayer1,
+              sideB: newPlayer2,
+              maxPoints: newMaxPoints,
+              bestOf: newBestOf,
+              category: match.category?.trim() || 'Exhibition',
+              stage: 'Custom'
+            });
       promptedKeyRef.current = null;
       setPendingSaveMatch(null);
       setCelebration(null);
@@ -311,29 +382,39 @@ export const ScoreControl: React.FC = () => {
 
   const hasWinner = hasGameWinner(match);
   const seriesOver = hasSeriesWinner(match);
-  const scoreButtonsLocked = seriesOver || (hasWinner && match.bestOf !== 3);
+  const scoreButtonsLocked = isTennis
+    ? seriesOver
+    : seriesOver || (hasWinner && match.bestOf !== 3);
   const score1 = match.score1 ?? 0;
   const score2 = match.score2 ?? 0;
+  const tennisServer = match.tennis?.server ?? 1;
+  const tennisDisplay1 = isTennis
+    ? formatTennisPointLabel(match.tennis?.points1 ?? 0, match.tennis?.points2 ?? 0, !!match.tennis?.isTiebreak)
+    : String(score1);
+  const tennisDisplay2 = isTennis
+    ? formatTennisPointLabel(match.tennis?.points2 ?? 0, match.tennis?.points1 ?? 0, !!match.tennis?.isTiebreak)
+    : String(score2);
   const name1 = match.player1 || match.teamA || 'Side A';
   const name2 = match.player2 || match.teamB || 'Side B';
-  const winnerName = match.gameWinner === 1 ? name1 : name2;
-  const opponentName = match.gameWinner === 1 ? name2 : name1;
+  const winnerName = isTennis
+    ? match.matchWinner === 1
+      ? name1
+      : name2
+    : match.gameWinner === 1
+      ? name1
+      : name2;
+  const opponentName = isTennis
+    ? match.matchWinner === 1
+      ? name2
+      : name1
+    : match.gameWinner === 1
+      ? name2
+      : name1;
   const isBo3 = match.bestOf === 3;
+  const currentServer = isTennis ? tennisServer : match.server;
 
   const postMatchLinks = (
     <>
-      <Link
-        to="/schedule"
-        className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 text-emerald-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-emerald-500/25"
-      >
-        Schedule &amp; Results
-      </Link>
-      <Link
-        to="/rules"
-        className="rounded-lg border border-slate-600 bg-slate-800 text-slate-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-slate-700"
-      >
-        Rules
-      </Link>
       <Link
         to="/admin"
         className="rounded-lg border border-amber-500/40 bg-amber-400/15 text-amber-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-amber-400/25"
@@ -375,7 +456,7 @@ export const ScoreControl: React.FC = () => {
       >
         Admin
       </Link>
-      {speechSupported && (
+      {!isTennis && speechSupported && (
         <button
           type="button"
           onClick={() => (audioEnabled ? disableAudio() : enableAudio())}
@@ -394,21 +475,22 @@ export const ScoreControl: React.FC = () => {
           {audioEnabled ? 'Audio On' : 'Audio'}
         </button>
       )}
-      {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
-        <button
-          key={pts}
-          type="button"
-          onClick={() => handleSetMaxPoints(pts)}
-          title={`Race to ${pts}`}
-          className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
-            (match.maxPoints ?? 11) === pts
-              ? 'bg-amber-400 text-slate-950 border-amber-300'
-              : 'bg-slate-800 text-slate-300 border-slate-700'
-          }`}
-        >
-          {pts}
-        </button>
-      ))}
+      {!isTennis &&
+        SCORER_MAX_POINTS_OPTIONS.map((pts) => (
+          <button
+            key={pts}
+            type="button"
+            onClick={() => handleSetMaxPoints(pts)}
+            title={`Race to ${pts}`}
+            className={`text-[10px] sm:text-xs font-black px-2 py-1 rounded-lg border active:scale-95 ${
+              (match.maxPoints ?? 11) === pts
+                ? 'bg-amber-400 text-slate-950 border-amber-300'
+                : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            {pts}
+          </button>
+        ))}
       <button
         type="button"
         onClick={handleSwapSides}
@@ -465,7 +547,26 @@ export const ScoreControl: React.FC = () => {
         </div>
 
         <div className="flex flex-col items-center justify-center gap-1 min-w-0">
-          {hasWinner ? (
+          {isTennis && seriesOver ? (
+            <>
+              <span className="text-sm sm:text-base font-black text-emerald-200 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1.5 rounded-xl text-center leading-snug max-w-[min(92vw,40rem)]">
+                <span className="block whitespace-nowrap truncate">MATCH WIN {winnerName}</span>
+                <span className="block text-white font-black truncate">def. {opponentName}</span>
+                <span className="block text-emerald-300/90 text-[0.85em]">
+                  {formatTennisGameLogLine(match) || formatTennisGamesLabel(match)}
+                </span>
+              </span>
+              {!celebration && !showNewMatchForm && (
+                <button
+                  type="button"
+                  onClick={openNewMatchForm}
+                  className="text-[10px] sm:text-xs font-black px-3 py-1 rounded-full bg-violet-500 text-slate-950 active:scale-95"
+                >
+                  New Match
+                </button>
+              )}
+            </>
+          ) : isTennis ? null : hasWinner ? (
             <>
               <span className="text-sm sm:text-base font-black text-emerald-200 bg-emerald-500/20 border border-emerald-500/50 px-3 py-1.5 rounded-xl text-center leading-snug max-w-[min(92vw,40rem)]">
                 <span className="block whitespace-nowrap truncate">
@@ -513,11 +614,15 @@ export const ScoreControl: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-end gap-1.5">
-          {!isBo3 ? scorerOptionButtons : null}
+          {!isBo3 && !isTennis ? scorerOptionButtons : null}
         </div>
       </header>
 
-      {isBo3 ? (
+      {isTennis ? (
+        <div className="shrink-0 flex items-center gap-2 px-2 py-1 border-b border-slate-800/80 bg-slate-950">
+          <TennisScoreDisplay match={match} size="sm" className="flex-1 min-w-0 py-0" trailing={scorerOptionButtons} />
+        </div>
+      ) : isBo3 ? (
         <div className="shrink-0 flex items-center gap-2 px-2 py-1 border-b border-slate-800/80 bg-slate-950">
           <SeriesScoreStrip match={match} size="sm" className="flex-1 min-w-0 py-0" trailing={scorerOptionButtons} />
         </div>
@@ -529,7 +634,7 @@ export const ScoreControl: React.FC = () => {
         <section
           className="flex flex-col min-h-0 min-w-0"
           style={{
-            background: match.server === 1
+            background: currentServer === 1
               ? 'linear-gradient(180deg, rgba(67,56,202,0.35) 0%, rgba(2,6,23,1) 55%)'
               : 'rgba(2,6,23,1)',
             borderRight: '1px solid rgba(51,65,85,0.6)'
@@ -539,7 +644,7 @@ export const ScoreControl: React.FC = () => {
             <p className="text-base sm:text-2xl md:text-3xl font-black text-white truncate leading-none">
               {name1}
             </p>
-            {match.server === 1 ? (
+            {currentServer === 1 ? (
               <span
                 className="shrink-0 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
@@ -561,9 +666,9 @@ export const ScoreControl: React.FC = () => {
           <div className="flex-1 min-h-0 flex items-center justify-center">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-indigo-300"
-              style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
+              style={{ fontSize: isTennis ? 'clamp(3rem, min(22vw, 32dvh), 12rem)' : 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
             >
-              {score1}
+              {isTennis ? tennisDisplay1 : score1}
             </span>
           </div>
         </section>
@@ -572,7 +677,7 @@ export const ScoreControl: React.FC = () => {
         <section
           className="flex flex-col min-h-0 min-w-0"
           style={{
-            background: match.server === 2
+            background: currentServer === 2
               ? 'linear-gradient(180deg, rgba(190,24,93,0.35) 0%, rgba(2,6,23,1) 55%)'
               : 'rgba(2,6,23,1)'
           }}
@@ -581,7 +686,7 @@ export const ScoreControl: React.FC = () => {
             <p className="text-base sm:text-2xl md:text-3xl font-black text-white truncate leading-none">
               {name2}
             </p>
-            {match.server === 2 ? (
+            {currentServer === 2 ? (
               <span
                 className="shrink-0 p-1.5 rounded-xl bg-emerald-500/25 ring-2 ring-emerald-400/70"
                 title="Serving"
@@ -603,9 +708,9 @@ export const ScoreControl: React.FC = () => {
           <div className="flex-1 min-h-0 flex items-center justify-center">
             <span
               className="font-black font-mono tabular-nums leading-none select-none text-rose-300"
-              style={{ fontSize: 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
+              style={{ fontSize: isTennis ? 'clamp(3rem, min(22vw, 32dvh), 12rem)' : 'clamp(4.5rem, min(28vw, 42dvh), 16rem)' }}
             >
-              {score2}
+              {isTennis ? tennisDisplay2 : score2}
             </span>
           </div>
         </section>
@@ -734,9 +839,39 @@ export const ScoreControl: React.FC = () => {
               <p className="text-xs text-slate-400">Enter players, points, and best-of format</p>
             </div>
 
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Sport
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewSport('badminton')}
+                  className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
+                    newSport === 'badminton'
+                      ? 'bg-emerald-400 text-slate-950 border-emerald-300'
+                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                  }`}
+                >
+                  Badminton
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewSport('tennis')}
+                  className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
+                    newSport === 'tennis'
+                      ? 'bg-emerald-400 text-slate-950 border-emerald-300'
+                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                  }`}
+                >
+                  Tennis
+                </button>
+              </div>
+            </div>
+
             <label className="block space-y-1.5">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Player 1
+                Player 1 {newSport === 'tennis' ? '/ Team 1' : ''}
               </span>
               <input
                 type="text"
@@ -751,7 +886,7 @@ export const ScoreControl: React.FC = () => {
 
             <label className="block space-y-1.5">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Player 2
+                Player 2 {newSport === 'tennis' ? '/ Team 2' : ''}
               </span>
               <input
                 type="text"
@@ -763,49 +898,98 @@ export const ScoreControl: React.FC = () => {
               />
             </label>
 
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Points
-              </span>
-              <div className="flex items-center gap-2">
-                {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
-                  <button
-                    key={pts}
-                    type="button"
-                    onClick={() => setNewMaxPoints(pts)}
-                    className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
-                      newMaxPoints === pts
-                        ? 'bg-amber-400 text-slate-950 border-amber-300'
-                        : 'bg-slate-800 text-slate-300 border-slate-700'
-                    }`}
-                  >
-                    {pts}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {newSport === 'tennis' ? (
+              <>
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Stage
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {TENNIS_STAGES.map((stg) => (
+                      <button
+                        key={stg}
+                        type="button"
+                        onClick={() => setNewTennisStage(stg)}
+                        className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
+                          newTennisStage === stg
+                            ? 'bg-amber-400 text-slate-950 border-amber-300'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {formatTennisStageLabel(stg)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Match type
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {TENNIS_MATCH_TYPES.map((mt) => (
+                      <button
+                        key={mt}
+                        type="button"
+                        onClick={() => setNewMatchType(mt)}
+                        className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 capitalize ${
+                          newMatchType === mt
+                            ? 'bg-violet-400 text-slate-950 border-violet-300'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {mt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Points
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {SCORER_MAX_POINTS_OPTIONS.map((pts) => (
+                      <button
+                        key={pts}
+                        type="button"
+                        onClick={() => setNewMaxPoints(pts)}
+                        className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
+                          newMaxPoints === pts
+                            ? 'bg-amber-400 text-slate-950 border-amber-300'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {pts}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Match length
-              </span>
-              <div className="flex items-center gap-2">
-                {BEST_OF_OPTIONS.map((bo) => (
-                  <button
-                    key={bo}
-                    type="button"
-                    onClick={() => setNewBestOf(bo)}
-                    className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
-                      newBestOf === bo
-                        ? 'bg-violet-400 text-slate-950 border-violet-300'
-                        : 'bg-slate-800 text-slate-300 border-slate-700'
-                    }`}
-                  >
-                    Best of {bo}
-                  </button>
-                ))}
-              </div>
-            </div>
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Match length
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {BEST_OF_OPTIONS.map((bo) => (
+                      <button
+                        key={bo}
+                        type="button"
+                        onClick={() => setNewBestOf(bo)}
+                        className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
+                          newBestOf === bo
+                            ? 'bg-violet-400 text-slate-950 border-violet-300'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        Best of {bo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             {newMatchError && (
               <p className="text-xs text-red-400 text-center" role="alert">

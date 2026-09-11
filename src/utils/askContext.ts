@@ -6,6 +6,7 @@ import { hasSeriesWinner } from './matchState';
 export const ASK_CONTEXT_MAX_CHARS = 90_000;
 
 export const RULES_DIGEST = [
+  'BADMINTON',
   'Referee decision is final; arguing can lead to penalties.',
   'Arrive at least 10 minutes before scheduled slot.',
   'Non-marking shoes required; serve contact below 1.15m; spin serves banned.',
@@ -14,6 +15,10 @@ export const RULES_DIGEST = [
   'Trump: exactly 1 Trump game per tie; win Trump = +2 team points; lose Trump = −1.',
   'Kids & Women’s: race to 15; deuce from 14–14; golden point at 21–21.',
   'Men’s: race to 21; deuce from 20–20; golden point at 30–30.',
+  'TENNIS (singles & doubles)',
+  'Qualifiers: race to 4 games, no win-by-2 requirement — at 3-3 the next game wins the match. Regular deuce scoring within games.',
+  'Semifinals: single set to 6 games (win by 2, 7-point tiebreak at 6-6). Golden Point: 1st deuce plays out normally; a 2nd deuce in the same game means the next point wins outright.',
+  'Final: single set to 6 games (win by 2, 7-point tiebreak at 6-6). Regular deuce throughout — no golden point.',
   'Date format in data: e.g. 9-Aug-26 means 9 August 2026.'
 ].join('\n');
 
@@ -89,13 +94,18 @@ function compactLive(live: MatchState | null): Record<string, unknown> | null {
   const a = safeStr(live.player1) || safeStr(live.teamA) || 'Side A';
   const b = safeStr(live.player2) || safeStr(live.teamB) || 'Side B';
   const done = hasSeriesWinner(live);
+  const isTennis = live.sport === 'tennis';
   return {
+    sport: isTennis ? 'tennis' : 'badminton',
     category: safeStr(live.category),
     stage: safeStr(live.stage),
     matchup: `${a} vs ${b}`,
-    score: `${live.score1 ?? 0}-${live.score2 ?? 0}`,
-    series:
-      live.bestOf === 3
+    score: isTennis
+      ? `${live.tennis?.points1 ?? 0}-${live.tennis?.points2 ?? 0}`
+      : `${live.score1 ?? 0}-${live.score2 ?? 0}`,
+    series: isTennis
+      ? `${live.tennis?.gamesWon1 ?? 0}-${live.tennis?.gamesWon2 ?? 0}`
+      : live.bestOf === 3
         ? `${live.gamesWon1 ?? 0}-${live.gamesWon2 ?? 0}`
         : null,
     status: done ? 'finished_on_court' : 'live_or_ready',
@@ -123,7 +133,7 @@ export function buildAskContext(input: unknown): AskContextPack {
   const stats = computeTournamentStats(completed);
 
   const pack: AskContextPack = {
-    tournament: 'NPL 2026 · Renaissance Nature Walk',
+    tournament: 'Nature Walk Society · Cultural & Sports 2026 · Renaissance Nature Walk (Badminton + Tennis)',
     rules: RULES_DIGEST,
     live: compactLive(live),
     teams: teams

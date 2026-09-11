@@ -118,9 +118,23 @@ function isNailbiterGames(games: Array<{ a: number; b: number }>): boolean {
 
 /**
  * Enrich a completed match with derived score metrics.
+ * Tennis matches are excluded from point-margin metrics (games-won isn't the
+ * same unit as badminton rally points, and would misleadingly skew
+ * nailbiter/blowout/points-played stats), but still count toward totals,
+ * categories, winners, and champions.
  */
 export function scoreMatch(row: CompletedMatch): ScoredMatch | null {
   if (!row || typeof row !== 'object' || row.status !== 'completed') return null;
+  if (row.sport === 'tennis') {
+    return {
+      row,
+      pointGames: [],
+      totalPoints: 0,
+      minMargin: null,
+      maxMargin: null,
+      isNailbiter: false
+    };
+  }
   const pointGames = extractPointGames(row);
   const margins = pointGames.map((g) => Math.abs(g.a - g.b));
   const totalPoints = pointGames.reduce((sum, g) => sum + g.a + g.b, 0);

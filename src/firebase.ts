@@ -48,3 +48,6 @@ export const GALLERY_UPLOADS_PATH = 'galleryUploads';
 
 /** RTDB path for running total of community gallery bytes (5 GB cap). */
 export const GALLERY_TOTAL_BYTES_PATH = 'galleryUploadsMeta/totalBytes';
+
+/** RTDB path for community events (whole-array writes, same pattern as `teams`). */
+export const COMMUNITY_EVENTS_PATH = 'events';

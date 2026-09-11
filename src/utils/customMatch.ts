@@ -60,6 +60,8 @@ export function buildCustomMatchState(
 
   return {
     ...current,
+    sport: 'badminton',
+    tennis: undefined,
     currentMatchId: createCustomMatchId(),
     category,
     stage,

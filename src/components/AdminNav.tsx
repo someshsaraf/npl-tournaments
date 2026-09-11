@@ -3,7 +3,7 @@ import {
   CalendarDays,
   Camera,
   ClipboardPen,
-  ScrollText,
+  PartyPopper,
   Trophy,
   Users
 } from 'lucide-react';
@@ -21,7 +21,7 @@ const LINKS: ReadonlyArray<{
   { to: '/admin/results', label: 'Results', end: false, icon: Trophy },
   { to: '/admin/photos', label: 'Photos', end: false, icon: Camera },
   { to: '/admin/teams', label: 'Teams', end: false, icon: Users },
-  { to: '/rules', label: 'Rules', end: false, icon: ScrollText }
+  { to: '/admin/events', label: 'Events', end: false, icon: PartyPopper }
 ];
 
 /**

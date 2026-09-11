@@ -1,24 +1,20 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
-import { db } from '../firebase';
-import type { CompletedMatch } from '../data/tournamentData';
-import {
-  completedMatchesFromFirebase,
-  sortCompletedMatches
-} from '../utils/completedMatches';
+import { db } from '../../firebase';
+import { resolveSport, type CompletedMatch, type Sport } from '../../data/tournamentData';
+import { completedMatchesFromFirebase, sortCompletedMatches } from '../../utils/completedMatches';
 import {
   computeTournamentStats,
   type HighlightMatch,
   type NamedCount,
   type SideRecord
-} from '../utils/resultStats';
+} from '../../utils/resultStats';
 
 /**
- * Public tournament stats — story-first layout (headline → champions → drama → charts).
- * Live from completedMatches; pure compute via computeTournamentStats.
+ * Story-first stats for one sport, embedded inside that sport's event detail
+ * page. Sport-scoped since games-won and rally-points aren't the same unit.
  */
-export default function StatsPage() {
+export function StatsView({ sport }: { sport: Sport }) {
   const [rows, setRows] = useState<CompletedMatch[]>([]);
 
   useEffect(() => {
@@ -29,63 +25,37 @@ export default function StatsPage() {
     return () => unsub();
   }, []);
 
-  const stats = useMemo(() => computeTournamentStats(rows), [rows]);
+  const sportRows = useMemo(
+    () => rows.filter((r) => resolveSport(r.sport) === sport),
+    [rows, sport]
+  );
+
+  const stats = useMemo(() => computeTournamentStats(sportRows), [sportRows]);
   const busiest = stats.byDay[0];
   const featured = stats.nailbiters[0] ?? stats.champions[0] ?? null;
   const widest = stats.avgMarginByCategory[stats.avgMarginByCategory.length - 1];
   const tightest = stats.avgMarginByCategory[0];
 
-  if (rows.length === 0) {
+  if (sportRows.length === 0) {
     return (
-      <div className="space-y-5">
-        <header className="space-y-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400/80">
-            Results story
-          </p>
-          <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Stats</h1>
-          <p className="text-sm text-slate-400 max-w-xl">
-            Highlights appear here once matches are completed and saved.
-          </p>
-        </header>
-        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
-          No completed matches yet. Check{' '}
-          <Link to="/results" className="text-emerald-400 hover:text-emerald-300 font-semibold">
-            Results
-          </Link>{' '}
-          after games finish.
-        </p>
-      </div>
+      <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+        Highlights appear here once matches are completed and saved.
+      </p>
     );
   }
 
   return (
     <div className="space-y-10">
-      {/* Hero */}
       <header className="space-y-4">
-        <div className="space-y-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400/80">
-            Results story
-          </p>
-          <h1 className="portal-display text-4xl sm:text-5xl text-white tracking-wide">
-            NPL 2026 Stats
-          </h1>
-          <p className="text-sm text-slate-400 max-w-2xl">
-            Live from completed results · {stats.totalMatches} match
-            {stats.totalMatches === 1 ? '' : 'es'} ·{' '}
-            <Link to="/results" className="text-emerald-400 hover:text-emerald-300 font-semibold">
-              full results
-            </Link>
-          </p>
-        </div>
+        <p className="text-sm text-slate-400 max-w-2xl">
+          Live from completed results · {stats.totalMatches} match
+          {stats.totalMatches === 1 ? '' : 'es'}
+        </p>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <HeroStat value={String(stats.totalMatches)} label="Completed matches" />
           <HeroStat value={stats.totalPoints.toLocaleString()} label="Points played" />
-          <HeroStat
-            value={String(stats.nailbiterCount)}
-            label="Nail-biters"
-            tone="amber"
-          />
+          <HeroStat value={String(stats.nailbiterCount)} label="Nail-biters" tone="amber" />
           <HeroStat
             value={busiest ? String(busiest.count) : '—'}
             label={busiest ? `Busiest · ${busiest.name}` : 'Busiest day'}
@@ -101,7 +71,6 @@ export default function StatsPage() {
         </div>
       </header>
 
-      {/* Featured match */}
       {featured ? (
         <section className="space-y-3">
           <SectionTitle
@@ -118,14 +87,11 @@ export default function StatsPage() {
             </p>
             <p className="mt-1 text-slate-300 text-sm sm:text-base">{featured.matchup}</p>
             <p className="mt-3 font-mono text-lg sm:text-xl text-amber-200">{featured.result}</p>
-            {featured.when ? (
-              <p className="mt-2 text-xs text-slate-500">{featured.when}</p>
-            ) : null}
+            {featured.when ? <p className="mt-2 text-xs text-slate-500">{featured.when}</p> : null}
           </div>
         </section>
       ) : null}
 
-      {/* Champions */}
       {stats.champions.length > 0 ? (
         <section className="space-y-3">
           <SectionTitle
@@ -144,9 +110,7 @@ export default function StatsPage() {
               <tbody className="divide-y divide-slate-800/90 bg-slate-950/40">
                 {stats.champions.map((c) => (
                   <tr key={`${c.category}-${c.winner}-${c.when}`} className="hover:bg-slate-900/60">
-                    <td className="px-3 sm:px-4 py-3 text-slate-300 whitespace-nowrap">
-                      {c.category}
-                    </td>
+                    <td className="px-3 sm:px-4 py-3 text-slate-300 whitespace-nowrap">{c.category}</td>
                     <td className="px-3 sm:px-4 py-3 font-bold text-emerald-300">{c.winner}</td>
                     <td className="px-3 sm:px-4 py-3 font-mono text-amber-200/90 whitespace-nowrap">
                       {c.result}
@@ -159,7 +123,6 @@ export default function StatsPage() {
         </section>
       ) : null}
 
-      {/* Undefeated pills */}
       {stats.undefeated.length > 0 ? (
         <section className="space-y-3">
           <SectionTitle title="Undefeated runs" subtitle="3+ matches, zero losses" />
@@ -177,13 +140,9 @@ export default function StatsPage() {
         </section>
       ) : null}
 
-      {/* Nail-biters table */}
       {stats.nailbiters.length > 0 ? (
         <section className="space-y-3">
-          <SectionTitle
-            title="Nail-biters"
-            subtitle="Deuce finishes and games decided by 1–2 points"
-          />
+          <SectionTitle title="Nail-biters" subtitle="Deuce finishes and games decided by 1–2 points" />
           <HighlightTable
             rows={stats.nailbiters}
             valueHeader="Margin"
@@ -193,7 +152,6 @@ export default function StatsPage() {
         </section>
       ) : null}
 
-      {/* Two-column charts */}
       <section className="space-y-3">
         <SectionTitle title="Where the matches happened" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -206,14 +164,10 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Blowouts + competitiveness */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {stats.blowouts.length > 0 ? (
           <section className="space-y-3">
-            <SectionTitle
-              title="Biggest blowouts"
-              subtitle="Largest single-game point gap"
-            />
+            <SectionTitle title="Biggest blowouts" subtitle="Largest single-game point gap" />
             <HighlightTable
               rows={stats.blowouts}
               valueHeader="Δ"
@@ -226,10 +180,7 @@ export default function StatsPage() {
 
         {stats.avgMarginByCategory.length > 0 ? (
           <section className="space-y-3">
-            <SectionTitle
-              title="Tightest categories"
-              subtitle="Lower avg margin = closer matches"
-            />
+            <SectionTitle title="Tightest categories" subtitle="Lower avg margin = closer matches" />
             <ChartPanel
               title="Avg closest-game margin"
               caption={
@@ -239,10 +190,7 @@ export default function StatsPage() {
               }
             >
               <HorizontalBars
-                items={stats.avgMarginByCategory.map((c) => ({
-                  name: c.name,
-                  count: c.avgMargin
-                }))}
+                items={stats.avgMarginByCategory.map((c) => ({ name: c.name, count: c.avgMargin }))}
                 unit=" pts"
                 color="rose"
                 format={(n) => n.toFixed(1)}
@@ -252,7 +200,6 @@ export default function StatsPage() {
         ) : null}
       </div>
 
-      {/* Most wins */}
       {stats.topWinners.length > 0 ? (
         <section className="space-y-3">
           <SectionTitle title="Most wins" subtitle="By recorded winner name" />
@@ -263,9 +210,7 @@ export default function StatsPage() {
                 className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-3.5 py-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="portal-display text-xl text-slate-500 w-6 shrink-0">
-                    {i + 1}
-                  </span>
+                  <span className="portal-display text-xl text-slate-500 w-6 shrink-0">{i + 1}</span>
                   <span className="font-semibold text-slate-100 truncate">{w.name}</span>
                 </div>
                 <span className="font-mono text-amber-300 shrink-0">{w.count}</span>
@@ -275,7 +220,6 @@ export default function StatsPage() {
         </section>
       ) : null}
 
-      {/* Curiosities */}
       {stats.curiosities.length > 0 ? (
         <section className="space-y-3">
           <SectionTitle title="Quick curiosities" />
@@ -357,8 +301,7 @@ function HorizontalBars({
   format?: (n: number) => string;
 }) {
   const max = Math.max(...items.map((i) => i.count), 0.001);
-  const bar =
-    color === 'sky' ? 'bg-sky-500' : color === 'rose' ? 'bg-rose-500' : 'bg-emerald-500';
+  const bar = color === 'sky' ? 'bg-sky-500' : color === 'rose' ? 'bg-rose-500' : 'bg-emerald-500';
   return (
     <ul className="space-y-3">
       {items.map((item) => {
@@ -426,9 +369,7 @@ function HighlightTable({
               <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} text-emerald-300 font-semibold`}>
                 {m.winner}
               </td>
-              <td
-                className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} font-mono text-right ${valueClass}`}
-              >
+              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} font-mono text-right ${valueClass}`}>
                 {valueOf(m)}
               </td>
             </tr>

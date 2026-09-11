@@ -18,6 +18,8 @@ export type GalleryMediaItem = {
   tag?: GalleryYearTag;
   /** Present for community uploads (RTDB id). */
   id?: string;
+  /** Community event id this was uploaded against, when chosen at upload time. */
+  eventId?: string;
 };
 
 export type GalleryManifest = {

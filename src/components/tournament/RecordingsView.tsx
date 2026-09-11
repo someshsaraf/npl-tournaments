@@ -1,20 +1,17 @@
 import { useEffect, useId, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { RecordingsInPagePlayer } from '../components/RecordingsInPagePlayer';
+import { RecordingsInPagePlayer } from '../RecordingsInPagePlayer';
 import {
   FetchPastRecordingsError,
   fetchPastRecordings,
   type YouTubeRecording
-} from '../utils/youtubeRecordings';
+} from '../../utils/youtubeRecordings';
 
 function formatStreamedAt(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    }).format(d);
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(d);
   } catch {
     return iso;
   }
@@ -38,20 +35,17 @@ function formatStreamDate(iso: string): string {
 
 function optionLabel(row: YouTubeRecording): string {
   const date = formatStreamDate(row.publishedAt);
-  const title =
-    typeof row.title === 'string' && row.title.trim() ? row.title.trim() : 'Recording';
+  const title = typeof row.title === 'string' && row.title.trim() ? row.title.trim() : 'Recording';
   const shortTitle = title.length > 72 ? `${title.slice(0, 71)}…` : title;
   return `${date} · ${shortTitle}`;
 }
 
 /**
- * Public VOD page: large in-page player + dropdown (date · title).
- * Clicks never go to youtube.com — Play/Pause is portal-owned via IFrame API.
- *
- * Concurrency: component-local fetch/abort only.
- * Security: embeds only validated video IDs from the API response.
+ * Past live-stream recordings from the channel, embedded as a tab in a
+ * sports event's detail page. Not sport-filterable at the source (YouTube
+ * video titles aren't tagged by sport), so the same list shows for any sport.
  */
-export default function RecordingsPage() {
+export function RecordingsView() {
   const selectId = useId();
   const [items, setItems] = useState<YouTubeRecording[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
@@ -77,9 +71,7 @@ export default function RecordingsPage() {
         if (cancelled) return;
         if (err instanceof DOMException && err.name === 'AbortError') return;
         const message =
-          err instanceof FetchPastRecordingsError
-            ? err.message
-            : 'Failed to load recordings.';
+          err instanceof FetchPastRecordingsError ? err.message : 'Failed to load recordings.';
         setError(message);
         setItems([]);
       } finally {
@@ -102,16 +94,7 @@ export default function RecordingsPage() {
   const selected = items.find((r) => r.videoId === selectedId) ?? null;
 
   return (
-    <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">
-          Recordings
-        </h1>
-        <p className="text-sm text-slate-400">
-          Past live streams from @NatureWalkCSC since 31 Jul 2026
-        </p>
-      </header>
-
+    <div className="space-y-4">
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
           <Loader2 className="size-5 animate-spin" aria-hidden />
@@ -153,9 +136,7 @@ export default function RecordingsPage() {
               ))}
             </select>
             {selected ? (
-              <p className="text-xs text-slate-500">
-                Streamed {formatStreamedAt(selected.publishedAt)}
-              </p>
+              <p className="text-xs text-slate-500">Streamed {formatStreamedAt(selected.publishedAt)}</p>
             ) : null}
             {nextPageToken ? (
               <button
@@ -166,9 +147,7 @@ export default function RecordingsPage() {
                     setLoadingMore(true);
                     setError(null);
                     try {
-                      const result = await fetchPastRecordings({
-                        pageToken: nextPageToken
-                      });
+                      const result = await fetchPastRecordings({ pageToken: nextPageToken });
                       setItems((prev) => [...prev, ...result.items]);
                       setNextPageToken(result.nextPageToken);
                     } catch (err) {

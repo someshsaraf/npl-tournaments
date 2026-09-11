@@ -1,9 +1,10 @@
-import { INITIAL_MATCH, isBestOf, isMaxPoints } from '../data/tournamentData';
-import type { GameScore, MatchState } from '../data/tournamentData';
+import { INITIAL_MATCH, isBestOf, isMaxPoints, isSport } from '../data/tournamentData';
+import type { GameScore, MatchState, Sport } from '../data/tournamentData';
 import {
   applyPlayerNameAliasesToText,
   getPlayerNameAliases
 } from './playerRename';
+import { normalizeTennisMatchState } from './tennisMatchState';
 
 function normalizeGameScores(raw: unknown): GameScore[] {
   if (!Array.isArray(raw)) return [];
@@ -66,6 +67,8 @@ export function normalizeMatchState(data: unknown): MatchState {
   const gamesWon2 =
     Number.isFinite(gamesWon2Raw) && gamesWon2Raw >= 0 ? Math.trunc(gamesWon2Raw) : 0;
 
+  const sport: Sport = isSport(raw.sport) ? raw.sport : 'badminton';
+
   const aliases = getPlayerNameAliases();
   return {
     ...INITIAL_MATCH,
@@ -81,6 +84,8 @@ export function normalizeMatchState(data: unknown): MatchState {
     gamesWon2,
     gameWinner,
     matchWinner,
+    sport,
+    tennis: sport === 'tennis' ? normalizeTennisMatchState(raw.tennis) : undefined,
     teamA: applyPlayerNameAliasesToText(
       typeof raw.teamA === 'string' ? raw.teamA : INITIAL_MATCH.teamA,
       aliases

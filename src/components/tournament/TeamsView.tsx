@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ref, onValue } from 'firebase/database';
-import { db } from '../firebase';
-import { TEAMS, type Team } from '../data/tournamentData';
-import {
-  getPlayerNameAliases,
-  renamePlayerInTeams
-} from '../utils/playerRename';
+import { db } from '../../firebase';
+import { TEAMS, type Team } from '../../data/tournamentData';
+import { getPlayerNameAliases, renamePlayerInTeams } from '../../utils/playerRename';
 
 function normalizeTeams(raw: unknown): Team[] {
   if (!Array.isArray(raw)) return TEAMS;
@@ -26,10 +23,11 @@ function normalizeTeams(raw: unknown): Team[] {
 }
 
 /**
- * Public team roster view. Reads Firebase `teams` when present; falls back to seed data.
- * No writes — team edits stay on /admin.
+ * Badminton Team Championship rosters — embedded in the Badminton event
+ * detail page. Tennis has no team-roster concept, so this view is
+ * badminton-only (no sport prop).
  */
-export default function TeamsPage() {
+export function TeamsView() {
   const [teams, setTeams] = useState<Team[]>(TEAMS);
 
   useEffect(() => {
@@ -41,14 +39,10 @@ export default function TeamsPage() {
   }, []);
 
   return (
-    <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">Teams</h1>
-        <p className="text-sm text-slate-400">
-          Team Championship rosters for NPL 2026 ({teams.length} teams).
-        </p>
-      </header>
-
+    <div className="space-y-4">
+      <p className="text-sm text-slate-400">
+        Team Championship rosters ({teams.length} teams).
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {teams.map((team, index) => {
           const players = Array.isArray(team.players) ? team.players : [];
@@ -72,9 +66,9 @@ export default function TeamsPage() {
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">
                   Team Championship
                 </p>
-                <h2 className="portal-display text-2xl text-white tracking-wide mt-0.5">
+                <h3 className="portal-display text-2xl text-white tracking-wide mt-0.5">
                   {team.name}
-                </h2>
+                </h3>
                 <p className="text-xs text-slate-400 mt-1">{players.length} players</p>
               </div>
               <ol className="px-4 py-3 space-y-1.5">
