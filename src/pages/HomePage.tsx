@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Camera, Info, MessageCircleQuestion, Sparkles } from 'lucide-react';
+import { ArrowRight, Camera, Info, MessageCircleQuestion } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { db } from '../firebase';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
@@ -9,6 +9,7 @@ import {
   getEventStatus,
   selectFeaturedEvent,
   type CommunityEvent,
+  type CommunityEventCategory,
   type EventStatus
 } from '../data/communityEvents';
 import { subscribeCommunityEvents } from '../utils/communityEvents';
@@ -27,6 +28,19 @@ const STATUS_ORDER: Record<EventStatus, number> = {
   past: 3
 };
 
+const STATUS_PILL_CLASS: Record<EventStatus, string> = {
+  ongoing: 'border-rose-400/50 text-rose-200 bg-rose-500/10',
+  upcoming: 'border-emerald-400/50 text-emerald-300 bg-emerald-500/10',
+  past: 'border-white/20 text-slate-300 bg-white/5',
+  undated: 'border-amber-400/40 text-amber-300 bg-amber-500/10'
+};
+
+const CATEGORY_TABS: ReadonlyArray<{ key: 'all' | CommunityEventCategory; label: string }> = [
+  { key: 'all', label: 'All events' },
+  { key: 'cultural', label: 'Cultural' },
+  { key: 'sports', label: 'Sports' }
+];
+
 // Ask and About RNW are temporarily disabled — shown greyed out with a
 // "Soon" tag rather than removed. Flip `disabled` to re-enable.
 const QUICK_LINKS: ReadonlyArray<{ to: string; label: string; icon: LucideIcon; disabled?: boolean }> = [
@@ -35,13 +49,6 @@ const QUICK_LINKS: ReadonlyArray<{ to: string; label: string; icon: LucideIcon; 
   { to: '/about', label: 'About RNW', icon: Info, disabled: true }
 ];
 
-/** Bento span pattern — a big featured tile, occasional wide tiles, rest square. */
-function tileSpan(index: number): string {
-  if (index === 0) return 'col-span-2 row-span-2';
-  if (index % 5 === 3) return 'col-span-2 row-span-1';
-  return 'col-span-1 row-span-1';
-}
-
 /**
  * Home = a bento-style poster wall of every event (cultural + sports).
  * Live/upcoming events lead the grid; completed events sit in their own
@@ -49,6 +56,7 @@ function tileSpan(index: number): string {
  */
 export default function HomePage() {
   const [events, setEvents] = useState<CommunityEvent[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | CommunityEventCategory>('all');
   const homeAds = useHomeEventAds();
 
   useEffect(() => {
@@ -74,6 +82,15 @@ export default function HomePage() {
 
     return { active: activeList, completed: completedList };
   }, [events]);
+
+  const filteredActive = useMemo(
+    () => active.filter((e) => categoryFilter === 'all' || e.category === categoryFilter),
+    [active, categoryFilter]
+  );
+  const filteredCompleted = useMemo(
+    () => completed.filter((e) => categoryFilter === 'all' || e.category === categoryFilter),
+    [completed, categoryFilter]
+  );
 
   const featured = useMemo(() => selectFeaturedEvent(events), [events]);
 
@@ -134,44 +151,58 @@ export default function HomePage() {
       ) : null}
 
       <Reveal delayMs={100} className="relative z-10 space-y-4">
-        <header className="flex items-end justify-between gap-3">
+        <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5">
-              <Sparkles className="size-4 text-amber-400" aria-hidden />
-              <h1 className="npl-flame-text portal-display text-3xl sm:text-4xl tracking-wide">
-                All events
-              </h1>
-            </div>
-            <p className="text-sm text-slate-400 pl-6">
-              Cultural celebrations and sports tournaments — tap one for details.
+            <h1 className="portal-display text-3xl sm:text-4xl tracking-wide">
+              <span className="text-white">ALL </span>
+              <span className="npl-flame-text">EVENTS</span>
+            </h1>
+            <p className="text-sm text-slate-400">
+              Cultural celebrations and sports tournaments - tap one for details.
             </p>
+          </div>
+          <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+            {CATEGORY_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setCategoryFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                  categoryFilter === tab.key
+                    ? 'bg-white text-slate-950'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </header>
 
-        {active.length === 0 ? (
+        {filteredActive.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
-            Nothing live or upcoming right now — check Completed below.
+            Nothing live or upcoming right now - check Completed below.
           </p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[130px] sm:auto-rows-[150px] gap-3 sm:gap-4">
-            {active.map((event, i) => (
-              <EventTile key={event.id} event={event} spanClass={tileSpan(i)} big={i === 0} />
+          <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
+            {filteredActive.map((event) => (
+              <EventTile key={event.id} event={event} />
             ))}
           </div>
         )}
       </Reveal>
 
-      {completed.length > 0 ? (
+      {filteredCompleted.length > 0 ? (
         <Reveal delayMs={150} className="relative z-10">
           <section className="npl-glass rounded-2xl p-4 sm:p-5 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">
                 Completed
               </h2>
-              <span className="text-[11px] text-slate-600">{completed.length} wrapped up</span>
+              <span className="text-[11px] text-slate-600">{filteredCompleted.length} wrapped up</span>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
-              {completed.map((event) => (
+              {filteredCompleted.map((event) => (
                 <CompletedTile key={event.id} event={event} />
               ))}
             </div>
@@ -204,19 +235,18 @@ function HeroBanner({ event }: { event: CommunityEvent }) {
 
       <div className="relative h-full flex flex-col justify-end p-6 sm:p-12 space-y-3 max-w-2xl">
         <span
-          className={`w-fit inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border backdrop-blur-sm ${
-            status === 'ongoing'
-              ? 'bg-rose-500/20 text-rose-200 border-rose-400/50'
-              : 'bg-white/10 text-white border-white/30'
-          }`}
+          className={`w-fit inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border backdrop-blur-sm ${STATUS_PILL_CLASS[status]}`}
         >
           {status === 'ongoing' ? (
             <span className="npl-glow-pulse size-1.5 rounded-full bg-rose-400" aria-hidden />
           ) : null}
           {STATUS_LABEL[status]}
         </span>
-        <p className="text-sm font-mono text-amber-300/90">
-          {event.month} · {event.dateLabel}
+        <p className="text-sm text-slate-300">
+          <span className="font-mono text-amber-300/90">
+            {event.month} · {event.dateLabel}
+          </span>
+          {event.location ? <span> · {event.location}</span> : null}
         </p>
         <h1 className="npl-flame-text portal-display text-5xl sm:text-7xl tracking-wide leading-[0.95] [text-shadow:0_4px_32px_rgba(0,0,0,0.6)]">
           {event.title}
@@ -233,15 +263,7 @@ function HeroBanner({ event }: { event: CommunityEvent }) {
   );
 }
 
-function EventTile({
-  event,
-  spanClass,
-  big
-}: {
-  event: CommunityEvent;
-  spanClass: string;
-  big: boolean;
-}) {
+function EventTile({ event }: { event: CommunityEvent }) {
   const status = getEventStatus(event);
   const isCultural = event.category !== 'sports';
   const images = [event.imageSrc, ...(event.galleryImages ?? [])].filter(
@@ -251,9 +273,9 @@ function EventTile({
   return (
     <Link
       to={`/events/${event.id}`}
-      className={`group relative overflow-hidden rounded-2xl border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl ${
+      className={`group relative overflow-hidden rounded-2xl border border-white/10 aspect-[4/3] sm:aspect-[16/11] transition-all duration-300 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl ${
         isCultural ? 'hover:shadow-rose-950/60' : 'hover:shadow-indigo-950/60'
-      } ${spanClass}`}
+      }`}
     >
       <div className="absolute inset-0 bg-slate-900">
         {images.length > 1 ? (
@@ -292,7 +314,7 @@ function EventTile({
         )}
       </div>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/25 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-black/10" />
       <div
         className={`absolute inset-0 rounded-2xl ring-1 ring-inset opacity-0 group-hover:opacity-100 transition-opacity ${
           isCultural ? 'ring-rose-400/40' : 'ring-indigo-400/40'
@@ -300,36 +322,36 @@ function EventTile({
         aria-hidden
       />
 
-      <div className="relative h-full flex flex-col justify-between p-2.5 sm:p-3.5">
-        <div className="flex items-center justify-between gap-1.5">
+      <div className="relative h-full flex flex-col justify-between p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
           <span
-            className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border backdrop-blur-sm ${
-              status === 'ongoing'
-                ? 'bg-rose-500/20 text-rose-200 border-rose-400/50'
-                : 'bg-white/10 text-white/90 border-white/25'
-            }`}
+            className={`inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border backdrop-blur-sm ${STATUS_PILL_CLASS[status]}`}
           >
+            {status === 'ongoing' ? (
+              <span className="npl-glow-pulse size-1.5 rounded-full bg-rose-400" aria-hidden />
+            ) : null}
             {STATUS_LABEL[status]}
           </span>
           <span
-            className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-              isCultural ? 'bg-rose-400/15 text-rose-300' : 'bg-indigo-400/15 text-indigo-300'
+            className={`text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm ${
+              isCultural ? 'text-rose-200' : 'text-indigo-200'
             }`}
           >
             {isCultural ? 'Cultural' : 'Sports'}
           </span>
         </div>
-        <div className="space-y-0.5">
-          <h2
-            className={`portal-display text-white tracking-wide leading-none truncate ${
-              big ? 'text-2xl sm:text-4xl' : 'text-sm sm:text-lg'
-            }`}
-          >
+        <div className="space-y-1.5">
+          <h2 className="portal-display text-white text-2xl sm:text-3xl tracking-wide leading-none truncate">
             {event.title}
           </h2>
-          <p className="text-[10px] sm:text-xs font-mono text-amber-300/90 truncate">
+          <p className="text-xs sm:text-sm font-mono text-amber-300/90 truncate">
             {event.month} · {event.dateLabel}
           </p>
+          {event.description ? (
+            <p className="hidden sm:block text-xs sm:text-sm text-slate-300/90 line-clamp-2 max-w-md">
+              {event.description}
+            </p>
+          ) : null}
         </div>
       </div>
     </Link>
