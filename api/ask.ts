@@ -362,21 +362,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data = result.data;
         lastFail = null;
         break;
+      } else {
+        lastFail = { status: result.status, body: result.body };
+        // Retry next model only when this one is missing / unsupported.
+        const msg =
+          result.body &&
+          typeof result.body === 'object' &&
+          !Array.isArray(result.body) &&
+          (result.body as { error?: { message?: string } }).error?.message
+            ? String((result.body as { error: { message?: string } }).error.message)
+            : '';
+        const modelIssue =
+          result.status === 404 ||
+          (result.status === 400 && /model|not found|not supported|not available/i.test(msg));
+        if (!modelIssue) break;
       }
-
-      lastFail = { status: result.status, body: result.body };
-      // Retry next model only when this one is missing / unsupported.
-      const msg =
-        result.body &&
-        typeof result.body === 'object' &&
-        !Array.isArray(result.body) &&
-        (result.body as { error?: { message?: string } }).error?.message
-          ? String((result.body as { error: { message?: string } }).error.message)
-          : '';
-      const modelIssue =
-        result.status === 404 ||
-        (result.status === 400 && /model|not found|not supported|not available/i.test(msg));
-      if (!modelIssue) break;
     }
   } finally {
     clearTimeout(timer);
