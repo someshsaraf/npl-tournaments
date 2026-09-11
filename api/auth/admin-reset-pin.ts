@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin';
-import { getAdminSession } from '../_lib/session';
-import { generateSixDigitCode, hashSecret, isWeakPin } from '../_lib/secrets';
+import { getAdminDb } from '../_lib/firebaseAdmin.js';
+import { getAdminSession } from '../_lib/session.js';
+import { generateSixDigitCode, hashSecret, isWeakPin } from '../_lib/secrets.js';
 
 /**
  * POST /api/auth/admin-reset-pin — { uid } — admin-only.

@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin';
-import { generateRecoveryCode, hashSecret, isValidSixDigitPin, isWeakPin } from '../_lib/secrets';
-import { setUserSession } from '../_lib/session';
-import { normalizeEmail, normalizeUsername, emailToKey } from '../_lib/validate';
+import { getAdminDb } from '../_lib/firebaseAdmin.js';
+import { generateRecoveryCode, hashSecret, isValidSixDigitPin, isWeakPin } from '../_lib/secrets.js';
+import { setUserSession } from '../_lib/session.js';
+import { normalizeEmail, normalizeUsername, emailToKey } from '../_lib/validate.js';
 
 /**
  * POST /api/auth/register — { email, username, pin }

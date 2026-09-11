@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin';
-import { normalizeRecoveryCode, verifySecret } from '../_lib/secrets';
-import { resolveUidByIdentifier, type StoredUser } from '../_lib/userLookup';
+import { getAdminDb } from '../_lib/firebaseAdmin.js';
+import { normalizeRecoveryCode, verifySecret } from '../_lib/secrets.js';
+import { resolveUidByIdentifier, type StoredUser } from '../_lib/userLookup.js';
 
 /**
  * POST /api/auth/verify-recovery-code — { identifier, recoveryCode }

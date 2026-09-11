@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin';
-import { verifySecret, isValidSixDigitPin } from '../_lib/secrets';
-import { setUserSession } from '../_lib/session';
-import { resolveUidByIdentifier, type StoredUser } from '../_lib/userLookup';
+import { getAdminDb } from '../_lib/firebaseAdmin.js';
+import { verifySecret, isValidSixDigitPin } from '../_lib/secrets.js';
+import { setUserSession } from '../_lib/session.js';
+import { resolveUidByIdentifier, type StoredUser } from '../_lib/userLookup.js';
 
 /**
  * POST /api/auth/login — { identifier, pin }

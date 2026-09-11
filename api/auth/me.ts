@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getUserSession, getAdminSession } from '../_lib/session';
+import { getUserSession, getAdminSession } from '../_lib/session.js';
 
 /** GET /api/auth/me — current session, if any (user and/or admin). */
 export default async function handler(req: VercelRequest, res: VercelResponse) {

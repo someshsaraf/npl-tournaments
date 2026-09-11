@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin';
-import { normalizeUsername } from '../_lib/validate';
+import { getAdminDb } from '../_lib/firebaseAdmin.js';
+import { normalizeUsername } from '../_lib/validate.js';
 
 /** POST /api/auth/check-username — { username } → { available, reason? } */
 

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin';
-import { verifySecret } from '../_lib/secrets';
-import { setAdminSession } from '../_lib/session';
+import { getAdminDb } from '../_lib/firebaseAdmin.js';
+import { verifySecret } from '../_lib/secrets.js';
+import { setAdminSession } from '../_lib/session.js';
 
 /**
  * POST /api/auth/admin-login — { username, password }

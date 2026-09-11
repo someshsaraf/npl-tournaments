@@ -1,5 +1,5 @@
 import type { Database } from 'firebase-admin/database';
-import { normalizeEmail, normalizeUsername, emailToKey } from './validate';
+import { normalizeEmail, normalizeUsername, emailToKey } from './validate.js';
 
 /** Resolves a login identifier (email or username) to a uid, or null. */
 export async function resolveUidByIdentifier(db: Database, rawIdentifier: string): Promise<string | null> {

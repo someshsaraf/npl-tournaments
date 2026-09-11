@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from '../_lib/firebaseAdmin';
-import { getAdminSession } from '../_lib/session';
+import { getAdminDb } from '../_lib/firebaseAdmin.js';
+import { getAdminSession } from '../_lib/session.js';
 
 /** GET /api/auth/admin-list-users — admin-only. Never returns pinHash. */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
