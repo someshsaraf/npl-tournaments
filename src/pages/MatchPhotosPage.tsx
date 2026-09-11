@@ -33,7 +33,7 @@ const ACCEPT =
 
 /**
  * Public match photos / clips gallery.
- * Static files from public/Gallery + community uploads (Firebase Storage + RTDB).
+ * Static files from public/Gallery + community uploads (R2 + RTDB).
  *
  * Concurrency: component-local state + RTDB listeners; cleaned up on unmount.
  * Security: allowlisted MIME + season tags (npl-2023…2026); shared 5 GB quota;

@@ -7,13 +7,7 @@ import {
   set,
   type Unsubscribe
 } from 'firebase/database';
-import {
-  deleteObject,
-  getDownloadURL,
-  ref as storageRef,
-  uploadBytes
-} from 'firebase/storage';
-import { db, storage, GALLERY_TOTAL_BYTES_PATH, GALLERY_UPLOADS_PATH } from '../firebase';
+import { db, GALLERY_TOTAL_BYTES_PATH, GALLERY_UPLOADS_PATH } from '../firebase';
 import {
   GALLERY_DEFAULT_YEAR,
   galleryTagFromYear,
@@ -60,11 +54,20 @@ export type GalleryUploadRecord = {
   eventId?: string;
 };
 
+type PresignResponse = {
+  id: string;
+  uploadUrl: string;
+  publicUrl: string;
+  storagePath: string;
+  fileName: string;
+  contentType: string;
+  kind: GalleryMediaKind;
+  byteSize: number;
+};
+
 /**
- * True for Firebase Storage download URLs only.
- * Concurrency: pure; Security: https-only, allowlisted Firebase/Google hosts.
- * Also accepts r2.dev — the small batch of uploads made during the brief R2 era
- * (before this reverted to Firebase Storage) still needs to keep displaying.
+ * True for HTTPS media URLs (R2 public URL / CDN). Rejects non-https.
+ * Concurrency: pure; Security: https-only, no credentials in URL.
  */
 export function isSafeGalleryDownloadUrl(value: unknown): value is string {
   if (typeof value !== 'string' || !value.trim() || value.length > 2000) return false;
@@ -76,30 +79,13 @@ export function isSafeGalleryDownloadUrl(value: unknown): value is string {
   }
   if (parsed.protocol !== 'https:') return false;
   if (parsed.username || parsed.password) return false;
-  const host = parsed.hostname.toLowerCase();
-  return (
-    host === 'firebasestorage.googleapis.com' ||
-    host.endsWith('.firebasestorage.app') ||
-    host.endsWith('.googleapis.com') ||
-    host.endsWith('.googleusercontent.com') ||
-    host.endsWith('.r2.dev')
-  );
+  return true;
 }
 
 function sanitizeTitle(name: string): string {
   const base = name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
   const clipped = base.slice(0, 80);
   return clipped || 'Upload';
-}
-
-function sanitizeFileStem(name: string): string {
-  const stem = name
-    .replace(/\.[^.]+$/, '')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^[.-]+|[.-]+$/g, '')
-    .slice(0, 48);
-  return stem || 'photo';
 }
 
 function normalizeUsedBytes(value: unknown): number {
@@ -254,7 +240,7 @@ export function uploadsToGalleryItems(records: GalleryUploadRecord[]): GalleryMe
 /**
  * Live list of community gallery uploads from RTDB.
  * Concurrency: one listener per subscribe call; caller must unsubscribe.
- * Security: only accepts Firebase Storage download URLs + gallery/ paths.
+ * Security: only accepts https URLs + gallery/ paths.
  */
 export function subscribeGalleryUploads(
   onChange: (items: GalleryUploadRecord[]) => void,
@@ -336,13 +322,84 @@ async function releaseGalleryBytes(bytes: number): Promise<void> {
   });
 }
 
+async function requestR2Presign(input: {
+  contentType: string;
+  byteSize: number;
+  fileName: string;
+}): Promise<PresignResponse> {
+  const res = await fetch('/api/gallery-upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      contentType: input.contentType,
+      byteSize: input.byteSize,
+      fileName: input.fileName
+    })
+  });
+
+  let payload: unknown = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+  const errMsg =
+    payload &&
+    typeof payload === 'object' &&
+    !Array.isArray(payload) &&
+    typeof (payload as { error?: unknown }).error === 'string'
+      ? (payload as { error: string }).error
+      : `Upload setup failed (${res.status}).`;
+
+  if (!res.ok) {
+    throw new Error(errMsg);
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('Invalid upload URL response.');
+  }
+  const row = payload as Record<string, unknown>;
+  if (
+    typeof row.id !== 'string' ||
+    typeof row.uploadUrl !== 'string' ||
+    typeof row.publicUrl !== 'string' ||
+    typeof row.storagePath !== 'string' ||
+    typeof row.fileName !== 'string' ||
+    typeof row.contentType !== 'string' ||
+    (row.kind !== 'image' && row.kind !== 'video') ||
+    typeof row.byteSize !== 'number'
+  ) {
+    throw new Error('Invalid upload URL response.');
+  }
+  if (!row.uploadUrl.startsWith('https://')) {
+    throw new Error('Invalid presigned upload URL.');
+  }
+  if (!isSafeGalleryDownloadUrl(row.publicUrl)) {
+    throw new Error('Invalid public media URL from server.');
+  }
+  if (!row.storagePath.startsWith('gallery/') || row.storagePath.includes('..')) {
+    throw new Error('Invalid storage path from server.');
+  }
+
+  return {
+    id: row.id,
+    uploadUrl: row.uploadUrl,
+    publicUrl: row.publicUrl.trim(),
+    storagePath: row.storagePath,
+    fileName: row.fileName,
+    contentType: row.contentType,
+    kind: row.kind,
+    byteSize: Math.floor(row.byteSize)
+  };
+}
+
 /**
- * Upload a gallery file to Firebase Storage and register metadata in RTDB.
+ * Upload a gallery file to Cloudflare R2 (presigned PUT) and register metadata in RTDB.
  * Reserves quota first (atomic); rolls back quota on failure.
  *
  * Concurrency: RTDB transaction serializes the 5 GB counter across clients.
- * Security: MIME validated; shared 5 GB RTDB quota; object paths are push-id based
- * (not user-controlled); Storage rules (storage.rules) gate the actual write.
+ * Security: MIME + allowlisted season tag validated; shared 5 GB RTDB quota;
+ * R2 secrets stay on Vercel; object keys are UUID-based.
+ * Local: use `npx vercel dev` so /api/gallery-upload-url is available.
  */
 export async function uploadGalleryMedia(
   fileInput: unknown,
@@ -351,7 +408,7 @@ export async function uploadGalleryMedia(
 ): Promise<GalleryUploadRecord> {
   const tag = parseGalleryYearTag(tagInput);
   const year = yearFromGalleryTag(tag);
-  const { file, kind, contentType, ext } = validateGalleryUploadFile(fileInput);
+  const { file, kind, contentType } = validateGalleryUploadFile(fileInput);
   const byteSize = Math.floor(file.size);
   const eventId =
     typeof eventIdInput === 'string' && eventIdInput.trim() ? eventIdInput.trim().slice(0, 80) : undefined;
@@ -359,40 +416,40 @@ export async function uploadGalleryMedia(
   await reserveGalleryBytes(byteSize);
 
   try {
+    const presign = await requestR2Presign({
+      contentType,
+      byteSize,
+      fileName: file.name || `photo${EXT_BY_MIME[contentType] ?? '.jpg'}`
+    });
+
+    const putRes = await fetch(presign.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: file
+    });
+    if (!putRes.ok) {
+      throw new Error(
+        putRes.status === 403
+          ? 'R2 rejected the upload (check bucket CORS allows PUT from this site).'
+          : `R2 upload failed (${putRes.status}).`
+      );
+    }
+
     const metaRef = push(ref(db, GALLERY_UPLOADS_PATH));
     const rtdbId = metaRef.key;
     if (!rtdbId) {
       throw new Error('Could not allocate gallery metadata id. Try again.');
     }
 
-    const stem = sanitizeFileStem(file.name);
-    const fileName = `${stem}${ext}`;
-    const storagePath = `gallery/${rtdbId}/${fileName}`;
-    const objectRef = storageRef(storage, storagePath);
-
-    await uploadBytes(objectRef, file, {
-      contentType,
-      customMetadata: {
-        kind,
-        originalName: file.name.slice(0, 120),
-        byteSize: String(byteSize)
-      }
-    });
-
-    const url = await getDownloadURL(objectRef);
-    if (!isSafeGalleryDownloadUrl(url)) {
-      throw new Error('Upload succeeded but returned an unexpected URL.');
-    }
-
     const createdAt = new Date().toISOString();
     const record: GalleryUploadRecord = {
       id: rtdbId,
-      url,
-      kind,
+      url: presign.publicUrl,
+      kind: presign.kind || kind,
       title: sanitizeTitle(file.name),
-      fileName,
-      contentType,
-      storagePath,
+      fileName: presign.fileName,
+      contentType: presign.contentType,
+      storagePath: presign.storagePath,
       createdAt,
       byteSize,
       tag,
@@ -425,10 +482,10 @@ const UPLOAD_ID_RE = /^[a-zA-Z0-9_-]{8,80}$/;
 
 /**
  * Delete a community gallery upload (admin).
- * Removes RTDB metadata, releases quota bytes, then deletes the Storage object.
+ * Removes RTDB metadata, releases quota bytes, then best-effort deletes the R2 object.
  *
  * Concurrency: RTDB remove is atomic per key; quota uses a transaction.
- * Security: validates id + gallery/ storagePath before touching Storage.
+ * Security: validates id + gallery/ storagePath; R2 delete goes through serverless API.
  * Input: GalleryUploadRecord (or equivalent fields); fails fast on bad values.
  */
 export async function deleteGalleryUpload(recordInput: unknown): Promise<void> {
@@ -453,10 +510,28 @@ export async function deleteGalleryUpload(recordInput: unknown): Promise<void> {
   await remove(ref(db, `${GALLERY_UPLOADS_PATH}/${id}`));
   await releaseGalleryBytes(byteSize);
 
-  try {
-    await deleteObject(storageRef(storage, storagePath));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`File removed from gallery, but Storage cleanup failed: ${message}`);
+  const res = await fetch('/api/gallery-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ storagePath })
+  });
+
+  if (!res.ok) {
+    let message = `File removed from gallery, but R2 cleanup failed (${res.status}).`;
+    try {
+      const payload: unknown = await res.json();
+      if (
+        payload &&
+        typeof payload === 'object' &&
+        !Array.isArray(payload) &&
+        typeof (payload as { error?: unknown }).error === 'string'
+      ) {
+        message = `File removed from gallery, but R2 cleanup failed: ${(payload as { error: string }).error}`;
+      }
+    } catch {
+      // keep default message
+    }
+    throw new Error(message);
   }
 }
+

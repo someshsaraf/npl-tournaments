@@ -42,7 +42,7 @@ export const LIVE_VIEWERS_PRESENCE_PATH = 'presence/live';
 
 /**
  * RTDB path for community gallery uploads metadata (one child per upload).
- * Files live in Firebase Storage under gallery/{id}/… — see storage.rules.
+ * Files live in R2 under gallery/{id}/… — see api/gallery-upload-url.ts.
  */
 export const GALLERY_UPLOADS_PATH = 'galleryUploads';
 

@@ -11,7 +11,7 @@ import {
 } from '../utils/galleryUploads';
 
 /**
- * Admin gallery manager — list and delete community uploads (Firebase Storage + RTDB).
+ * Admin gallery manager — list and delete community uploads (R2 + RTDB).
  * Static files under public/Gallery are not deletable here (repo-managed).
  *
  * Concurrency: RTDB listeners; delete is last-write-wins per upload id.
@@ -100,7 +100,7 @@ export default function AdminPhotosPage() {
         </div>
 
         <p className="text-xs text-slate-500">
-          Delete removes the upload from the public gallery and Storage. Curated files in{' '}
+          Delete removes the upload from the public gallery and R2 storage. Curated files in{' '}
           <code className="text-slate-400">public/Gallery</code> are managed in the repo, not here.
         </p>
 
