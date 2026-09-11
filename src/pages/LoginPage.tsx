@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { Reveal } from '../components/Reveal';
 import { useAuth } from '../contexts/AuthContext';
-import { login } from '../utils/authClient';
+import { adminLogin, login } from '../utils/authClient';
 
 const INPUT_CLASS =
   'w-full bg-slate-900/80 border border-white/10 text-slate-100 text-sm px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-orange-400/60 disabled:opacity-50';
@@ -19,12 +19,26 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setError(null);
     setBusy(true);
+    const trimmedIdentifier = identifier.trim();
     try {
-      await login(identifier.trim(), pin);
+      await login(trimmedIdentifier, pin);
       await refresh();
       navigate('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not log in.');
+    } catch (userErr) {
+      // "admin" is the separate, fixed staff-login credential (not a
+      // resident account) — try it here too so there's one login page.
+      if (trimmedIdentifier.toLowerCase() === 'admin') {
+        try {
+          await adminLogin(trimmedIdentifier, pin);
+          await refresh();
+          navigate('/admin/events');
+          return;
+        } catch {
+          // Fall through to the resident-login error below — it's the
+          // relevant one for whoever's actually typing at this form.
+        }
+      }
+      setError(userErr instanceof Error ? userErr.message : 'Could not log in.');
     } finally {
       setBusy(false);
     }

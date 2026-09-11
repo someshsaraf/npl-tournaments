@@ -17,7 +17,7 @@ import {
   setUserSession
 } from '../_lib/session.js';
 import { resolveUidByIdentifier, type StoredUser } from '../_lib/userLookup.js';
-import { normalizeEmail, normalizeUsername, emailToKey } from '../_lib/validate.js';
+import { normalizeEmail, normalizeUsername, emailToKey, isReservedUsername } from '../_lib/validate.js';
 
 /**
  * Single dynamic route (/api/auth/[action]) fanning out to every auth
@@ -46,6 +46,10 @@ async function handleCheckUsername(req: VercelRequest, res: VercelResponse) {
     });
     return;
   }
+  if (isReservedUsername(username)) {
+    res.status(200).json({ available: false, reason: 'That username is reserved.' });
+    return;
+  }
 
   try {
     const db = getAdminDb();
@@ -71,6 +75,10 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
   }
   if (!username) {
     res.status(400).json({ error: 'Username must be 3-20 characters: lowercase letters, numbers, underscore.' });
+    return;
+  }
+  if (isReservedUsername(username)) {
+    res.status(409).json({ error: 'That username is reserved.' });
     return;
   }
   if (!isValidSixDigitPin(pin)) {
@@ -365,6 +373,16 @@ async function handleAdminLogin(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // "admin" is a fixed, publicly documented username (not a secret to
+  // protect), and the public login page now tries this endpoint as a
+  // fallback on every failed resident login — so a username mismatch short
+  // -circuits here without touching bcrypt or the lockout counter, instead
+  // of every mistyped resident PIN counting against the real admin account.
+  if (username !== adminUsername) {
+    res.status(401).json({ error: ADMIN_CREDENTIAL_ERROR });
+    return;
+  }
+
   try {
     const db = getAdminDb();
     const attemptsRef = db.ref('loginAttempts/admin');
@@ -377,12 +395,9 @@ async function handleAdminLogin(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    // Constant-shape check: always run bcrypt.compare even on a username
-    // mismatch, so response timing doesn't reveal whether the username was right.
-    const usernameOk = username === adminUsername;
     const passwordOk = await verifySecret(password, adminPasswordHash);
 
-    if (!usernameOk || !passwordOk) {
+    if (!passwordOk) {
       const count = (attemptState?.count ?? 0) + 1;
       const update: Record<string, unknown> = { count };
       if (count >= MAX_ATTEMPTS) {

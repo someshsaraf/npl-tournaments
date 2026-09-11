@@ -1,6 +1,14 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
+// "admin" is the fixed staff-login username (separate credential system) —
+// the public login page tries it as a fallback, so no resident can register it.
+const RESERVED_USERNAMES = new Set(['admin']);
+
+export function isReservedUsername(username: string): boolean {
+  return RESERVED_USERNAMES.has(username);
+}
+
 export function normalizeEmail(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim().toLowerCase();
