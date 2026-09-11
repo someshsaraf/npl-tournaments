@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Camera, Home, Info, Menu, MessageCircleQuestion, X } from 'lucide-react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Camera, Home, Info, LogOut, Menu, MessageCircleQuestion, User, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const LOGO_SRC = '/nature-walk-logo-1.png';
 
@@ -29,6 +30,8 @@ const NAV: ReadonlyArray<NavItem> = [
 export function PublicLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, loading, logout } = useAuth();
 
   // Close on route change (nav click) and on Escape.
   useEffect(() => {
@@ -80,9 +83,38 @@ export function PublicLayout() {
               </p>
             </div>
           </div>
-          <p className="hidden sm:block text-[10px] uppercase tracking-[0.18em] text-emerald-400/80 font-semibold shrink-0">
-            Cultural &amp; Sports
-          </p>
+          <div className="flex items-center gap-3 shrink-0">
+            <p className="hidden sm:block text-[10px] uppercase tracking-[0.18em] text-emerald-400/80 font-semibold">
+              Cultural &amp; Sports
+            </p>
+            {!loading ? (
+              user ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                    <User className="size-3.5 text-amber-300" aria-hidden />
+                    {user.username}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void logout()}
+                    aria-label="Log out"
+                    className="inline-flex items-center justify-center size-8 rounded-full border border-slate-800 bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    <LogOut className="size-3.5" aria-hidden />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 text-white text-xs font-bold px-3.5 py-1.5 hover:opacity-90 transition-opacity"
+                >
+                  <User className="size-3.5" aria-hidden />
+                  Login
+                </button>
+              )
+            ) : null}
+          </div>
         </div>
       </header>
 

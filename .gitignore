@@ -25,3 +25,9 @@ dist-ssr
 .cursor/
 kb/
 npl/
+
+# Secrets - service account keys, credentials
+*firebase-adminsdk*.json
+*serviceAccount*.json
+.env
+.env.*

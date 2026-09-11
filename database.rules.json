@@ -42,6 +42,22 @@
       "totalBytes": {
         ".write": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5368709120"
       }
+    },
+    "users": {
+      ".read": false,
+      ".write": false
+    },
+    "usernames": {
+      ".read": false,
+      ".write": false
+    },
+    "emails": {
+      ".read": false,
+      ".write": false
+    },
+    "loginAttempts": {
+      ".read": false,
+      ".write": false
     }
   }
 }
