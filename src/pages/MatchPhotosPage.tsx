@@ -192,38 +192,61 @@ export default function MatchPhotosPage() {
 
   const handleFilesSelected = async (list: FileList | null) => {
     if (!list || list.length === 0) return;
-    const file = list[0];
-    if (!file) return;
+    const files = Array.from(list);
 
     setUploading(true);
     setUploadError(null);
     setUploadMessage(null);
-    try {
-      const eventIdToSave = uploadEventId === GENERAL_EVENT ? undefined : uploadEventId;
-      const record = await uploadGalleryMedia(file, uploadTag, eventIdToSave);
-      setUploadMessage(`Uploaded to ${record.tag}. Thanks!`);
-      setSelectedYear(record.year);
-      setUploadTag(record.tag);
-      setUploadItems((prev) => {
-        const next: GalleryMediaItem = {
-          id: record.id,
-          src: record.url,
-          file: record.fileName,
-          kind: record.kind,
-          title: record.title,
-          year: record.year,
-          tag: record.tag,
-          ...(record.eventId ? { eventId: record.eventId } : {})
-        };
-        if (prev.some((p) => p.id === record.id)) return prev;
-        return [next, ...prev];
-      });
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed.');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+    const eventIdToSave = uploadEventId === GENERAL_EVENT ? undefined : uploadEventId;
+
+    let successCount = 0;
+    const failures: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (files.length > 1) {
+        setUploadMessage(`Uploading ${i + 1} of ${files.length}…`);
+      }
+      try {
+        const record = await uploadGalleryMedia(file, uploadTag, eventIdToSave);
+        successCount++;
+        setSelectedYear(record.year);
+        setUploadTag(record.tag);
+        setUploadItems((prev) => {
+          const next: GalleryMediaItem = {
+            id: record.id,
+            src: record.url,
+            file: record.fileName,
+            kind: record.kind,
+            title: record.title,
+            year: record.year,
+            tag: record.tag,
+            ...(record.eventId ? { eventId: record.eventId } : {})
+          };
+          if (prev.some((p) => p.id === record.id)) return prev;
+          return [next, ...prev];
+        });
+      } catch (err) {
+        failures.push(`${file.name}: ${err instanceof Error ? err.message : 'Upload failed.'}`);
+      }
     }
+
+    if (successCount > 0 && failures.length === 0) {
+      setUploadMessage(
+        successCount === 1
+          ? `Uploaded to ${uploadTag}. Thanks!`
+          : `Uploaded all ${successCount} files to ${uploadTag}. Thanks!`
+      );
+    } else if (successCount > 0 && failures.length > 0) {
+      setUploadMessage(`Uploaded ${successCount} of ${files.length}.`);
+      setUploadError(failures.join(' · '));
+    } else {
+      setUploadMessage(null);
+      setUploadError(failures.join(' · ') || 'Upload failed.');
+    }
+
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const active = activeIndex !== null ? items[activeIndex] ?? null : null;
@@ -318,6 +341,7 @@ export default function MatchPhotosPage() {
             ref={fileInputRef}
             type="file"
             accept={ACCEPT}
+            multiple
             className="sr-only"
             aria-hidden
             tabIndex={-1}
@@ -334,7 +358,7 @@ export default function MatchPhotosPage() {
             ) : (
               <Upload className="size-4" aria-hidden />
             )}
-            {uploading ? 'Uploading…' : storageFull ? 'Storage full' : 'Upload photo or clip'}
+            {uploading ? 'Uploading…' : storageFull ? 'Storage full' : 'Upload photos or clips'}
           </button>
           <p className="text-[11px] text-slate-500">
             JPG / PNG / WebP / GIF · MP4 / WebM · shared 5 GB limit
