@@ -63,6 +63,8 @@ export type GalleryUploadRecord = {
 /**
  * True for Firebase Storage download URLs only.
  * Concurrency: pure; Security: https-only, allowlisted Firebase/Google hosts.
+ * Also accepts r2.dev — the small batch of uploads made during the brief R2 era
+ * (before this reverted to Firebase Storage) still needs to keep displaying.
  */
 export function isSafeGalleryDownloadUrl(value: unknown): value is string {
   if (typeof value !== 'string' || !value.trim() || value.length > 2000) return false;
@@ -79,7 +81,8 @@ export function isSafeGalleryDownloadUrl(value: unknown): value is string {
     host === 'firebasestorage.googleapis.com' ||
     host.endsWith('.firebasestorage.app') ||
     host.endsWith('.googleapis.com') ||
-    host.endsWith('.googleusercontent.com')
+    host.endsWith('.googleusercontent.com') ||
+    host.endsWith('.r2.dev')
   );
 }
 
