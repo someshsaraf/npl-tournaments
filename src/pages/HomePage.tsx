@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { db } from '../firebase';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
 import { Reveal } from '../components/Reveal';
@@ -230,6 +230,9 @@ function HeroPickTile({ event }: { event: CommunityEvent }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
       <span className="absolute left-2.5 top-2.5 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full bg-white/95 text-ink">
         {isCultural ? 'Culture' : 'Sports'}
+      </span>
+      <span className="absolute right-2.5 top-2.5 inline-flex items-center justify-center size-6 rounded-full bg-white/25 text-white backdrop-blur-sm transition-colors group-hover:bg-white/40">
+        <ArrowUpRight className="size-3.5" aria-hidden />
       </span>
       <div className="absolute inset-x-0 bottom-0 p-2.5 text-white">
         <p className="text-sm font-bold truncate">{event.title}</p>
