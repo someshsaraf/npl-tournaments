@@ -114,7 +114,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     endDate: '2026-11-01',
     location: 'Society Clubhouse',
     description: 'Karnataka Rajyotsava celebrations.',
-    imageSrc: '/events/rajotsav.svg',
+    imageSrc: '/events/rajotsav.jpg',
     galleryImages: ['/events/rajotsav-2.jpg', '/events/rajotsav-3.jpg'],
     sortOrder: 5
   },
@@ -127,7 +127,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Dussehra and Diwali festivities.',
     imageSrc: '/events/dussehra-diwali.jpg',
-    galleryImages: ['/events/dussehra-diwali-2.jpg'],
+    galleryImages: ['/events/dussehra-diwali-2.jpg', '/events/dussehra-diwali-3.jpg'],
     sortOrder: 6
   },
   {
@@ -139,6 +139,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Nature Walk',
     description: 'Community fun run / marathon.',
     imageSrc: '/events/marathon.jpg',
+    galleryImages: ['/events/marathon-2.jpg'],
     sortOrder: 7
   },
   {
