@@ -227,7 +227,7 @@ export default function MatchPhotosPage() {
     <div className="space-y-5">
       <header className="space-y-3">
         <div className="space-y-1">
-          <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">
+          <h1 className="portal-display text-3xl sm:text-4xl text-ink tracking-wide">
             Match photos
           </h1>
         </div>
@@ -249,7 +249,7 @@ export default function MatchPhotosPage() {
                 className={
                   selected
                     ? 'rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-950'
-                    : 'rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-300 hover:border-emerald-500/50 hover:text-white'
+                    : 'rounded-lg border border-line bg-paper-soft px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-600 hover:border-emerald-500/50 hover:text-ink'
                 }
               >
                 {year}
@@ -263,12 +263,12 @@ export default function MatchPhotosPage() {
         </p>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <label className="flex items-center gap-2 text-[11px] text-slate-400">
+          <label className="flex items-center gap-2 text-[11px] text-ink-soft">
             <span className="uppercase tracking-wide font-bold text-slate-500">Event</span>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+              className="rounded-lg border border-line bg-white px-2.5 py-2 text-xs font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
               aria-label="Filter photos by event, and where new uploads are tagged"
             >
               <option value={ALL_EVENTS}>All events</option>
@@ -311,42 +311,42 @@ export default function MatchPhotosPage() {
         </div>
 
         {uploadError ? (
-          <p className="text-sm text-amber-200 font-medium" role="alert">
+          <p className="text-sm text-amber-700 font-medium" role="alert">
             {uploadError}
           </p>
         ) : null}
         {uploadMessage ? (
-          <p className="text-sm text-emerald-300 font-medium" role="status">
+          <p className="text-sm text-emerald-700 font-medium" role="status">
             {uploadMessage}
           </p>
         ) : null}
       </header>
 
       {loading && allItems.length === 0 ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
+        <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
           <Loader2 className="size-5 animate-spin" aria-hidden />
           <span className="text-sm font-medium">Loading gallery…</span>
         </div>
       ) : null}
 
       {!loading && error && allItems.length === 0 ? (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-5">
-          <p className="text-sm text-amber-100 font-medium">{error}</p>
-          <p className="text-xs text-amber-100/70 mt-2">
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-5">
+          <p className="text-sm text-amber-800 font-medium">{error}</p>
+          <p className="text-xs text-amber-700/80 mt-2">
             You can still upload a photo above once Firebase rules allow gallery writes.
           </p>
         </div>
       ) : null}
 
       {!loading && items.length === 0 && !error ? (
-        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-line bg-paper-soft">
           No photos for npl-{selectedYear} yet — pick that tag and upload, or add files under{' '}
-          <code className="text-slate-300">public/Gallery/{selectedYear}</code>.
+          <code className="text-ink-soft">public/Gallery/{selectedYear}</code>.
         </p>
       ) : null}
 
       {!loading && items.length === 0 && error && allItems.length > 0 ? (
-        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-line bg-paper-soft">
           No photos for npl-{selectedYear} yet.
         </p>
       ) : null}
@@ -358,7 +358,7 @@ export default function MatchPhotosPage() {
               <button
                 type="button"
                 onClick={() => setActiveIndex(index)}
-                className="group relative w-full aspect-square overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
+                className="group relative w-full aspect-square overflow-hidden rounded-xl border border-line bg-paper-soft text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
                 aria-label="Open gallery item"
               >
                 {item.kind === 'image' ? (

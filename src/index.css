@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@theme {
+  --color-ink: #0f172a;
+  --color-ink-soft: #334155;
+  --color-paper: #ffffff;
+  --color-paper-soft: #f8fafc;
+  --color-line: #e2e8f0;
+}
+
 @layer base {
   html,
   body,
@@ -9,7 +17,7 @@
   }
 
   body {
-    @apply bg-slate-950 text-slate-100 antialiased;
+    @apply bg-white text-slate-900 antialiased;
     font-family: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
   }
 }
@@ -21,37 +29,25 @@
   letter-spacing: 0.04em;
 }
 
-/* Public portal — a warm, saturated gradient mesh over a near-black base
-   (not cool corporate slate), plus a faint dot-grid for texture. Fixed so
-   it reads as ambient light rather than a per-page graphic. */
+/* Public portal — plain paper background with a faint dot-grid for texture.
+   Fixed so it reads as ambient page texture rather than a per-page graphic. */
 .npl-portal {
   position: relative;
   background:
-    radial-gradient(1200px 620px at 0% -10%, rgba(251, 146, 60, 0.16), transparent 58%),
-    radial-gradient(1000px 580px at 100% -5%, rgba(244, 63, 94, 0.14), transparent 55%),
-    radial-gradient(1100px 700px at 85% 105%, rgba(99, 102, 241, 0.14), transparent 58%),
-    radial-gradient(900px 600px at 5% 105%, rgba(16, 185, 129, 0.1), transparent 55%),
-    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.045) 1px, transparent 0) 0 0/26px 26px,
-    #08060a;
+    radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.035) 1px, transparent 0) 0 0/26px 26px,
+    var(--color-paper);
   background-attachment: fixed;
 }
 
-/* Warm signature gradient — the site's primary identity color, used for
-   headline shimmer, glows, and key accents instead of a single flat hue. */
+/* Signature heading treatment — solid ink, no gradient shimmer on a light bg. */
 .npl-flame-text {
-  background: linear-gradient(90deg, #fb923c 0%, #f43f5e 35%, #fbbf24 70%, #fb923c 100%);
-  background-size: 220% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: npl-brand-shimmer 6s linear infinite;
+  color: var(--color-ink);
 }
 
 .npl-glass {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 @keyframes npl-reveal {
@@ -83,13 +79,11 @@
   animation: npl-glow-pulse 3.5s ease-in-out infinite;
 }
 
-/* Soft blurred color blobs for ambient depth behind hero content. */
+/* Ambient blurred color blobs — dark-theme-only decoration, not used in the
+   light/editorial design. Kept as a no-op rather than stripped from every
+   call site since the divs are otherwise harmless. */
 .npl-blob {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(90px);
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 /* /live CSS immersive / iOS cinema when native Fullscreen API is unavailable. */

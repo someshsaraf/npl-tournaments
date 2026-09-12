@@ -33,18 +33,18 @@ export default function AboutPage() {
       <div className="npl-blob -top-16 -left-16 size-72 bg-orange-500/20" aria-hidden />
 
       <Reveal className="relative z-10 space-y-4 max-w-2xl">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300/90 font-semibold">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-ink-soft font-semibold">
           About
         </p>
         <h1 className="npl-flame-text portal-display text-4xl sm:text-6xl tracking-wide leading-[0.95]">
           Renaissance Nature Walk
         </h1>
-        <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+        <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
           Renaissance Nature Walk is our residential community, and this site is where we bring the
           community together — cultural celebrations like Ganesh Utsav, Diwali, and Holi, alongside
           sports tournaments like Badminton and Tennis, all through the year.
         </p>
-        <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+        <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
           Browse what's coming up, catch live scores during a tournament, and look back at photos
           from past events — all in one place.
         </p>
@@ -57,13 +57,13 @@ export default function AboutPage() {
             <Link
               key={link.to}
               to={link.to}
-              className="npl-glass group rounded-2xl p-5 space-y-2.5 transition-all hover:-translate-y-1 hover:border-white/25"
+              className="npl-glass group rounded-2xl p-5 space-y-2.5 transition-all hover:-translate-y-1 hover:border-slate-300"
             >
-              <span className="inline-flex items-center justify-center size-10 rounded-full bg-white/10 text-amber-300 group-hover:bg-white/15">
+              <span className="inline-flex items-center justify-center size-10 rounded-full bg-paper-soft text-ink-soft group-hover:bg-slate-100">
                 <Icon className="size-5" aria-hidden />
               </span>
-              <p className="font-bold text-white">{link.label}</p>
-              <p className="text-xs text-slate-400 leading-relaxed">{link.description}</p>
+              <p className="font-bold text-ink">{link.label}</p>
+              <p className="text-xs text-slate-500 leading-relaxed">{link.description}</p>
             </Link>
           );
         })}

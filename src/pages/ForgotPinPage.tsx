@@ -9,7 +9,7 @@ import { resetPinWithCode, verifyRecoveryCode } from '../utils/authClient';
 type Step = 'identify' | 'pin' | 'done';
 
 const INPUT_CLASS =
-  'w-full bg-slate-900/80 border border-white/10 text-slate-100 text-sm px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-orange-400/60 disabled:opacity-50';
+  'w-full bg-paper-soft border border-line text-ink text-sm px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-slate-400 disabled:opacity-50';
 
 export default function ForgotPinPage() {
   const navigate = useNavigate();
@@ -68,12 +68,12 @@ export default function ForgotPinPage() {
       <div className="relative max-w-md mx-auto space-y-6">
         <div className="npl-blob -top-16 -right-16 size-72 bg-rose-500/20" aria-hidden />
         <Reveal className="relative z-10 space-y-1.5 text-center">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300/90 font-semibold">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-ink-soft font-semibold">
             PIN reset
           </p>
           <h1 className="npl-flame-text portal-display text-4xl tracking-wide">All set!</h1>
         </Reveal>
-        <p className="relative z-10 text-center text-sm text-slate-400">
+        <p className="relative z-10 text-center text-sm text-slate-500">
           Your old recovery code no longer works - here's a fresh one.
         </p>
         <Reveal delayMs={80} className="relative z-10">
@@ -92,7 +92,7 @@ export default function ForgotPinPage() {
       <div className="npl-blob -top-16 -right-16 size-72 bg-rose-500/20" aria-hidden />
 
       <Reveal className="relative z-10 space-y-1.5 text-center">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300/90 font-semibold">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-ink-soft font-semibold">
           Account recovery
         </p>
         <h1 className="npl-flame-text portal-display text-4xl tracking-wide">Forgot PIN</h1>
@@ -108,7 +108,7 @@ export default function ForgotPinPage() {
             }}
           >
             <label className="block space-y-1.5">
-              <span className="text-xs font-semibold text-slate-400">Username or email</span>
+              <span className="text-xs font-semibold text-ink-soft">Username or email</span>
               <input
                 type="text"
                 value={identifier}
@@ -120,7 +120,7 @@ export default function ForgotPinPage() {
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-xs font-semibold text-slate-400">Recovery code</span>
+              <span className="text-xs font-semibold text-ink-soft">Recovery code</span>
               <input
                 type="text"
                 value={recoveryCode}
@@ -136,7 +136,7 @@ export default function ForgotPinPage() {
             <button
               type="submit"
               disabled={busy || !identifier.trim() || !recoveryCode.trim()}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-white text-slate-950 font-bold text-sm px-5 py-2.5 disabled:opacity-50"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-ink text-white font-bold text-sm px-5 py-2.5 hover:bg-slate-800 disabled:opacity-50 transition-colors"
             >
               {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               Verify
@@ -153,7 +153,7 @@ export default function ForgotPinPage() {
             }}
           >
             <label className="block space-y-1.5">
-              <span className="text-xs font-semibold text-slate-400">New 6-digit PIN</span>
+              <span className="text-xs font-semibold text-ink-soft">New 6-digit PIN</span>
               <input
                 type="password"
                 inputMode="numeric"
@@ -166,7 +166,7 @@ export default function ForgotPinPage() {
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-xs font-semibold text-slate-400">Confirm new PIN</span>
+              <span className="text-xs font-semibold text-ink-soft">Confirm new PIN</span>
               <input
                 type="password"
                 inputMode="numeric"
@@ -181,7 +181,7 @@ export default function ForgotPinPage() {
             <button
               type="submit"
               disabled={busy || newPin.length !== 6 || newPinConfirm.length !== 6}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-white text-slate-950 font-bold text-sm px-5 py-2.5 disabled:opacity-50"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-ink text-white font-bold text-sm px-5 py-2.5 hover:bg-slate-800 disabled:opacity-50 transition-colors"
             >
               {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               Set new PIN
@@ -190,15 +190,15 @@ export default function ForgotPinPage() {
         ) : null}
 
         {error ? (
-          <p className="text-xs text-rose-300 font-medium" role="alert">
+          <p className="text-xs text-rose-600 font-medium" role="alert">
             {error}
           </p>
         ) : null}
       </Reveal>
 
       <Reveal delayMs={120} className="relative z-10 npl-glass rounded-2xl p-4 flex gap-3">
-        <ShieldCheck className="size-5 text-emerald-400 shrink-0 mt-0.5" aria-hidden />
-        <p className="text-[11px] text-slate-400 leading-relaxed">
+        <ShieldCheck className="size-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden />
+        <p className="text-[11px] text-slate-500 leading-relaxed">
           Lost your recovery code too? There's no self-service option beyond this - contact an
           admin directly and they can reset your PIN after confirming who you are.
         </p>
@@ -206,7 +206,7 @@ export default function ForgotPinPage() {
 
       <p className="relative z-10 text-center text-xs text-slate-500">
         Remembered your PIN?{' '}
-        <Link to="/login" className="text-amber-300 hover:text-amber-200 font-semibold">
+        <Link to="/login" className="text-amber-700 hover:text-amber-800 font-semibold">
           Log in
         </Link>
       </p>
