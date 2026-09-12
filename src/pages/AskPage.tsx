@@ -420,10 +420,10 @@ export default function AskPage() {
   return (
     <div className="flex flex-col gap-4 max-w-3xl mx-auto min-h-[min(70vh,40rem)]">
       <header className="space-y-1">
-        <h1 className="portal-display text-3xl sm:text-4xl text-white tracking-wide">
+        <h1 className="portal-display text-3xl sm:text-4xl text-ink tracking-wide">
           Ask NPL
         </h1>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-500">
           Natural questions about schedule, rules, teams, results, and stats — answered strictly
           from live tournament data on this site.
         </p>
@@ -432,10 +432,10 @@ export default function AskPage() {
       <div
         className={`rounded-xl border px-3.5 py-3 text-sm ${
           askStatus.state === 'ready'
-            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+            ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
             : askStatus.state === 'checking'
-              ? 'border-slate-700 bg-slate-900/60 text-slate-400'
-              : 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+              ? 'border-line bg-paper-soft text-slate-500'
+              : 'border-amber-300 bg-amber-50 text-amber-800'
         }`}
         role="status"
       >
@@ -458,14 +458,14 @@ export default function AskPage() {
             type="button"
             disabled={busy}
             onClick={() => runAsk(prompt)}
-            className="text-[11px] sm:text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900 text-slate-300 hover:border-emerald-500/50 hover:text-emerald-200 disabled:opacity-40 transition-colors"
+            className="text-[11px] sm:text-xs font-semibold px-3 py-1.5 rounded-full border border-line bg-white text-slate-600 hover:border-emerald-500/50 hover:text-emerald-700 disabled:opacity-40 transition-colors"
           >
             {prompt}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden min-h-[22rem]">
+      <div className="flex-1 flex flex-col rounded-2xl border border-line bg-paper-soft overflow-hidden min-h-[22rem]">
         <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-3 max-h-[min(55vh,28rem)]">
           {messages.map((m) => (
             <div
@@ -476,17 +476,17 @@ export default function AskPage() {
                 className={`max-w-[92%] sm:max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
                   m.role === 'user'
                     ? 'bg-emerald-500 text-slate-950 font-medium rounded-br-md'
-                    : 'bg-slate-800 text-slate-100 border border-slate-700 rounded-bl-md'
+                    : 'bg-white text-ink border border-line rounded-bl-md'
                 }`}
               >
                 <p>{m.text}</p>
                 {m.role === 'assistant' && Array.isArray(m.links) && m.links.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mt-2.5 pt-2 border-t border-slate-700/80">
+                  <div className="flex flex-wrap gap-2 mt-2.5 pt-2 border-t border-line">
                     {m.links.map((link) => (
                       <Link
                         key={`${m.id}-${link.to}-${link.label}`}
                         to={link.to}
-                        className="text-[11px] font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300"
+                        className="text-[11px] font-bold uppercase tracking-wide text-emerald-700 hover:text-emerald-800"
                       >
                         {link.label} →
                       </Link>
@@ -498,7 +498,7 @@ export default function AskPage() {
           ))}
           {busy ? (
             <div className="flex justify-start">
-              <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm bg-slate-800 border border-slate-700 text-slate-400">
+              <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm bg-white border border-line text-slate-500">
                 Looking that up…
               </div>
             </div>
@@ -508,7 +508,7 @@ export default function AskPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="border-t border-slate-800 p-3 sm:p-4 flex gap-2 bg-slate-950/40"
+          className="border-t border-line p-3 sm:p-4 flex gap-2 bg-white"
         >
           <label htmlFor="ask-npl-input" className="sr-only">
             Ask about the tournament
@@ -523,7 +523,7 @@ export default function AskPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="e.g. Who won Men’s Singles >35? How many matches on 9th August?"
-            className="flex-1 min-w-0 rounded-xl bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 disabled:opacity-50"
+            className="flex-1 min-w-0 rounded-xl bg-paper-soft border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 disabled:opacity-50"
             autoComplete="off"
             spellCheck
           />

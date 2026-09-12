@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { checkUsername, register } from '../utils/authClient';
 
 const INPUT_CLASS =
-  'w-full bg-slate-900/80 border border-white/10 text-slate-100 text-sm px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-orange-400/60 disabled:opacity-50';
+  'w-full bg-paper-soft border border-line text-ink text-sm px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-slate-400 disabled:opacity-50';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -77,7 +77,7 @@ export default function RegisterPage() {
       <div className="relative max-w-md mx-auto space-y-6">
         <div className="npl-blob -top-16 -left-16 size-72 bg-orange-500/20" aria-hidden />
         <Reveal className="relative z-10 space-y-1.5 text-center">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300/90 font-semibold">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-ink-soft font-semibold">
             Account created
           </p>
           <h1 className="npl-flame-text portal-display text-4xl tracking-wide">Welcome!</h1>
@@ -94,7 +94,7 @@ export default function RegisterPage() {
       <div className="npl-blob -top-16 -left-16 size-72 bg-orange-500/20" aria-hidden />
 
       <Reveal className="relative z-10 space-y-1.5 text-center">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300/90 font-semibold">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-ink-soft font-semibold">
           Create account
         </p>
         <h1 className="npl-flame-text portal-display text-4xl tracking-wide">Register</h1>
@@ -109,7 +109,7 @@ export default function RegisterPage() {
           }}
         >
           <label className="block space-y-1.5">
-            <span className="text-xs font-semibold text-slate-400">Username</span>
+            <span className="text-xs font-semibold text-ink-soft">Username</span>
             <div className="relative">
               <input
                 type="text"
@@ -124,9 +124,9 @@ export default function RegisterPage() {
                 {usernameStatus === 'checking' ? (
                   <Loader2 className="size-4 animate-spin text-slate-500" aria-hidden />
                 ) : usernameStatus === 'available' ? (
-                  <CheckCircle2 className="size-4 text-emerald-400" aria-hidden />
+                  <CheckCircle2 className="size-4 text-emerald-600" aria-hidden />
                 ) : usernameStatus === 'taken' ? (
-                  <XCircle className="size-4 text-rose-400" aria-hidden />
+                  <XCircle className="size-4 text-rose-600" aria-hidden />
                 ) : null}
               </span>
             </div>
@@ -138,7 +138,7 @@ export default function RegisterPage() {
           </label>
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-semibold text-slate-400">Email address</span>
+            <span className="text-xs font-semibold text-ink-soft">Email address</span>
             <input
               type="email"
               value={email}
@@ -151,7 +151,7 @@ export default function RegisterPage() {
           </label>
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-semibold text-slate-400">Create a 6-digit PIN</span>
+            <span className="text-xs font-semibold text-ink-soft">Create a 6-digit PIN</span>
             <input
               type="password"
               inputMode="numeric"
@@ -164,7 +164,7 @@ export default function RegisterPage() {
             />
           </label>
           <label className="block space-y-1.5">
-            <span className="text-xs font-semibold text-slate-400">Confirm PIN</span>
+            <span className="text-xs font-semibold text-ink-soft">Confirm PIN</span>
             <input
               type="password"
               inputMode="numeric"
@@ -180,7 +180,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={busy || !canSubmit}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-white text-slate-950 font-bold text-sm px-5 py-2.5 disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-ink text-white font-bold text-sm px-5 py-2.5 hover:bg-slate-800 disabled:opacity-50 transition-colors"
           >
             {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             Create account
@@ -188,15 +188,15 @@ export default function RegisterPage() {
         </form>
 
         {error ? (
-          <p className="text-xs text-rose-300 font-medium" role="alert">
+          <p className="text-xs text-rose-600 font-medium" role="alert">
             {error}
           </p>
         ) : null}
       </Reveal>
 
       <Reveal delayMs={120} className="relative z-10 npl-glass rounded-2xl p-4 flex gap-3">
-        <ShieldCheck className="size-5 text-emerald-400 shrink-0 mt-0.5" aria-hidden />
-        <p className="text-[11px] text-slate-400 leading-relaxed">
+        <ShieldCheck className="size-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden />
+        <p className="text-[11px] text-slate-500 leading-relaxed">
           Your personal data is never sold or shared. Your PIN is protected using one-way hashing -
           not even we can see it - and all data is encrypted in transit and access-restricted at
           the database level.
@@ -205,7 +205,7 @@ export default function RegisterPage() {
 
       <p className="relative z-10 text-center text-xs text-slate-500">
         Already have an account?{' '}
-        <Link to="/login" className="text-amber-300 hover:text-amber-200 font-semibold">
+        <Link to="/login" className="text-amber-700 hover:text-amber-800 font-semibold">
           Log in
         </Link>
       </p>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Camera, Home, Info, LogOut, Menu, MessageCircleQuestion, User, X } from 'lucide-react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Camera, Home, Info, LogOut, Menu, MessageCircleQuestion, Radio, User, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -53,9 +53,8 @@ export function PublicLayout() {
   }, [menuOpen]);
 
   return (
-    <div className="npl-portal min-h-full flex flex-col text-slate-100">
-      <header className="relative sticky top-0 z-40 bg-slate-950/85 backdrop-blur-md">
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" aria-hidden />
+    <div className="npl-portal min-h-full flex flex-col text-slate-900">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-line">
         <div className="mx-auto w-full max-w-6xl px-3 sm:px-5 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -63,11 +62,11 @@ export function PublicLayout() {
               onClick={() => setMenuOpen(true)}
               aria-label="Open navigation"
               aria-expanded={menuOpen}
-              className="shrink-0 inline-flex items-center justify-center size-10 rounded-full border border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+              className="shrink-0 inline-flex items-center justify-center size-10 rounded-full border border-line bg-white text-ink hover:bg-paper-soft transition-colors"
             >
               <Menu className="size-5" aria-hidden />
             </button>
-            <span className="shrink-0 rounded-xl bg-white p-1 shadow-md ring-1 ring-emerald-400/40 size-10 sm:size-12">
+            <span className="shrink-0 rounded-xl bg-white p-1 shadow-sm ring-1 ring-line size-10 sm:size-12">
               <img
                 src={LOGO_SRC}
                 alt="Renaissance Nature Walk"
@@ -78,27 +77,31 @@ export function PublicLayout() {
               />
             </span>
             <div className="min-w-0 leading-tight">
-              <p className="portal-display text-2xl sm:text-3xl text-white tracking-wide truncate">
+              <p className="portal-display text-2xl sm:text-3xl text-ink tracking-wide truncate">
                 Renaissance Nature Walk
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <p className="hidden sm:block text-[10px] uppercase tracking-[0.18em] text-emerald-400/80 font-semibold">
-              Cultural &amp; Sports
-            </p>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <Link
+              to="/live"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-ink text-white text-xs font-bold px-3.5 py-1.5 hover:bg-slate-800 transition-colors"
+            >
+              <Radio className="size-3.5" aria-hidden />
+              Live Score Hub
+            </Link>
             {!loading ? (
               user ? (
                 <div className="flex items-center gap-1.5">
-                  <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                    <User className="size-3.5 text-amber-300" aria-hidden />
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft">
+                    <User className="size-3.5 text-ink-soft" aria-hidden />
                     {user.username}
                   </span>
                   <button
                     type="button"
                     onClick={() => void logout()}
                     aria-label="Log out"
-                    className="inline-flex items-center justify-center size-8 rounded-full border border-slate-800 bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                    className="inline-flex items-center justify-center size-8 rounded-full border border-line bg-white text-ink-soft hover:bg-paper-soft transition-colors"
                   >
                     <LogOut className="size-3.5" aria-hidden />
                   </button>
@@ -107,7 +110,7 @@ export function PublicLayout() {
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 text-white text-xs font-bold px-3.5 py-1.5 hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-ink text-white text-xs font-bold px-3.5 py-1.5 hover:bg-slate-800 transition-colors"
                 >
                   <User className="size-3.5" aria-hidden />
                   Login
@@ -120,7 +123,7 @@ export function PublicLayout() {
 
       {menuOpen ? (
         <div
-          className="npl-nav-overlay fixed inset-0 z-50 bg-slate-950/98 backdrop-blur-sm overflow-y-auto"
+          className="npl-nav-overlay fixed inset-0 z-50 bg-white/98 backdrop-blur-sm overflow-y-auto"
           role="dialog"
           aria-modal="true"
           aria-label="Site navigation"
@@ -130,11 +133,11 @@ export function PublicLayout() {
               type="button"
               onClick={() => setMenuOpen(false)}
               aria-label="Close navigation"
-              className="shrink-0 inline-flex items-center justify-center size-10 rounded-full border border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+              className="shrink-0 inline-flex items-center justify-center size-10 rounded-full border border-line bg-white text-ink hover:bg-paper-soft transition-colors"
             >
               <X className="size-5" aria-hidden />
             </button>
-            <span className="shrink-0 rounded-xl bg-white p-1 shadow-md ring-1 ring-emerald-400/40 size-10 sm:size-12">
+            <span className="shrink-0 rounded-xl bg-white p-1 shadow-sm ring-1 ring-line size-10 sm:size-12">
               <img
                 src={LOGO_SRC}
                 alt=""
@@ -155,16 +158,16 @@ export function PublicLayout() {
                   <div
                     key={item.to}
                     aria-disabled="true"
-                    className="npl-nav-pill flex items-center justify-between gap-4 rounded-2xl px-5 sm:px-6 py-4 sm:py-5 text-lg sm:text-xl font-semibold bg-slate-900/40 text-slate-600 cursor-not-allowed"
+                    className="npl-nav-pill flex items-center justify-between gap-4 rounded-2xl px-5 sm:px-6 py-4 sm:py-5 text-lg sm:text-xl font-semibold bg-paper-soft text-slate-400 cursor-not-allowed"
                     style={{ animationDelay: `${i * 60}ms` }}
                   >
                     <span className="flex items-center gap-2.5">
                       {item.label}
-                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-800 text-slate-500">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200 text-slate-500">
                         Soon
                       </span>
                     </span>
-                    <span className="shrink-0 inline-flex items-center justify-center size-11 sm:size-12 rounded-full bg-slate-950/20">
+                    <span className="shrink-0 inline-flex items-center justify-center size-11 sm:size-12 rounded-full bg-black/5">
                       <Icon className="size-5 sm:size-6" aria-hidden />
                     </span>
                   </div>
@@ -177,18 +180,26 @@ export function PublicLayout() {
                   end={item.end}
                   className={({ isActive }) =>
                     [
-                      'npl-nav-pill group flex items-center justify-between gap-4 rounded-2xl px-5 sm:px-6 py-4 sm:py-5 text-lg sm:text-xl font-semibold transition-colors',
+                      'npl-nav-pill group flex items-center justify-between gap-4 rounded-2xl px-5 sm:px-6 py-4 sm:py-5 text-lg sm:text-xl font-semibold transition-colors border',
                       isActive
-                        ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white'
-                        : 'bg-slate-900 text-slate-100 hover:bg-slate-800'
+                        ? 'bg-ink text-white border-ink'
+                        : 'bg-white text-ink border-line hover:bg-paper-soft'
                     ].join(' ')
                   }
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
-                  {item.label}
-                  <span className="shrink-0 inline-flex items-center justify-center size-11 sm:size-12 rounded-full bg-slate-950/20 group-hover:bg-slate-950/30">
-                    <Icon className="size-5 sm:size-6" aria-hidden />
-                  </span>
+                  {({ isActive }) => (
+                    <>
+                      {item.label}
+                      <span
+                        className={`shrink-0 inline-flex items-center justify-center size-11 sm:size-12 rounded-full ${
+                          isActive ? 'bg-white/15' : 'bg-black/5 group-hover:bg-black/10'
+                        }`}
+                      >
+                        <Icon className="size-5 sm:size-6" aria-hidden />
+                      </span>
+                    </>
+                  )}
                 </NavLink>
               );
             })}
@@ -200,9 +211,55 @@ export function PublicLayout() {
         <Outlet />
       </main>
 
-      <footer className="relative py-6 text-center text-[11px] text-slate-500 tracking-wide">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-700/70 to-transparent" aria-hidden />
-        Renaissance Nature Walk · Cultural &amp; Sports 2026
+      <footer className="bg-ink text-white">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-10 grid gap-8 sm:grid-cols-[1.3fr_1fr_1fr]">
+          <div className="space-y-2">
+            <p className="portal-display text-2xl tracking-wide">Renaissance</p>
+            <p className="text-sm text-slate-400 max-w-xs">
+              Cultural celebrations and sports tournaments for the Renaissance Nature Walk community.
+            </p>
+          </div>
+          <div className="space-y-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Categories</p>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li>
+                <Link to="/?category=cultural" className="hover:text-white transition-colors">
+                  Cultural
+                </Link>
+              </li>
+              <li>
+                <Link to="/?category=sports" className="hover:text-white transition-colors">
+                  Sports
+                </Link>
+              </li>
+              <li>
+                <Link to="/" className="hover:text-white transition-colors">
+                  All Events
+                </Link>
+              </li>
+            </ul>
+          </div>
+          <div className="space-y-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Quick Access</p>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li>
+                <Link to="/photos" className="hover:text-white transition-colors">
+                  Photos
+                </Link>
+              </li>
+              <li className="text-slate-600">Ask (Soon)</li>
+              <li className="text-slate-600">About RNW (Soon)</li>
+              <li>
+                <Link to="/admin/login" className="hover:text-white transition-colors">
+                  Admin Login
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-white/10 py-4 text-center text-[11px] text-slate-500 tracking-wide">
+          Renaissance Nature Walk · Cultural &amp; Sports 2026
+        </div>
       </footer>
     </div>
   );

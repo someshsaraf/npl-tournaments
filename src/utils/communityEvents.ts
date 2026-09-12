@@ -117,3 +117,13 @@ export async function removeEventPost(
   );
   await saveCommunityEvents(database, next);
 }
+
+export type LatestUpdate = { event: CommunityEvent; post: EventPost };
+
+/** Every event's posts, flattened and sorted newest-first — for a cross-event "Latest Updates" feed. */
+export function getLatestUpdates(events: CommunityEvent[], limit: number): LatestUpdate[] {
+  return events
+    .flatMap((event) => (Array.isArray(event.posts) ? event.posts : []).map((post) => ({ event, post })))
+    .sort((a, b) => b.post.createdAt.localeCompare(a.post.createdAt))
+    .slice(0, limit);
+}

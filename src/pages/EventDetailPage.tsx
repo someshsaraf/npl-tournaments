@@ -85,7 +85,7 @@ export default function EventDetailPage() {
       <BackLink />
 
       <Reveal className="relative z-10">
-        <section className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50 ring-1 ring-white/5 min-h-[280px] sm:min-h-[340px]">
+        <section className="relative rounded-3xl overflow-hidden border border-line shadow-xl min-h-[280px] sm:min-h-[340px]">
           {event.imageSrc ? (
             <img
               src={event.imageSrc}
@@ -117,7 +117,7 @@ export default function EventDetailPage() {
                 {event.category === 'sports' ? 'Sports' : 'Cultural'}
               </span>
             </div>
-            <h1 className="npl-flame-text portal-display text-4xl sm:text-5xl tracking-wide leading-[0.95] [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
+            <h1 className="text-white portal-display text-4xl sm:text-5xl tracking-wide leading-[0.95] [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
               {event.title}
             </h1>
             <p className="text-sm font-mono text-amber-300/90">
@@ -143,26 +143,26 @@ export default function EventDetailPage() {
       {Array.isArray(event.posts) && event.posts.length > 0 ? (
         <Reveal delayMs={80} className="relative z-10 space-y-3">
           <div className="flex items-center gap-2.5">
-            <span className="h-4 w-1 rounded-full bg-gradient-to-b from-orange-400 to-rose-400" aria-hidden />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">Updates</h2>
+            <span className="h-4 w-1 rounded-full bg-ink" aria-hidden />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-ink">Updates</h2>
           </div>
           <ul className="space-y-3">
             {event.posts.map((post) => (
               <li
                 key={post.id}
-                className="rounded-2xl border border-slate-800/80 bg-slate-900/40 overflow-hidden transition-colors hover:border-slate-700"
+                className="rounded-2xl border border-line bg-white overflow-hidden transition-colors hover:border-slate-300"
               >
                 {post.imageUrl ? (
                   <img
                     src={post.imageUrl}
                     alt=""
-                    className="w-full max-h-96 object-contain bg-slate-950"
+                    className="w-full max-h-96 object-contain bg-paper-soft"
                     loading="lazy"
                   />
                 ) : null}
                 <div className="p-3.5 space-y-1">
                   {post.text ? (
-                    <p className="text-sm text-slate-200 whitespace-pre-line leading-relaxed">
+                    <p className="text-sm text-ink-soft whitespace-pre-line leading-relaxed">
                       {post.text}
                     </p>
                   ) : null}
@@ -186,8 +186,8 @@ export default function EventDetailPage() {
                 onClick={() => setTab(t.key)}
                 className={`text-xs px-3.5 py-1.5 rounded-lg whitespace-nowrap font-bold uppercase tracking-wide transition-all ${
                   tab === t.key
-                    ? 'bg-indigo-500 text-white shadow-md shadow-indigo-950/50'
-                    : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-paper-soft text-ink-soft hover:text-ink border border-line'
                 }`}
               >
                 {t.label}
@@ -214,7 +214,7 @@ function BackLink() {
   return (
     <Link
       to="/"
-      className="group inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300"
+      className="group inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700 hover:text-emerald-800"
     >
       <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
       Back to Home
