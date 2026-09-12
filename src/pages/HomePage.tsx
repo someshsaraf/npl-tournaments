@@ -227,16 +227,19 @@ function HeroPickTile({ event }: { event: CommunityEvent }) {
       ) : (
         <div className="absolute inset-0 bg-paper-soft" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
       <span className="absolute left-2.5 top-2.5 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full bg-white/95 text-ink">
         {isCultural ? 'Culture' : 'Sports'}
       </span>
-      <span className="absolute right-2.5 top-2.5 inline-flex items-center justify-center size-6 rounded-full bg-white/25 text-white backdrop-blur-sm transition-colors group-hover:bg-white/40">
-        <ArrowUpRight className="size-3.5" aria-hidden />
-      </span>
-      <div className="absolute inset-x-0 bottom-0 p-2.5 text-white">
-        <p className="text-sm font-bold truncate">{event.title}</p>
-        <p className="text-[10px] font-mono text-white/80 truncate">{event.dateLabel}</p>
+      <div className="absolute inset-x-0 bottom-0 p-2.5 flex items-end justify-between gap-2 text-white">
+        <div className="min-w-0">
+          <p className="text-sm font-bold truncate">{event.title}</p>
+          <p className="text-[10px] font-mono text-white/80 truncate">{event.dateLabel}</p>
+        </div>
+        <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide bg-white text-ink rounded-full px-2 py-1 transition-transform group-hover:translate-x-0.5">
+          View
+          <ArrowUpRight className="size-3" aria-hidden />
+        </span>
       </div>
     </Link>
   );
