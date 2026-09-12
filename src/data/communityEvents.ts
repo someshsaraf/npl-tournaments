@@ -160,6 +160,8 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Colors, music, and community celebrations.',
     imageSrc: '/events/holi.jpg',
+    imageFocus: '50% 40%',
+    galleryImages: ['/events/holi-2.jpg'],
     sortOrder: 8
   },
   {
@@ -173,6 +175,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Bonfire, festivities, and regional harvest celebrations.',
     imageSrc: '/events/lohri-bhogi-pongal.jpg',
+    galleryImages: ['/events/lohri-bhogi-pongal-2.jpg'],
     sortOrder: 9
   },
   {
@@ -186,6 +189,8 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Flag hoisting and community celebrations.',
     imageSrc: '/events/republic-day.jpg',
+    imageFocus: '50% 62%',
+    galleryImages: ['/events/republic-day-2.jpg'],
     sortOrder: 10
   }
 ];
