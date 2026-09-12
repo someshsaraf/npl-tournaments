@@ -500,6 +500,45 @@ async function handleAdminResetPin(req: VercelRequest, res: VercelResponse) {
   }
 }
 
+async function handleAdminDeleteUser(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return methodNotAllowed(res);
+
+  const admin = await getAdminSession(req);
+  if (!admin) {
+    res.status(401).json({ error: 'Not authorized.' });
+    return;
+  }
+
+  const uid =
+    typeof (req.body as { uid?: unknown } | undefined)?.uid === 'string'
+      ? (req.body as { uid: string }).uid
+      : '';
+  if (!uid) {
+    res.status(400).json({ error: 'Missing uid.' });
+    return;
+  }
+
+  try {
+    const db = getAdminDb();
+    const userRef = db.ref(`users/${uid}`);
+    const user = (await userRef.get()).val() as { username?: string; email?: string } | null;
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    const updates: Record<string, null> = { [`users/${uid}`]: null };
+    if (user.username) updates[`usernames/${user.username}`] = null;
+    if (user.email) updates[`emails/${emailToKey(user.email)}`] = null;
+    await db.ref().update(updates);
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('admin-delete-user failed:', err);
+    res.status(500).json({ error: 'Could not remove this account.' });
+  }
+}
+
 const ROUTES: Record<string, (req: VercelRequest, res: VercelResponse) => Promise<void>> = {
   'check-username': handleCheckUsername,
   register: handleRegister,
@@ -510,7 +549,8 @@ const ROUTES: Record<string, (req: VercelRequest, res: VercelResponse) => Promis
   'reset-pin-with-code': handleResetPinWithCode,
   'admin-login': handleAdminLogin,
   'admin-list-users': handleAdminListUsers,
-  'admin-reset-pin': handleAdminResetPin
+  'admin-reset-pin': handleAdminResetPin,
+  'admin-delete-user': handleAdminDeleteUser
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

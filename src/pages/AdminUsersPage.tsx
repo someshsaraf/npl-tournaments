@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { KeyRound, Loader2, Users as UsersIcon } from 'lucide-react';
+import { KeyRound, Loader2, Trash2, Users as UsersIcon } from 'lucide-react';
 import { AdminNav } from '../components/AdminNav';
-import { adminListUsers, adminResetPin, type ManagedUser } from '../utils/authClient';
+import { adminDeleteUser, adminListUsers, adminResetPin, type ManagedUser } from '../utils/authClient';
 
 /**
  * Admin-only resident directory + PIN reset. Since registration skips email
@@ -15,6 +15,7 @@ export default function AdminUsersPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [resettingUid, setResettingUid] = useState<string | null>(null);
   const [resetResult, setResetResult] = useState<{ username: string; newPin: string } | null>(null);
+  const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const load = () => {
@@ -46,6 +47,26 @@ export default function AdminUsersPage() {
       setActionError(err instanceof Error ? err.message : 'Could not reset PIN.');
     } finally {
       setResettingUid(null);
+    }
+  };
+
+  const handleDelete = async (user: ManagedUser) => {
+    if (deletingUid) return;
+    const ok = window.confirm(
+      `Remove "${user.username}"'s account?\n\nThis deletes their login permanently - they'll need to register again from scratch. This cannot be undone.`
+    );
+    if (!ok) return;
+
+    setDeletingUid(user.uid);
+    setActionError(null);
+    setResetResult(null);
+    try {
+      await adminDeleteUser(user.uid);
+      load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not remove this account.');
+    } finally {
+      setDeletingUid(null);
     }
   };
 
@@ -119,19 +140,34 @@ export default function AdminUsersPage() {
                   </p>
                   <p className="text-xs text-slate-500 truncate">{user.email}</p>
                 </div>
-                <button
-                  type="button"
-                  disabled={resettingUid === user.uid}
-                  onClick={() => void handleReset(user)}
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/15 text-indigo-300 border border-indigo-500/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide hover:bg-indigo-500/25 disabled:opacity-50"
-                >
-                  {resettingUid === user.uid ? (
-                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <KeyRound className="size-3.5" aria-hidden />
-                  )}
-                  Reset PIN
-                </button>
+                <div className="shrink-0 flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={resettingUid === user.uid || deletingUid === user.uid}
+                    onClick={() => void handleReset(user)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/15 text-indigo-300 border border-indigo-500/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide hover:bg-indigo-500/25 disabled:opacity-50"
+                  >
+                    {resettingUid === user.uid ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <KeyRound className="size-3.5" aria-hidden />
+                    )}
+                    Reset PIN
+                  </button>
+                  <button
+                    type="button"
+                    disabled={resettingUid === user.uid || deletingUid === user.uid}
+                    onClick={() => void handleDelete(user)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 text-red-300 border border-red-500/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide hover:bg-red-500/25 disabled:opacity-50"
+                  >
+                    {deletingUid === user.uid ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="size-3.5" aria-hidden />
+                    )}
+                    Remove
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

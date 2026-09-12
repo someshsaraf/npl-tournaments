@@ -92,3 +92,7 @@ export async function adminListUsers(): Promise<ManagedUser[]> {
 export function adminResetPin(uid: string): Promise<{ ok: true; username: string; newPin: string }> {
   return postJson('/api/auth/admin-reset-pin', { uid });
 }
+
+export function adminDeleteUser(uid: string): Promise<{ ok: true }> {
+  return postJson('/api/auth/admin-delete-user', { uid });
+}
