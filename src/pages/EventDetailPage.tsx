@@ -91,6 +91,7 @@ export default function EventDetailPage() {
               src={event.imageSrc}
               alt=""
               className="absolute inset-0 h-full w-full object-cover"
+              style={{ objectPosition: event.imageFocus ?? 'center' }}
               loading="eager"
             />
           ) : (

@@ -225,6 +225,7 @@ function HeroBanner({ event }: { event: CommunityEvent }) {
           src={event.imageSrc}
           alt=""
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+          style={{ objectPosition: event.imageFocus ?? 'center' }}
           loading="eager"
         />
       ) : (
@@ -295,13 +296,22 @@ function EventTile({ event }: { event: CommunityEvent }) {
                 src={src}
                 alt={i === 0 ? event.title : ''}
                 className="h-full object-cover"
-                style={{ width: `${100 / images.length}%` }}
+                style={{
+                  width: `${100 / images.length}%`,
+                  objectPosition: i === 0 ? (event.imageFocus ?? 'center') : 'center'
+                }}
                 loading="lazy"
               />
             ))}
           </div>
         ) : images.length === 1 ? (
-          <img src={images[0]} alt={event.title} className="h-full w-full object-cover" loading="lazy" />
+          <img
+            src={images[0]}
+            alt={event.title}
+            className="h-full w-full object-cover"
+            style={{ objectPosition: event.imageFocus ?? 'center' }}
+            loading="lazy"
+          />
         ) : (
           <div className="h-full w-full bg-[radial-gradient(ellipse_at_center,_rgba(251,146,60,0.18),_transparent_60%)] flex items-center justify-center">
             <img

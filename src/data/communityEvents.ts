@@ -29,6 +29,12 @@ export interface CommunityEvent {
   description?: string;
   /** Path under /public, if a poster/photo is available. */
   imageSrc?: string;
+  /**
+   * CSS object-position for imageSrc (e.g. "50% 20%"), for when the hero's
+   * wide/short crop would otherwise cut off the image's subject. Defaults
+   * to "center" when omitted.
+   */
+  imageFocus?: string;
   /** Extra photos (paths under /public) shown as a slow-panning strip on tile hover. */
   galleryImages?: string[];
   /** Fallback manual ordering for undated (TBD) events. */
@@ -88,6 +94,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
     location: 'Society Clubhouse',
     description: 'Ganpati installation, aarti, and cultural programs.',
     imageSrc: '/events/ganesh-utsav.jpg',
+    imageFocus: '60% 22%',
     galleryImages: ['/events/ganesh-utsav-2.jpg', '/events/ganesh-utsav-3.jpg'],
     sortOrder: 3
   },
@@ -106,7 +113,7 @@ export const DEFAULT_COMMUNITY_EVENTS: CommunityEvent[] = [
   },
   {
     id: 'rajotsav',
-    title: 'Rajotsav',
+    title: 'Rajyotsava',
     category: 'cultural',
     month: 'November',
     dateLabel: '1 November',
