@@ -96,30 +96,30 @@ export function RecordingsView() {
   return (
     <div className="space-y-4">
       {loading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
+        <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
           <Loader2 className="size-5 animate-spin" aria-hidden />
           <span className="text-sm font-medium">Loading recordings…</span>
         </div>
       ) : null}
 
       {!loading && error ? (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-5 space-y-3">
-          <p className="text-sm text-amber-100 font-medium">{error}</p>
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-5 space-y-3">
+          <p className="text-sm text-amber-800 font-medium">{error}</p>
         </div>
       ) : null}
 
       {!loading && !error && items.length === 0 ? (
-        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+        <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-line bg-paper-soft">
           No recordings found for @NatureWalkCSC since 31 Jul 2026.
         </p>
       ) : null}
 
       {!loading && items.length > 0 ? (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 sm:p-4 space-y-2">
+          <div className="rounded-2xl border border-line bg-paper-soft p-3 sm:p-4 space-y-2">
             <label
               htmlFor={selectId}
-              className="block text-xs font-bold uppercase tracking-[0.14em] text-slate-400"
+              className="block text-xs font-bold uppercase tracking-[0.14em] text-slate-500"
             >
               Choose recording
             </label>
@@ -127,7 +127,7 @@ export function RecordingsView() {
               id={selectId}
               value={selectedId ?? ''}
               onChange={(e) => selectRecording(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 text-white text-sm sm:text-base font-semibold px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="w-full rounded-xl border border-line bg-white text-ink text-sm sm:text-base font-semibold px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
             >
               {items.map((row) => (
                 <option key={row.videoId} value={row.videoId}>
@@ -161,7 +161,7 @@ export function RecordingsView() {
                     }
                   })();
                 }}
-                className="text-xs font-bold text-emerald-300 hover:text-emerald-200 disabled:opacity-50 inline-flex items-center gap-1.5"
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 disabled:opacity-50 inline-flex items-center gap-1.5"
               >
                 {loadingMore ? (
                   <>

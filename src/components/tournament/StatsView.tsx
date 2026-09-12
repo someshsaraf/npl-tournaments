@@ -38,7 +38,7 @@ export function StatsView({ sport }: { sport: Sport }) {
 
   if (sportRows.length === 0) {
     return (
-      <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+      <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-line bg-paper-soft">
         Highlights appear here once matches are completed and saved.
       </p>
     );
@@ -47,7 +47,7 @@ export function StatsView({ sport }: { sport: Sport }) {
   return (
     <div className="space-y-10">
       <header className="space-y-4">
-        <p className="text-sm text-slate-400 max-w-2xl">
+        <p className="text-sm text-slate-500 max-w-2xl">
           Live from completed results · {stats.totalMatches} match
           {stats.totalMatches === 1 ? '' : 'es'}
         </p>
@@ -63,11 +63,11 @@ export function StatsView({ sport }: { sport: Sport }) {
           />
         </div>
 
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 sm:px-5 sm:py-5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-300 mb-2">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 sm:px-5 sm:py-5">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700 mb-2">
             Headline
           </p>
-          <p className="text-base sm:text-lg text-slate-100 leading-relaxed">{stats.headline}</p>
+          <p className="text-base sm:text-lg text-ink leading-relaxed">{stats.headline}</p>
         </div>
       </header>
 
@@ -77,16 +77,16 @@ export function StatsView({ sport }: { sport: Sport }) {
             title="Match of the tournament"
             subtitle="Closest finish or standout final from the live results"
           />
-          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-5 sm:px-6 sm:py-6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-300/90">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-5 sm:px-6 sm:py-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-700">
               {featured.category}
               {featured.stage ? ` · ${featured.stage}` : ''}
             </p>
-            <p className="portal-display mt-2 text-3xl sm:text-4xl text-white tracking-wide">
+            <p className="portal-display mt-2 text-3xl sm:text-4xl text-ink tracking-wide">
               {featured.winner}
             </p>
-            <p className="mt-1 text-slate-300 text-sm sm:text-base">{featured.matchup}</p>
-            <p className="mt-3 font-mono text-lg sm:text-xl text-amber-200">{featured.result}</p>
+            <p className="mt-1 text-ink-soft text-sm sm:text-base">{featured.matchup}</p>
+            <p className="mt-3 font-mono text-lg sm:text-xl text-amber-700">{featured.result}</p>
             {featured.when ? <p className="mt-2 text-xs text-slate-500">{featured.when}</p> : null}
           </div>
         </section>
@@ -98,21 +98,21 @@ export function StatsView({ sport }: { sport: Sport }) {
             title="Category champions"
             subtitle="Every recorded Final — winner first, score second"
           />
-          <div className="overflow-x-auto rounded-2xl border border-slate-800">
+          <div className="overflow-x-auto rounded-2xl border border-line">
             <table className="w-full min-w-[32rem] text-sm text-left">
-              <thead className="bg-slate-900 text-[11px] uppercase tracking-wider text-slate-400">
+              <thead className="bg-paper-soft text-[11px] uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="px-3 sm:px-4 py-3 font-semibold">Category</th>
-                  <th className="px-3 sm:px-4 py-3 font-semibold text-emerald-400">Champion</th>
+                  <th className="px-3 sm:px-4 py-3 font-semibold text-emerald-700">Champion</th>
                   <th className="px-3 sm:px-4 py-3 font-semibold">Scoreline</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/90 bg-slate-950/40">
+              <tbody className="divide-y divide-line bg-white">
                 {stats.champions.map((c) => (
-                  <tr key={`${c.category}-${c.winner}-${c.when}`} className="hover:bg-slate-900/60">
-                    <td className="px-3 sm:px-4 py-3 text-slate-300 whitespace-nowrap">{c.category}</td>
-                    <td className="px-3 sm:px-4 py-3 font-bold text-emerald-300">{c.winner}</td>
-                    <td className="px-3 sm:px-4 py-3 font-mono text-amber-200/90 whitespace-nowrap">
+                  <tr key={`${c.category}-${c.winner}-${c.when}`} className="hover:bg-paper-soft">
+                    <td className="px-3 sm:px-4 py-3 text-ink-soft whitespace-nowrap">{c.category}</td>
+                    <td className="px-3 sm:px-4 py-3 font-bold text-emerald-700">{c.winner}</td>
+                    <td className="px-3 sm:px-4 py-3 font-mono text-amber-700 whitespace-nowrap">
                       {c.result}
                     </td>
                   </tr>
@@ -130,10 +130,10 @@ export function StatsView({ sport }: { sport: Sport }) {
             {stats.undefeated.map((r) => (
               <span
                 key={r.name}
-                className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-1.5 text-sm"
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-sm"
               >
-                <span className="font-semibold text-slate-100">{r.name}</span>
-                <span className="font-mono text-emerald-300">{r.wins}–0</span>
+                <span className="font-semibold text-ink">{r.name}</span>
+                <span className="font-mono text-emerald-700">{r.wins}–0</span>
               </span>
             ))}
           </div>
@@ -147,7 +147,7 @@ export function StatsView({ sport }: { sport: Sport }) {
             rows={stats.nailbiters}
             valueHeader="Margin"
             valueOf={(m) => (m.margin != null ? String(m.margin) : '—')}
-            valueClass="text-amber-300"
+            valueClass="text-amber-700"
           />
         </section>
       ) : null}
@@ -172,7 +172,7 @@ export function StatsView({ sport }: { sport: Sport }) {
               rows={stats.blowouts}
               valueHeader="Δ"
               valueOf={(m) => (m.margin != null ? String(m.margin) : '—')}
-              valueClass="text-rose-300"
+              valueClass="text-rose-700"
               compact
             />
           </section>
@@ -207,13 +207,13 @@ export function StatsView({ sport }: { sport: Sport }) {
             {stats.topWinners.slice(0, 8).map((w, i) => (
               <div
                 key={w.name}
-                className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-3.5 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3.5 py-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="portal-display text-xl text-slate-500 w-6 shrink-0">{i + 1}</span>
-                  <span className="font-semibold text-slate-100 truncate">{w.name}</span>
+                  <span className="portal-display text-xl text-slate-400 w-6 shrink-0">{i + 1}</span>
+                  <span className="font-semibold text-ink truncate">{w.name}</span>
                 </div>
-                <span className="font-mono text-amber-300 shrink-0">{w.count}</span>
+                <span className="font-mono text-amber-700 shrink-0">{w.count}</span>
               </div>
             ))}
           </div>
@@ -227,7 +227,7 @@ export function StatsView({ sport }: { sport: Sport }) {
             {stats.curiosities.map((line) => (
               <div
                 key={line}
-                className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-4 text-sm text-slate-200 leading-relaxed"
+                className="rounded-2xl border border-line bg-paper-soft px-4 py-4 text-sm text-ink-soft leading-relaxed"
               >
                 {line}
               </div>
@@ -246,8 +246,8 @@ export function StatsView({ sport }: { sport: Sport }) {
 function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="space-y-1">
-      <h2 className="portal-display text-2xl sm:text-3xl text-white tracking-wide">{title}</h2>
-      {subtitle ? <p className="text-sm text-slate-400">{subtitle}</p> : null}
+      <h2 className="portal-display text-2xl sm:text-3xl text-ink tracking-wide">{title}</h2>
+      {subtitle ? <p className="text-sm text-slate-500">{subtitle}</p> : null}
     </div>
   );
 }
@@ -262,11 +262,11 @@ function HeroStat({
   tone?: 'emerald' | 'amber' | 'sky';
 }) {
   const valueClass =
-    tone === 'amber' ? 'text-amber-300' : tone === 'sky' ? 'text-sky-300' : 'text-emerald-300';
+    tone === 'amber' ? 'text-amber-700' : tone === 'sky' ? 'text-sky-700' : 'text-emerald-700';
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 sm:px-4 py-4">
+    <div className="rounded-2xl border border-line bg-paper-soft px-3 sm:px-4 py-4">
       <p className={`portal-display text-3xl sm:text-4xl tracking-wide ${valueClass}`}>{value}</p>
-      <p className="mt-1.5 text-[11px] sm:text-xs text-slate-400 leading-snug">{label}</p>
+      <p className="mt-1.5 text-[11px] sm:text-xs text-slate-500 leading-snug">{label}</p>
     </div>
   );
 }
@@ -281,8 +281,8 @@ function ChartPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 sm:p-5">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-300">{title}</p>
+    <div className="rounded-2xl border border-line bg-paper-soft p-4 sm:p-5">
+      <p className="text-xs font-bold uppercase tracking-wide text-ink-soft">{title}</p>
       {caption ? <p className="text-[11px] text-slate-500 mt-0.5 mb-4">{caption}</p> : <div className="mb-4" />}
       {children}
     </div>
@@ -309,12 +309,12 @@ function HorizontalBars({
         return (
           <li key={item.name} className="space-y-1">
             <div className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="text-slate-200 truncate font-medium">{item.name}</span>
-              <span className="font-mono text-slate-400 shrink-0">
+              <span className="text-ink-soft truncate font-medium">{item.name}</span>
+              <span className="font-mono text-slate-500 shrink-0">
                 {(format ? format(item.count) : String(item.count)) + unit}
               </span>
             </div>
-            <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
               <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
             </div>
           </li>
@@ -338,9 +338,9 @@ function HighlightTable({
   compact?: boolean;
 }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-800">
+    <div className="overflow-x-auto rounded-2xl border border-line">
       <table className="w-full min-w-[36rem] text-sm text-left">
-        <thead className="bg-slate-900 text-[11px] uppercase tracking-wider text-slate-400">
+        <thead className="bg-paper-soft text-[11px] uppercase tracking-wider text-slate-500">
           <tr>
             <th className="px-3 sm:px-4 py-3 font-semibold">Event</th>
             <th className="px-3 sm:px-4 py-3 font-semibold">Match</th>
@@ -349,24 +349,24 @@ function HighlightTable({
             <th className="px-3 sm:px-4 py-3 font-semibold text-right">{valueHeader}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800/90 bg-slate-950/40">
+        <tbody className="divide-y divide-line bg-white">
           {rows.map((m) => (
-            <tr key={`${m.category}-${m.matchup}-${m.result}-${m.when}`} className="hover:bg-slate-900/60">
-              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} text-slate-400 whitespace-nowrap`}>
+            <tr key={`${m.category}-${m.matchup}-${m.result}-${m.when}`} className="hover:bg-paper-soft">
+              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} text-slate-500 whitespace-nowrap`}>
                 {m.category}
                 {m.stage ? (
-                  <span className="block text-[10px] uppercase tracking-wide text-slate-600">
+                  <span className="block text-[10px] uppercase tracking-wide text-slate-400">
                     {m.stage}
                   </span>
                 ) : null}
               </td>
-              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} text-slate-100 font-medium`}>
+              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} text-ink font-medium`}>
                 {m.matchup}
               </td>
-              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} font-mono text-slate-300 whitespace-nowrap`}>
+              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} font-mono text-ink-soft whitespace-nowrap`}>
                 {m.result}
               </td>
-              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} text-emerald-300 font-semibold`}>
+              <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} text-emerald-700 font-semibold`}>
                 {m.winner}
               </td>
               <td className={`px-3 sm:px-4 ${compact ? 'py-2.5' : 'py-3'} font-mono text-right ${valueClass}`}>
@@ -388,10 +388,10 @@ function WinRateStrip({ records }: { records: SideRecord[] }) {
         {records.map((r) => (
           <span
             key={r.name}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3.5 py-1.5 text-sm"
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-paper-soft px-3.5 py-1.5 text-sm"
           >
-            <span className="font-semibold text-slate-100">{r.name}</span>
-            <span className="font-mono text-slate-400">
+            <span className="font-semibold text-ink">{r.name}</span>
+            <span className="font-mono text-slate-500">
               {r.wins}/{r.apps} · {r.pct}%
             </span>
           </span>

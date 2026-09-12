@@ -73,7 +73,7 @@ export function ScheduleView({ sport }: { sport: Sport }) {
   if (sport === 'tennis') {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-slate-400 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+        <p className="text-sm text-slate-500 rounded-xl border border-line bg-paper-soft px-4 py-3">
           Tennis matches are started ad hoc by admins rather than a pre-set fixture list, so
           there's no schedule to show ahead of time. Check the Live tab when a match is on
           court, or browse matches played below.
@@ -81,35 +81,35 @@ export function ScheduleView({ sport }: { sport: Sport }) {
         {tennisCompleted.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-10">No tennis matches played yet.</p>
         ) : (
-          <ul className="rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 bg-slate-900/40">
+          <ul className="rounded-xl border border-line overflow-hidden divide-y divide-line bg-white">
             {tennisCompleted.map((row) => (
               <li
                 key={row.fixtureId || row.id}
                 className="grid grid-cols-1 sm:grid-cols-[7.5rem_1fr_auto] gap-1 sm:gap-3 px-3 sm:px-4 py-3 text-sm"
               >
-                <span className="font-mono text-xs text-amber-400/90 sm:pt-0.5">
+                <span className="font-mono text-xs text-amber-700 sm:pt-0.5">
                   {[row.completedDate, row.completedTime].filter(Boolean).join(' ')}
                 </span>
                 <div className="min-w-0 space-y-0.5">
-                  <p className="text-[11px] uppercase tracking-wide text-indigo-300/90 truncate">
+                  <p className="text-[11px] uppercase tracking-wide text-indigo-700 truncate">
                     {row.category}
                     {row.stage ? (
                       <>
-                        <span className="text-slate-600"> · </span>
+                        <span className="text-slate-400"> · </span>
                         <span className="text-slate-500 normal-case tracking-normal">{row.stage}</span>
                       </>
                     ) : null}
                   </p>
-                  <p className="font-semibold text-slate-100 truncate">
+                  <p className="font-semibold text-ink truncate">
                     {row.details || `${row.player1 || row.teamA} vs ${row.player2 || row.teamB}`}
                   </p>
-                  <p className="text-xs text-emerald-400/90">
+                  <p className="text-xs text-emerald-700">
                     Winner: {row.winnerName || '—'}
                     {row.result ? ` · ${row.result}` : ''}
                   </p>
                 </div>
                 <div className="sm:justify-self-end sm:self-center">
-                  <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
+                  <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
                     Completed
                   </span>
                 </div>
@@ -123,7 +123,7 @@ export function ScheduleView({ sport }: { sport: Sport }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-500">
         {filtered.length} matches shown
         {completedCount > 0 ? ` · ${completedCount} completed overall` : ''}
       </p>
@@ -151,11 +151,11 @@ export function ScheduleView({ sport }: { sport: Sport }) {
         )}
         {Object.entries(byDate).map(([date, dayFixtures]) => (
           <section key={date} className="space-y-2">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h3 className="text-sm font-bold text-amber-400">{date}</h3>
+            <div className="flex items-center justify-between border-b border-line pb-2">
+              <h3 className="text-sm font-bold text-amber-700">{date}</h3>
               <span className="text-[11px] text-slate-500">{dayFixtures.length} matches</span>
             </div>
-            <ul className="rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 bg-slate-900/40">
+            <ul className="rounded-xl border border-line overflow-hidden divide-y divide-line bg-white">
               {dayFixtures.map((f) => {
                 const done = f.status === 'completed';
                 return (
@@ -163,16 +163,16 @@ export function ScheduleView({ sport }: { sport: Sport }) {
                     key={f.id}
                     className="grid grid-cols-1 sm:grid-cols-[4.5rem_1fr_auto] gap-1 sm:gap-3 px-3 sm:px-4 py-3 text-sm"
                   >
-                    <span className="font-mono text-xs text-slate-400 sm:pt-0.5">{f.time}</span>
+                    <span className="font-mono text-xs text-slate-500 sm:pt-0.5">{f.time}</span>
                     <div className="min-w-0 space-y-0.5">
-                      <p className="text-[11px] uppercase tracking-wide text-indigo-300/90 truncate">
+                      <p className="text-[11px] uppercase tracking-wide text-indigo-700 truncate">
                         {f.category}
-                        <span className="text-slate-600"> · </span>
+                        <span className="text-slate-400"> · </span>
                         <span className="text-slate-500 normal-case tracking-normal">{f.stage}</span>
                       </p>
-                      <p className="font-semibold text-slate-100 truncate">{f.details}</p>
+                      <p className="font-semibold text-ink truncate">{f.details}</p>
                       {done && f.winnerName ? (
-                        <p className="text-xs text-emerald-400/90">
+                        <p className="text-xs text-emerald-700">
                           Winner: {f.winnerName}
                           {f.result ? ` · ${f.result}` : ''}
                         </p>
@@ -182,8 +182,8 @@ export function ScheduleView({ sport }: { sport: Sport }) {
                       <span
                         className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border ${
                           done
-                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-paper-soft text-slate-500 border-line'
                         }`}
                       >
                         {done ? 'Completed' : 'Scheduled'}
@@ -214,7 +214,7 @@ function FilterRow({ label, options, value, onChange, activeClass }: FilterRowPr
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
         {options.map((opt) => {
           if (typeof opt !== 'string' || !opt.trim()) return null;
@@ -227,7 +227,7 @@ function FilterRow({ label, options, value, onChange, activeClass }: FilterRowPr
               className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
                 active
                   ? `${activeClass} font-bold shadow-md`
-                  : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80'
+                  : 'bg-paper-soft text-slate-600 hover:text-ink border border-line'
               }`}
             >
               {opt}

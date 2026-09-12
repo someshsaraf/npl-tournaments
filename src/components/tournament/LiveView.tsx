@@ -39,7 +39,7 @@ export function LiveView({ sport }: { sport: Sport }) {
 
   if (!isThisSportLive) {
     return (
-      <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-slate-800 bg-slate-900/40">
+      <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-line bg-paper-soft">
         Not live right now. Check back when a match is on court.
       </p>
     );
@@ -51,17 +51,17 @@ export function LiveView({ sport }: { sport: Sport }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-slate-200">
+        <p className="text-sm font-semibold text-ink">
           {name1} vs {name2}
         </p>
         <Link
           to="/live"
-          className="text-[11px] font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300 shrink-0"
+          className="text-[11px] font-bold uppercase tracking-wide text-emerald-700 hover:text-emerald-800 shrink-0"
         >
           Cinema view →
         </Link>
       </div>
-      <div className="relative aspect-video bg-slate-950 rounded-2xl overflow-hidden border border-slate-800">
+      <div className="relative aspect-video bg-slate-950 rounded-2xl overflow-hidden border border-line">
         <iframe
           title="Live stream"
           src={embedUrl}

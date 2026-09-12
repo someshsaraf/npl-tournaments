@@ -40,7 +40,7 @@ export function TeamsView() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-500">
         Team Championship rosters ({teams.length} teams).
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -48,28 +48,28 @@ export function TeamsView() {
           const players = Array.isArray(team.players) ? team.players : [];
           const accent =
             index % 5 === 0
-              ? 'from-emerald-600/30'
+              ? 'from-emerald-50'
               : index % 5 === 1
-                ? 'from-amber-600/25'
+                ? 'from-amber-50'
                 : index % 5 === 2
-                  ? 'from-sky-600/25'
+                  ? 'from-sky-50'
                   : index % 5 === 3
-                    ? 'from-rose-600/25'
-                    : 'from-teal-600/25';
+                    ? 'from-rose-50'
+                    : 'from-teal-50';
 
           return (
             <article
               key={team.id || team.name}
-              className={`rounded-2xl border border-slate-800 bg-gradient-to-br ${accent} to-slate-900/80 overflow-hidden`}
+              className={`rounded-2xl border border-line bg-gradient-to-br ${accent} to-white overflow-hidden`}
             >
-              <div className="px-4 pt-4 pb-3 border-b border-slate-800/80">
-                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">
+              <div className="px-4 pt-4 pb-3 border-b border-line">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
                   Team Championship
                 </p>
-                <h3 className="portal-display text-2xl text-white tracking-wide mt-0.5">
+                <h3 className="portal-display text-2xl text-ink tracking-wide mt-0.5">
                   {team.name}
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">{players.length} players</p>
+                <p className="text-xs text-slate-500 mt-1">{players.length} players</p>
               </div>
               <ol className="px-4 py-3 space-y-1.5">
                 {players.length === 0 ? (
@@ -78,9 +78,9 @@ export function TeamsView() {
                   players.map((player, i) => (
                     <li
                       key={`${team.id}-${player}-${i}`}
-                      className="flex items-baseline gap-2 text-sm text-slate-200"
+                      className="flex items-baseline gap-2 text-sm text-ink-soft"
                     >
-                      <span className="font-mono text-[10px] text-slate-500 w-4 shrink-0">
+                      <span className="font-mono text-[10px] text-slate-400 w-4 shrink-0">
                         {i + 1}
                       </span>
                       <span>{typeof player === 'string' ? player : '—'}</span>

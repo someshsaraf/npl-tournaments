@@ -214,32 +214,37 @@ function HeroPickTile({ event }: { event: CommunityEvent }) {
   return (
     <Link
       to={`/events/${event.id}`}
-      className="group relative overflow-hidden rounded-2xl border border-line aspect-[4/3]"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm hover:shadow-md transition-shadow"
     >
-      {event.imageSrc ? (
-        <img
-          src={event.imageSrc}
-          alt={event.title}
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-          style={{ objectPosition: event.imageFocus ?? 'center' }}
-          loading="lazy"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-paper-soft" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-      <span className="absolute left-2.5 top-2.5 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full bg-white/95 text-ink">
-        {isCultural ? 'Culture' : 'Sports'}
-      </span>
-      <div className="absolute inset-x-0 bottom-0 p-2.5 flex items-end justify-between gap-2 text-white">
-        <div className="min-w-0">
-          <p className="text-sm font-bold truncate">{event.title}</p>
-          <p className="text-[10px] font-mono text-white/80 truncate">{event.dateLabel}</p>
-        </div>
-        <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide bg-white text-ink rounded-full px-2 py-1 transition-transform group-hover:translate-x-0.5">
-          View
-          <ArrowUpRight className="size-3" aria-hidden />
+      <div className="relative aspect-[4/3] overflow-hidden bg-paper-soft">
+        {event.imageSrc ? (
+          <img
+            src={event.imageSrc}
+            alt={event.title}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            style={{ objectPosition: event.imageFocus ?? 'center' }}
+            loading="lazy"
+          />
+        ) : null}
+      </div>
+      <div className="p-2.5 space-y-1">
+        <span
+          className={`inline-block text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
+            isCultural ? 'bg-rose-50 text-rose-700' : 'bg-indigo-50 text-indigo-700'
+          }`}
+        >
+          {isCultural ? 'Culture' : 'Sports'}
         </span>
+        <div className="flex items-end justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm font-bold text-ink truncate">{event.title}</p>
+            <p className="text-[10px] font-mono text-slate-500 truncate">{event.dateLabel}</p>
+          </div>
+          <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide bg-ink text-white rounded-full px-2 py-1 group-hover:bg-slate-800 transition-colors">
+            View
+            <ArrowUpRight className="size-3" aria-hidden />
+          </span>
+        </div>
       </div>
     </Link>
   );
