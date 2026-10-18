@@ -7,12 +7,11 @@ import { adminLogin } from '../utils/authClient';
 const INPUT_CLASS =
   'w-full bg-slate-900/90 border border-slate-700/80 text-slate-100 text-sm px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-indigo-500 disabled:opacity-50';
 
-/** Staff login — separate from the public user login, gates /admin/*. */
+/** Staff unlock with the fixed admin code — gates /admin/* and /scorer. */
 export default function AdminLoginPage() {
   const navigate = useNavigate();
   const { refresh } = useAuth();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,9 +19,9 @@ export default function AdminLoginPage() {
     setError(null);
     setBusy(true);
     try {
-      await adminLogin(username.trim(), password);
+      await adminLogin(code);
       await refresh();
-      navigate('/admin/events');
+      navigate('/admin/sports');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log in.');
     } finally {
@@ -37,7 +36,7 @@ export default function AdminLoginPage() {
           <p className="text-[10px] uppercase tracking-[0.18em] text-indigo-400 font-semibold">
             Staff only
           </p>
-          <h1 className="text-xl font-bold text-white">Admin login</h1>
+          <h1 className="text-xl font-bold text-white">Admin access</h1>
         </div>
         <form
           className="space-y-3.5"
@@ -48,37 +47,25 @@ export default function AdminLoginPage() {
         >
           <label className="block space-y-1">
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Username
-            </span>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              disabled={busy}
-              className={INPUT_CLASS}
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Password
+              Admin code
             </span>
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
               autoComplete="current-password"
+              autoFocus
               disabled={busy}
               className={INPUT_CLASS}
             />
           </label>
           <button
             type="submit"
-            disabled={busy || !username.trim() || !password}
+            disabled={busy || !code.trim()}
             className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-500 text-white font-bold text-sm px-4 py-2.5 hover:bg-indigo-400 disabled:opacity-50"
           >
             {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-            Log in
+            Unlock staff tools
           </button>
         </form>
         {error ? (

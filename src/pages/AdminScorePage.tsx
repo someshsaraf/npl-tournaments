@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ref, set, onValue } from 'firebase/database';
-import { db } from '../firebase';
+import { ref, set, onValue } from '../lib/realtime';
+import { db, liveMatchPath } from '../db';
+import { useRouteSport } from '../hooks/useRouteSport';
+import { CourtWaitingScreen } from '../components/CourtWaitingScreen';
+import { adminPathForSport } from '../data/sports';
 import {
   FIXTURES,
   INITIAL_MATCH,
@@ -55,8 +58,11 @@ import { captureAndPersistScoreSnapshot } from '../utils/scoreSnapshot';
  * On save: persist result, snapshot to Storage photos/, offer WhatsApp share, return to /admin.
  */
 export const AdminScorePage: React.FC = () => {
+  const sport = useRouteSport();
   const navigate = useNavigate();
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
+  /** null until the first live snapshot arrives; then whether a match exists. */
+  const [hasLiveData, setHasLiveData] = useState<boolean | null>(null);
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [pendingSaveMatch, setPendingSaveMatch] = useState<MatchState | null>(null);
@@ -83,13 +89,14 @@ export const AdminScorePage: React.FC = () => {
   });
 
   useEffect(() => {
-    const matchRef = ref(db, 'currentMatch');
+    const matchRef = ref(db, liveMatchPath(sport));
     const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
+      setHasLiveData(!!data);
       if (data) setMatch(normalizeMatchState(data));
     });
     return () => unsubscribe();
-  }, []);
+  }, [sport]);
 
   /**
    * Auto-persist when the series ends — do not rely on tapping Save & Share.
@@ -195,8 +202,8 @@ export const AdminScorePage: React.FC = () => {
 
   const updateMatchState = (next: MatchState) => {
     setMatch(next);
-    set(ref(db, 'currentMatch'), next).catch((err) => {
-      console.error('Failed to sync match state to Firebase:', err);
+    set(ref(db, liveMatchPath(sport)), next).catch((err) => {
+      console.error('Failed to sync match state to the server:', err);
     });
   };
 
@@ -263,7 +270,7 @@ export const AdminScorePage: React.FC = () => {
 
   /**
    * Edit on-court display names. Caps length; syncs player + team labels.
-   * Concurrency: single Firebase write via updateMatchState.
+   * Concurrency: single the data store write via updateMatchState.
    */
   const handlePlayerNameChange = (side: 1 | 2, raw: unknown) => {
     if (side !== 1 && side !== 2) return;
@@ -278,7 +285,7 @@ export const AdminScorePage: React.FC = () => {
   };
 
   /**
-   * Ensure result is in Firebase, optionally share, then return to /admin.
+   * Ensure result is in the data store, optionally share, then return to /admin.
    * Auto-save usually already persisted; this retries + opens the share sheet.
    */
   const saveCompletedMatch = async (matchToSave: MatchState, share = true) => {
@@ -333,7 +340,7 @@ export const AdminScorePage: React.FC = () => {
         }
       }
 
-      navigate('/admin/results');
+      navigate(sport === 'badminton' ? '/admin/results' : adminPathForSport(sport));
       return true;
     } catch (err) {
       console.error('Failed to save completed match:', err);
@@ -421,7 +428,7 @@ export const AdminScorePage: React.FC = () => {
         View Results
       </Link>
       <Link
-        to="/admin/tournament"
+        to={adminPathForSport(sport)}
         className="rounded-lg border border-amber-500/40 bg-amber-400/15 text-amber-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-amber-400/25"
       >
         Admin Schedule
@@ -451,7 +458,7 @@ export const AdminScorePage: React.FC = () => {
         </button>
       )}
       <Link
-        to="/admin/tournament"
+        to={adminPathForSport(sport)}
         className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-300 border border-amber-500/40 active:scale-95"
       >
         Admin
@@ -500,6 +507,11 @@ export const AdminScorePage: React.FC = () => {
       </button>
     </>
   );
+
+  if (sport !== 'badminton' && hasLiveData !== true) {
+    // Blank while loading, so the "next match" screen doesn't flash before the score.
+    return hasLiveData === false ? <CourtWaitingScreen sport={sport} staff /> : <div className="fixed inset-0 bg-slate-950" />;
+  }
 
   return (
     <div

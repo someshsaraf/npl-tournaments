@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Play, Upload, X } from 'lucide-react';
-import { db } from '../firebase';
+import { Loader2, Play, Trash2, Upload, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   fetchGalleryManifest,
   GALLERY_DEFAULT_YEAR,
@@ -12,29 +12,37 @@ import {
 } from '../utils/matchGallery';
 import {
   GALLERY_MAX_TOTAL_BYTES,
+  deleteGalleryUpload,
   formatGalleryStorageLabel,
   subscribeGalleryStorageUsage,
   subscribeGalleryUploads,
   uploadGalleryMedia,
   uploadsToGalleryItems
 } from '../utils/galleryUploads';
-import { type CommunityEvent } from '../data/communityEvents';
-import { subscribeCommunityEvents } from '../utils/communityEvents';
+import { SPORT_CARDS, sportFromGalleryEventId, sportFromParam } from '../data/sports';
+import type { Sport } from '../data/tournamentData';
 
-const ALL_EVENTS = 'all';
+const ALL_SPORTS = 'all';
+type SportFilter = Sport | typeof ALL_SPORTS;
+
+/** Sports that have in-app tournaments (Table Tennis isn't built yet). */
+const PHOTO_SPORTS = SPORT_CARDS.filter((c): c is typeof c & { sport: Sport } => c.sport !== null);
 
 const ACCEPT =
   'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm';
 
 /**
  * Public match photos / clips gallery.
- * Static files from public/Gallery + community uploads (R2 + RTDB).
+ * Static files from public/Gallery + community uploads (R2 + data store).
  *
- * Concurrency: component-local state + RTDB listeners; cleaned up on unmount.
+ * Concurrency: component-local state + data store listeners; cleaned up on unmount.
  * Security: allowlisted MIME + season tags (npl-2023…2026); shared 5 GB quota;
  * only validated /Gallery/ paths and HTTPS download URLs are shown.
  */
 export default function MatchPhotosPage() {
+  const { access, admin, deviceId } = useAuth();
+  /** Anyone who entered the community code (or staff) can add photos. */
+  const canUpload = access;
   const [searchParams] = useSearchParams();
   const [staticItems, setStaticItems] = useState<GalleryMediaItem[]>([]);
   const [uploadItems, setUploadItems] = useState<GalleryMediaItem[]>([]);
@@ -43,25 +51,25 @@ export default function MatchPhotosPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [usedBytes, setUsedBytes] = useState(0);
   const [selectedYear, setSelectedYear] = useState(GALLERY_DEFAULT_YEAR);
-  const [events, setEvents] = useState<CommunityEvent[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string>(
-    searchParams.get('event') || ALL_EVENTS
+  // ?sport=lawn-tennis (or a legacy ?event=tennis-tournament link) preselects a sport.
+  const [selectedSport, setSelectedSport] = useState<SportFilter>(
+    () =>
+      sportFromParam(searchParams.get('sport')) ??
+      sportFromGalleryEventId(searchParams.get('event')) ??
+      ALL_SPORTS
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    const unsub = subscribeCommunityEvents(db, setEvents);
-    return () => unsub();
-  }, []);
 
   const allItems = [...uploadItems, ...staticItems];
   const items = allItems.filter(
     (item) =>
       item.year === selectedYear &&
-      (selectedEventId === ALL_EVENTS || item.eventId === selectedEventId)
+      (selectedSport === ALL_SPORTS || sportFromGalleryEventId(item.eventId) === selectedSport)
   );
   const storageFull = usedBytes >= GALLERY_MAX_TOTAL_BYTES;
 
@@ -114,7 +122,7 @@ export default function MatchPhotosPage() {
   // Close lightbox when switching year/event so indices stay in range.
   useEffect(() => {
     setActiveIndex(null);
-  }, [selectedYear, selectedEventId]);
+  }, [selectedYear, selectedSport]);
 
   const closeLightbox = useCallback(() => setActiveIndex(null), []);
 
@@ -170,7 +178,8 @@ export default function MatchPhotosPage() {
     setUploading(true);
     setUploadError(null);
     setUploadMessage(null);
-    const eventIdToSave = selectedEventId === ALL_EVENTS ? undefined : selectedEventId;
+    // Uploads are tagged with the sport id in the existing eventId field.
+    const eventIdToSave = selectedSport === ALL_SPORTS ? undefined : selectedSport;
     const tag = galleryTagFromYear(selectedYear);
 
     let successCount = 0;
@@ -221,6 +230,27 @@ export default function MatchPhotosPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleDeleteItem = async (item: GalleryMediaItem) => {
+    if (!item.id || deletingId) return;
+    const ok = window.confirm('Delete this photo? This cannot be undone.');
+    if (!ok) return;
+
+    setDeletingId(item.id);
+    setDeleteError(null);
+    try {
+      await deleteGalleryUpload({
+        id: item.id,
+        storagePath: item.storagePath,
+        byteSize: item.byteSize
+      });
+      // subscribeGalleryUploads' live listener will drop it from uploadItems automatically.
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete this photo.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const active = activeIndex !== null ? items[activeIndex] ?? null : null;
 
   return (
@@ -259,26 +289,30 @@ export default function MatchPhotosPage() {
         </div>
 
         <p className="text-[11px] text-slate-500">
-          Pick the year above and an event below — new uploads are tagged to both.
+          {canUpload
+            ? 'Pick the year above and a sport below — new uploads are tagged to both.'
+            : 'Pick a year and sport to browse.'}
         </p>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <label className="flex items-center gap-2 text-[11px] text-ink-soft">
-            <span className="uppercase tracking-wide font-bold text-slate-500">Event</span>
+            <span className="uppercase tracking-wide font-bold text-slate-500">Sport</span>
             <select
-              value={selectedEventId}
-              onChange={(e) => setSelectedEventId(e.target.value)}
+              value={selectedSport}
+              onChange={(e) => setSelectedSport(sportFromParam(e.target.value) ?? ALL_SPORTS)}
               className="rounded-lg border border-line bg-white px-2.5 py-2 text-xs font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
-              aria-label="Filter photos by event, and where new uploads are tagged"
+              aria-label="Filter photos by sport, and where new uploads are tagged"
             >
-              <option value={ALL_EVENTS}>All events</option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.title}
+              <option value={ALL_SPORTS}>All sports</option>
+              {PHOTO_SPORTS.map((card) => (
+                <option key={card.sport} value={card.sport}>
+                  {card.label}
                 </option>
               ))}
             </select>
           </label>
+          {canUpload ? (
+            <>
           <input
             ref={fileInputRef}
             type="file"
@@ -308,6 +342,12 @@ export default function MatchPhotosPage() {
               Used {formatGalleryStorageLabel(usedBytes)}
             </span>
           </p>
+            </>
+          ) : (
+            <p className="text-[11px] text-slate-500">
+              Enter the community access code to add photos.
+            </p>
+          )}
         </div>
 
         {uploadError ? (
@@ -318,6 +358,11 @@ export default function MatchPhotosPage() {
         {uploadMessage ? (
           <p className="text-sm text-emerald-700 font-medium" role="status">
             {uploadMessage}
+          </p>
+        ) : null}
+        {deleteError ? (
+          <p className="text-sm text-amber-700 font-medium" role="alert">
+            {deleteError}
           </p>
         ) : null}
       </header>
@@ -333,7 +378,7 @@ export default function MatchPhotosPage() {
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-5">
           <p className="text-sm text-amber-800 font-medium">{error}</p>
           <p className="text-xs text-amber-700/80 mt-2">
-            You can still upload a photo above once Firebase rules allow gallery writes.
+            {canUpload ? 'You can still upload a photo above.' : 'Please try again in a moment.'}
           </p>
         </div>
       ) : null}
@@ -354,7 +399,7 @@ export default function MatchPhotosPage() {
       {items.length > 0 ? (
         <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {items.map((item, index) => (
-            <li key={item.id ?? `static:${item.year}:${item.file}`}>
+            <li key={item.id ?? `static:${item.year}:${item.file}`} className="relative">
               <button
                 type="button"
                 onClick={() => setActiveIndex(index)}
@@ -387,6 +432,24 @@ export default function MatchPhotosPage() {
                   </>
                 )}
               </button>
+              {(admin || (deviceId && item.uploaderUid === deviceId)) ? (
+                <button
+                  type="button"
+                  disabled={deletingId === item.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleDeleteItem(item);
+                  }}
+                  aria-label="Delete this photo"
+                  className="absolute top-1.5 right-1.5 z-10 inline-flex items-center justify-center size-7 rounded-full bg-black/60 text-white hover:bg-rose-600 disabled:opacity-50 transition-colors"
+                >
+                  {deletingId === item.id ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="size-3.5" aria-hidden />
+                  )}
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -452,6 +515,7 @@ export default function MatchPhotosPage() {
           <p className="text-center text-[11px] text-slate-500 py-2">
             {activeIndex + 1} / {items.length}
             {active.kind === 'video' ? ' · Video' : ''}
+            {active.uploaderName ? ` · Uploaded by ${active.uploaderName}` : ''}
           </p>
         </div>
       ) : null}

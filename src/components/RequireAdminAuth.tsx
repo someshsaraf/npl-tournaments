@@ -3,9 +3,8 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 /**
- * Gates /admin/* behind admin login. This protects the admin UI itself —
- * it does not by itself lock down the underlying Firebase writes those
- * pages make (those still use this app's existing open RTDB rules).
+ * Gates /admin/* and /scorer behind the admin code. The server enforces the
+ * same rule on every write (server/rules.ts), so this is the UI half.
  */
 export function RequireAdminAuth() {
   const { admin, loading } = useAuth();

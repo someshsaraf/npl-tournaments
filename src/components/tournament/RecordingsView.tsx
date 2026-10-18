@@ -1,6 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { RecordingsInPagePlayer } from '../RecordingsInPagePlayer';
+import type { Sport } from '../../data/tournamentData';
+import { SPORT_LABEL } from '../../data/tournamentData';
 import {
   FetchPastRecordingsError,
   fetchPastRecordings,
@@ -40,12 +42,19 @@ function optionLabel(row: YouTubeRecording): string {
   return `${date} · ${shortTitle}`;
 }
 
+/** Does a stream title mention this sport? ("Table Tennis" never counts as lawn tennis.) */
+function titleMatchesSport(title: string, sport: Sport): boolean {
+  if (sport === 'tennis') return /tennis/i.test(title) && !/table[\s-]*tennis/i.test(title);
+  return /badminton/i.test(title);
+}
+
 /**
  * Past live-stream recordings from the channel, embedded as a tab in a
- * sports event's detail page. Not sport-filterable at the source (YouTube
- * video titles aren't tagged by sport), so the same list shows for any sport.
+ * sport's hub. The channel isn't split by sport, so recordings are matched
+ * on the sport name in the stream title, with a toggle to show everything.
  */
-export function RecordingsView() {
+export function RecordingsView({ sport }: { sport?: Sport }) {
+  const [showAll, setShowAll] = useState(false);
   const selectId = useId();
   const [items, setItems] = useState<YouTubeRecording[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
@@ -91,7 +100,9 @@ export function RecordingsView() {
     setSelectedId(videoId);
   };
 
-  const selected = items.find((r) => r.videoId === selectedId) ?? null;
+  const sportItems = sport ? items.filter((r) => titleMatchesSport(r.title ?? '', sport)) : items;
+  const visible = !sport || showAll ? items : sportItems;
+  const selected = visible.find((r) => r.videoId === selectedId) ?? visible[0] ?? null;
 
   return (
     <div className="space-y-4">
@@ -114,7 +125,26 @@ export function RecordingsView() {
         </p>
       ) : null}
 
-      {!loading && items.length > 0 ? (
+      {!loading && sport && items.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <span>
+            {showAll
+              ? `Showing all ${items.length} channel recordings.`
+              : sportItems.length > 0
+                ? `${sportItems.length} ${SPORT_LABEL[sport]} recording${sportItems.length === 1 ? '' : 's'}.`
+                : `No streams titled "${SPORT_LABEL[sport]}" yet.`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="font-bold uppercase tracking-wide text-emerald-700 hover:text-emerald-800"
+          >
+            {showAll ? `Only ${SPORT_LABEL[sport]}` : 'Show all recordings'}
+          </button>
+        </div>
+      ) : null}
+
+      {!loading && visible.length > 0 ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-line bg-paper-soft p-3 sm:p-4 space-y-2">
             <label
@@ -125,11 +155,11 @@ export function RecordingsView() {
             </label>
             <select
               id={selectId}
-              value={selectedId ?? ''}
+              value={selected?.videoId ?? ''}
               onChange={(e) => selectRecording(e.target.value)}
               className="w-full rounded-xl border border-line bg-white text-ink text-sm sm:text-base font-semibold px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
             >
-              {items.map((row) => (
+              {visible.map((row) => (
                 <option key={row.videoId} value={row.videoId}>
                   {optionLabel(row)}
                 </option>

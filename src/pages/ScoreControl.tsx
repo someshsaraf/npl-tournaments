@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ref, set, onValue } from 'firebase/database';
-import { db } from '../firebase';
+import { ref, set, onValue } from '../lib/realtime';
+import { db, liveMatchPath } from '../db';
+import { useRouteSport } from '../hooks/useRouteSport';
+import { CourtWaitingScreen } from '../components/CourtWaitingScreen';
+import { adminPathForSport } from '../data/sports';
 import {
   FIXTURES,
   INITIAL_MATCH,
@@ -60,7 +63,10 @@ import { VictoryJinglePlayer } from '../components/VictoryJinglePlayer';
  * Scores dominate the screen; controls sit in a compact footer strip.
  */
 export const ScoreControl: React.FC = () => {
+  const routeSport = useRouteSport();
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
+  /** null until the first live snapshot arrives; then whether a match exists. */
+  const [hasLiveData, setHasLiveData] = useState<boolean | null>(null);
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [pendingSaveMatch, setPendingSaveMatch] = useState<MatchState | null>(null);
@@ -70,7 +76,8 @@ export const ScoreControl: React.FC = () => {
   const [newPlayer2, setNewPlayer2] = useState('');
   const [newMaxPoints, setNewMaxPoints] = useState<MaxPoints>(11);
   const [newBestOf, setNewBestOf] = useState<BestOf>(1);
-  const [newSport, setNewSport] = useState<Sport>('badminton');
+  /** New matches on this scorer are always the route's sport (/scorer/lawn-tennis → tennis). */
+  const newSport: Sport = routeSport;
   const [newTennisStage, setNewTennisStage] = useState<TennisStage>('qualifier');
   const [newMatchType, setNewMatchType] = useState<TennisMatchType>('singles');
   const [newMatchError, setNewMatchError] = useState<string | null>(null);
@@ -96,13 +103,14 @@ export const ScoreControl: React.FC = () => {
   });
 
   useEffect(() => {
-    const matchRef = ref(db, 'currentMatch');
+    const matchRef = ref(db, liveMatchPath(routeSport));
     const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
+      setHasLiveData(!!data);
       if (data) setMatch(normalizeMatchState(data));
     });
     return () => unsubscribe();
-  }, []);
+  }, [routeSport]);
 
   /**
    * Auto-persist when the series ends — do not rely on a Save tap.
@@ -208,8 +216,8 @@ export const ScoreControl: React.FC = () => {
 
   const updateMatchState = (next: MatchState) => {
     setMatch(next);
-    set(ref(db, 'currentMatch'), next).catch((err) => {
-      console.error('Failed to sync match state to Firebase:', err);
+    set(ref(db, liveMatchPath(routeSport)), next).catch((err) => {
+      console.error('Failed to sync match state to the server:', err);
     });
   };
 
@@ -320,7 +328,6 @@ export const ScoreControl: React.FC = () => {
     setNewPlayer2('');
     setNewMaxPoints(isMaxPoints(match.maxPoints) ? match.maxPoints : 11);
     setNewBestOf(isBestOf(match.bestOf) ? match.bestOf : 1);
-    setNewSport(match.sport === 'tennis' ? 'tennis' : 'badminton');
     setNewTennisStage(match.tennis?.tennisStage ?? 'qualifier');
     setNewMatchType(match.tennis?.matchType ?? 'singles');
     setShowNewMatchForm(true);
@@ -344,7 +351,7 @@ export const ScoreControl: React.FC = () => {
 
   /**
    * Start a fresh custom match from the scorer after a finished game.
-   * Concurrency: single Firebase write; Security: names sanitized in buildCustomMatchState.
+   * Concurrency: single the data store write; Security: names sanitized in buildCustomMatchState.
    */
   const handleStartNewMatch = () => {
     setNewMatchError(null);
@@ -416,13 +423,13 @@ export const ScoreControl: React.FC = () => {
   const postMatchLinks = (
     <>
       <Link
-        to="/admin/tournament"
+        to={adminPathForSport(routeSport)}
         className="rounded-lg border border-amber-500/40 bg-amber-400/15 text-amber-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-amber-400/25"
       >
         Admin
       </Link>
       <Link
-        to="/"
+        to="/sports"
         className="rounded-lg border border-slate-600 bg-slate-800 text-slate-200 text-[10px] sm:text-xs font-bold uppercase tracking-wide px-2.5 py-1.5 hover:bg-slate-700"
       >
         Portal
@@ -451,7 +458,7 @@ export const ScoreControl: React.FC = () => {
         </button>
       )}
       <Link
-        to="/admin/tournament"
+        to={adminPathForSport(routeSport)}
         className="text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-300 border border-amber-500/40 active:scale-95"
       >
         Admin
@@ -500,6 +507,11 @@ export const ScoreControl: React.FC = () => {
       </button>
     </>
   );
+
+  if (routeSport !== 'badminton' && hasLiveData !== true) {
+    // Blank while loading, so the "next match" screen doesn't flash before the score.
+    return hasLiveData === false ? <CourtWaitingScreen sport={routeSport} staff /> : <div className="fixed inset-0 bg-slate-950" />;
+  }
 
   return (
     <div
@@ -837,36 +849,6 @@ export const ScoreControl: React.FC = () => {
                 Start New Match
               </h2>
               <p className="text-xs text-slate-400">Enter players, points, and best-of format</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Sport
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNewSport('badminton')}
-                  className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
-                    newSport === 'badminton'
-                      ? 'bg-emerald-400 text-slate-950 border-emerald-300'
-                      : 'bg-slate-800 text-slate-300 border-slate-700'
-                  }`}
-                >
-                  Badminton
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewSport('tennis')}
-                  className={`flex-1 text-sm font-black py-3 rounded-xl border active:scale-95 ${
-                    newSport === 'tennis'
-                      ? 'bg-emerald-400 text-slate-950 border-emerald-300'
-                      : 'bg-slate-800 text-slate-300 border-slate-700'
-                  }`}
-                >
-                  Tennis
-                </button>
-              </div>
             </div>
 
             <label className="block space-y-1.5">

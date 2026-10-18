@@ -1,28 +1,36 @@
 import { SignJWT, jwtVerify } from 'jose';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { ApiResponse, HasHeaders } from './http.js';
+import { getAccessCodeVersion } from './accessCode.js';
 
 /**
- * Signed, HTTP-only session cookies (JWT). Not readable by client JS, so an
- * XSS bug can't steal the session the way reading localStorage would let it.
+ * Signed, HTTP-only session cookies (JWT) for the two access levels — no
+ * personal data inside. Not readable by client JS, so an XSS bug can't steal
+ * them the way reading localStorage would let it.
  *
- * Env (Vercel, not VITE_):
+ * Env (server only, never VITE_):
  * - AUTH_JWT_SECRET (required) — a long random string, e.g. `openssl rand -hex 32`.
  *   Must differ from AUTH_PEPPER (two independent secrets, one purpose each).
  */
 
-const USER_COOKIE = 'rnw_session';
+/** Community pass (shared access code) — residents, court screens. */
+const ACCESS_COOKIE = 'rnw_access';
+/** Staff pass (admin code). Also grants community access. */
 const ADMIN_COOKIE = 'rnw_admin_session';
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+/** Old per-resident account cookie — only ever cleared now. */
+const LEGACY_USER_COOKIE = 'rnw_session';
+const ACCESS_TTL_SECONDS = 60 * 60 * 24 * 180; // court TVs stay unlocked for a season
+const ADMIN_TTL_SECONDS = 60 * 60 * 24 * 30;
 
-export type SessionPayload = {
-  uid: string;
-  username: string;
-  email: string;
+export type AccessSessionPayload = {
+  role: 'community';
+  /** Random per-device id — lets a device delete photos it uploaded. Not tied to a person. */
+  sid: string;
+  /** Access-code version at login; changing the code bumps it and signs every device out. */
+  v: number;
 };
 
 export type AdminSessionPayload = {
   role: 'admin';
-  username: string;
 };
 
 function getJwtSecret(): Uint8Array {
@@ -33,11 +41,11 @@ function getJwtSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-async function sign(payload: Record<string, unknown>): Promise<string> {
+async function sign(payload: Record<string, unknown>, ttlSeconds: number): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
+    .setExpirationTime(`${ttlSeconds}s`)
     .sign(getJwtSecret());
 }
 
@@ -50,7 +58,7 @@ async function verify<T>(token: string): Promise<T | null> {
   }
 }
 
-function parseCookies(req: VercelRequest): Record<string, string> {
+function parseCookies(req: HasHeaders): Record<string, string> {
   const header = req.headers.cookie;
   if (!header) return {};
   const out: Record<string, string> = {};
@@ -64,12 +72,25 @@ function parseCookies(req: VercelRequest): Record<string, string> {
   return out;
 }
 
-function setCookie(res: VercelResponse, name: string, value: string, maxAgeSeconds: number): void {
+/**
+ * `Secure` cookies are dropped by browsers on plain-HTTP sites (e.g. a LAN
+ * address), which would make login silently fail. So: COOKIE_SECURE=true/false
+ * forces it; otherwise it follows the request (HTTPS directly, or behind a
+ * proxy that sets X-Forwarded-Proto — see `trust proxy` in server/index.ts).
+ */
+function wantSecureCookies(res: ApiResponse): boolean {
+  const forced = process.env.COOKIE_SECURE?.trim().toLowerCase();
+  if (forced === 'true') return true;
+  if (forced === 'false') return false;
+  return !!res.req?.secure;
+}
+
+function setCookie(res: ApiResponse, name: string, value: string, maxAgeSeconds: number): void {
   const parts = [
     `${name}=${encodeURIComponent(value)}`,
     'Path=/',
     'HttpOnly',
-    'Secure',
+    ...(wantSecureCookies(res) ? ['Secure'] : []),
     'SameSite=Lax',
     `Max-Age=${maxAgeSeconds}`
   ];
@@ -79,29 +100,38 @@ function setCookie(res: VercelResponse, name: string, value: string, maxAgeSecon
   res.setHeader('Set-Cookie', cookies);
 }
 
-export async function setUserSession(res: VercelResponse, payload: SessionPayload): Promise<void> {
-  const token = await sign(payload);
-  setCookie(res, USER_COOKIE, token, SESSION_TTL_SECONDS);
+export async function setAccessSession(res: ApiResponse, payload: AccessSessionPayload): Promise<void> {
+  setCookie(res, ACCESS_COOKIE, await sign(payload, ACCESS_TTL_SECONDS), ACCESS_TTL_SECONDS);
 }
 
-export async function setAdminSession(res: VercelResponse, payload: AdminSessionPayload): Promise<void> {
-  const token = await sign(payload);
-  setCookie(res, ADMIN_COOKIE, token, SESSION_TTL_SECONDS);
+export async function setAdminSession(res: ApiResponse): Promise<void> {
+  const payload: AdminSessionPayload = { role: 'admin' };
+  setCookie(res, ADMIN_COOKIE, await sign(payload, ADMIN_TTL_SECONDS), ADMIN_TTL_SECONDS);
 }
 
-export function clearSessionCookies(res: VercelResponse): void {
-  setCookie(res, USER_COOKIE, '', 0);
+/** Drop just the staff pass (e.g. a staff device switching to the community code). */
+export function clearAdminSession(res: ApiResponse): void {
   setCookie(res, ADMIN_COOKIE, '', 0);
 }
 
-export async function getUserSession(req: VercelRequest): Promise<SessionPayload | null> {
-  const token = parseCookies(req)[USER_COOKIE];
-  if (!token) return null;
-  return verify<SessionPayload>(token);
+export function clearSessionCookies(res: ApiResponse): void {
+  setCookie(res, ACCESS_COOKIE, '', 0);
+  setCookie(res, ADMIN_COOKIE, '', 0);
+  setCookie(res, LEGACY_USER_COOKIE, '', 0);
 }
 
-export async function getAdminSession(req: VercelRequest): Promise<AdminSessionPayload | null> {
+/** Valid community pass for the current access-code version, or null. */
+export async function getAccessSession(req: HasHeaders): Promise<AccessSessionPayload | null> {
+  const token = parseCookies(req)[ACCESS_COOKIE];
+  if (!token) return null;
+  const payload = await verify<AccessSessionPayload>(token);
+  if (!payload || payload.role !== 'community' || typeof payload.sid !== 'string') return null;
+  return payload.v === getAccessCodeVersion() ? payload : null;
+}
+
+export async function getAdminSession(req: HasHeaders): Promise<AdminSessionPayload | null> {
   const token = parseCookies(req)[ADMIN_COOKIE];
   if (!token) return null;
-  return verify<AdminSessionPayload>(token);
+  const payload = await verify<AdminSessionPayload>(token);
+  return payload && payload.role === 'admin' ? payload : null;
 }

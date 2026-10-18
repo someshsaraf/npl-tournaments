@@ -25,7 +25,8 @@ export function TennisScoreDisplay({
 
   const games = formatTennisGamesLabel(match);
   const stageLabel = formatTennisStageLabel(match.tennis.tennisStage);
-  const matchTypeLabel = match.tennis.matchType === 'doubles' ? 'Doubles' : 'Singles';
+  const matchTypeLabel =
+    match.tennis.matchType === 'doubles' ? 'Doubles' : match.tennis.matchType === 'team' ? 'Team' : 'Singles';
   const tiebreak = isTennisTiebreak(match);
   const golden = isTennisGoldenPointActive(match);
   const deuce = isTennisDeuce(match) && !golden;

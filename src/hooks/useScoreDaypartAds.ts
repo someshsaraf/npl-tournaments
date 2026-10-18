@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { onValue, ref, set } from 'firebase/database';
-import { db, SCORE_DAYPART_ADS_STOPPED_DATE_PATH } from '../firebase';
+import { onValue, ref, set } from '../lib/realtime';
+import { db, SCORE_DAYPART_ADS_STOPPED_DATE_PATH } from '../db';
 import type { EventAd } from '../data/eventAds';
 import { getActiveEventAds } from '../data/eventAds';
 import {
@@ -14,8 +14,8 @@ const CLOCK_TICK_MS = 30_000;
 const AD_REFRESH_MS = 60_000;
 
 /**
- * Drives /score + /live 1–4 PM fullscreen ad loop + Firebase same-day stop flag.
- * Concurrency: local state + one RTDB listener; cleaned up on unmount.
+ * Drives /score + /live 1–4 PM fullscreen ad loop + the data store same-day stop flag.
+ * Concurrency: local state + one data store listener; cleaned up on unmount.
  * Security: only reads the allowlisted settings path; validates date-key shape.
  */
 export function useScoreDaypartAds(): {
@@ -56,7 +56,7 @@ export function useScoreDaypartAds(): {
 
 /**
  * Admin controls for same-day stop/resume of /score daypart ads.
- * Concurrency: local state + RTDB listener/writes; no shared mutable globals.
+ * Concurrency: local state + data store listener/writes; no shared mutable globals.
  * Security: writes only YYYY-MM-DD or null to the settings path.
  */
 export function useScoreDaypartAdsAdmin(): {
@@ -94,7 +94,7 @@ export function useScoreDaypartAdsAdmin(): {
       setMessage('Score & live ads stopped for today (resume anytime, or they return tomorrow).');
     } catch (err) {
       console.error('Failed to stop score daypart ads:', err);
-      setMessage('Failed to stop ads — check Firebase permissions.');
+      setMessage('Failed to stop ads — check staff login.');
     } finally {
       setBusy(false);
     }
@@ -108,7 +108,7 @@ export function useScoreDaypartAdsAdmin(): {
       setMessage('Score & live ads resumed for the 1–4 PM window.');
     } catch (err) {
       console.error('Failed to resume score daypart ads:', err);
-      setMessage('Failed to resume ads — check Firebase permissions.');
+      setMessage('Failed to resume ads — check staff login.');
     } finally {
       setBusy(false);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ref, onValue, remove, set, get } from 'firebase/database';
-import { db, YOUTUBE_LIVE_URL_PATH } from '../firebase';
+import { isSafeMediaUrl } from '../utils/mediaUrl';
+import { ref, onValue, remove, set, get } from '../lib/realtime';
+import { db, YOUTUBE_LIVE_URL_PATH } from '../db';
 import { BEST_OF_OPTIONS, INITIAL_MATCH, type CompletedMatch } from '../data/tournamentData';
 import {
   applyCompletedMatchEdits,
@@ -42,7 +43,7 @@ const emptyEdit = (): CompletedMatchEditInput => ({
  * Admin results management — export, edit, delete, start fresh.
  * Moved off the main /admin schedule page.
  *
- * Concurrency: RTDB onValue listener; edit/save is last-write-wins per fixture.
+ * Concurrency: data store onValue listener; edit/save is last-write-wins per fixture.
  * Security: admin UI only (no auth layer in app); validates edits before write.
  * Input: edit form validated via applyCompletedMatchEdits.
  */
@@ -298,7 +299,7 @@ export default function AdminResultsPage() {
                     </td>
                     <td className="px-3 py-2.5 text-right whitespace-nowrap space-x-1.5">
                       {typeof row.snapshotUrl === 'string' &&
-                      row.snapshotUrl.startsWith('https://') ? (
+                      isSafeMediaUrl(row.snapshotUrl) ? (
                         <a
                           href={row.snapshotUrl}
                           target="_blank"

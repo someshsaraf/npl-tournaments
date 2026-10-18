@@ -1,7 +1,7 @@
-import type { MatchState, TennisStage, TennisMatchType } from '../data/tournamentData';
+import type { MatchState, TennisRules, TennisStage, TennisMatchType } from '../data/tournamentData';
 import { isTennisStage, isTennisMatchType } from '../data/tournamentData';
 import { createCustomMatchId, sanitizeLabel } from './customMatch';
-import { buildInitialTennisState } from './tennisScoring';
+import { buildInitialTennisState, normalizeTennisRules } from './tennisScoring';
 
 export type CustomTennisMatchInput = {
   sideA: string;
@@ -10,11 +10,15 @@ export type CustomTennisMatchInput = {
   matchType: TennisMatchType;
   category?: string;
   stage?: string;
+  /** Rules for this match; defaults to the house rules for tennisStage. */
+  rules?: TennisRules;
+  /** Use a scheduled fixture's id instead of a generated custom-… id (results link back to the schedule). */
+  matchId?: string;
 };
 
 /**
  * Build a fresh MatchState for an ad-hoc tennis match.
- * Concurrency: pure/stateless — caller writes to Firebase.
+ * Concurrency: pure/stateless — caller writes to the data store.
  * Security: labels sanitized; match id generated locally.
  */
 export function buildCustomTennisMatchState(
@@ -31,7 +35,7 @@ export function buildCustomTennisMatchState(
     throw new Error('Select a valid tennis stage (Qualifier, Semifinal, or Final).');
   }
   if (!isTennisMatchType(input.matchType)) {
-    throw new Error('Select a valid match type (Singles or Doubles).');
+    throw new Error('Select a valid match type (Singles, Doubles, or Team).');
   }
 
   const sideA = sanitizeLabel(input.sideA, 'Player/Team 1');
@@ -42,7 +46,10 @@ export function buildCustomTennisMatchState(
   return {
     ...current,
     sport: 'tennis',
-    currentMatchId: createCustomMatchId(),
+    currentMatchId:
+      typeof input.matchId === 'string' && /^[\w-]{1,80}$/.test(input.matchId)
+        ? input.matchId
+        : createCustomMatchId(),
     category,
     stage,
     teamA: sideA,
@@ -66,6 +73,10 @@ export function buildCustomTennisMatchState(
     matchWinner: null,
     isTrump: false,
     trumpTeam: null,
-    tennis: buildInitialTennisState(input.tennisStage, input.matchType)
+    tennis: buildInitialTennisState(
+      input.tennisStage,
+      input.matchType,
+      normalizeTennisRules(input.rules, input.tennisStage)
+    )
   };
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ref, onValue } from 'firebase/database';
-import { db } from '../../firebase';
+import { ref, onValue } from '../../lib/realtime';
+import { db } from '../../db';
 import { resolveSport, type CompletedMatch, type Sport } from '../../data/tournamentData';
 import { completedMatchesFromFirebase, sortCompletedMatches } from '../../utils/completedMatches';
 import {

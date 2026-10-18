@@ -1,0 +1,16 @@
+# HTTPS front door. Caddy gets and renews a free Let's Encrypt certificate
+# for SITE_DOMAIN automatically (ports 80 + 443 must be reachable).
+{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# WebSockets (/ws) and large photo/video uploads pass straight through.
+	reverse_proxy npl:8787
+}

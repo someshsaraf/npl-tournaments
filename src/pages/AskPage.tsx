@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ref, onValue } from 'firebase/database';
-import { db } from '../firebase';
+import { ref, onValue } from '../lib/realtime';
+import { db } from '../db';
 import {
   FIXTURES,
   INITIAL_MATCH,
@@ -119,7 +119,7 @@ async function fetchGeminiAnswer(
     return {
       answer: null,
       reason:
-        'Could not reach /api/ask. Locally run `npx vercel dev` (plain Vite does not serve /api).'
+        'Could not reach the Ask service — make sure the server is running (`npm run dev` locally) and GEMINI_API_KEY is set in its .env.'
     };
   }
 
@@ -131,7 +131,7 @@ async function fetchGeminiAnswer(
       return {
         answer: null,
         reason:
-          '/api/ask not found (404). Deploy on Vercel or run `npx vercel dev` with GEMINI_API_KEY set.'
+          'Could not reach the Ask service — make sure the server is running (`npm run dev` locally) and GEMINI_API_KEY is set in its .env.'
       };
     }
     return { answer: null, reason: `Ask API returned non-JSON (HTTP ${res.status}).` };
@@ -147,14 +147,14 @@ async function fetchGeminiAnswer(
         answer: null,
         reason:
           errText ||
-          'GEMINI_API_KEY is not set on the server. Add it in Vercel env (or .env for vercel dev).'
+          'Could not reach the Ask service — make sure the server is running (`npm run dev` locally) and GEMINI_API_KEY is set in its .env.'
       };
     }
     if (res.status === 404) {
       return {
         answer: null,
         reason:
-          '/api/ask not found. Deploy on Vercel or run `npx vercel dev` so API routes work.'
+          'Could not reach the Ask service — make sure the server is running (`npm run dev` locally) and GEMINI_API_KEY is set in its .env.'
       };
     }
     if (res.status === 502 || code === 'http_error' || code === 'timeout' || code === 'empty_answer' || code === 'bad_model' || code === 'auth_error' || code === 'quota') {
@@ -206,7 +206,7 @@ async function fetchGeminiAnswer(
 
 /**
  * Public Ask portal — Gemini answers strictly from live tournament context.
- * Read-only Firebase; API key stays on the server (/api/ask).
+ * Read-only the data store; API key stays on the server (/api/ask).
  * Falls back to local keyword engine when the API is unavailable.
  */
 export default function AskPage() {
@@ -298,7 +298,7 @@ export default function AskPage() {
           setAskStatus({
             state: 'unreachable',
             detail:
-              '/api/ask not found. On Vercel, redeploy after adding api/ask.ts. Locally run `npx vercel dev` (not plain `npm run dev`).'
+              'Could not reach the Ask service — make sure the server is running (`npm run dev` locally) and GEMINI_API_KEY is set in its .env.'
           });
           return;
         }
@@ -315,7 +315,7 @@ export default function AskPage() {
           setAskStatus({
             state: 'unreachable',
             detail:
-              'Got a non-JSON response from /api/ask (likely the Vite SPA). Use `npx vercel dev` or open the deployed Vercel URL.'
+              'Could not reach the Ask service — make sure the server is running (`npm run dev` locally) and GEMINI_API_KEY is set in its .env.'
           });
           return;
         }
@@ -339,7 +339,7 @@ export default function AskPage() {
         setAskStatus({
           state: 'unreachable',
           detail:
-            'Could not reach /api/ask. Locally run `npx vercel dev` with GEMINI_API_KEY in .env.'
+            'Could not reach the Ask service — make sure the server is running (`npm run dev` locally) and GEMINI_API_KEY is set in its .env.'
         });
       }
     })();

@@ -1,0 +1,51 @@
+# Production stack for a single server (AWS EC2, Oracle Cloud, any Ubuntu VPS).
+# Run via the helper:  ./deploy/npl up      (see deploy/HOSTING.md)
+#
+#   caddy  :80/:443  → automatic HTTPS for SITE_DOMAIN, proxies to the app
+#   npl    :8787     → the site + API + live data (not exposed directly)
+#
+# Data (database + uploads) lives in ../data on the host — backed up nightly
+# by deploy/backup.sh.
+services:
+  npl:
+    build: ..
+    image: npl-sports:latest
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      DATA_DIR: /data
+      PORT: "8787"
+      # Caddy terminates HTTPS in front of us → trust its X-Forwarded-Proto
+      # so access cookies are marked Secure.
+      TRUST_PROXY: "true"
+    volumes:
+      - ../data:/data
+    expose:
+      - "8787"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - npl
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?Set SITE_DOMAIN in .env (e.g. rnw-sports.duckdns.org)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  # HTTPS certificates — keep this volume so Caddy doesn't re-request them.
+  caddy_data:
+  caddy_config:

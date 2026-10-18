@@ -1,7 +1,7 @@
-import { get, onValue, ref, update } from 'firebase/database';
-import type { Database, Unsubscribe } from 'firebase/database';
+import { get, onValue, ref, update } from '../lib/realtime';
+import type { Database, Unsubscribe } from '../lib/realtime';
 import type { CompletedMatch, Fixture, MatchState, Team } from '../data/tournamentData';
-import { PLAYER_NAME_ALIASES_PATH } from '../firebase';
+import { PLAYER_NAME_ALIASES_PATH } from '../db';
 
 /** Local clone — avoid importing completedMatches (circular). */
 function toWritable<T>(value: T): T {
@@ -12,7 +12,7 @@ function toWritable<T>(value: T): T {
   }
 }
 
-/** Built-in renames applied when reading historical rows (and migrated into Firebase). */
+/** Built-in renames applied when reading historical rows (and migrated into the data store). */
 export const LEGACY_PLAYER_NAME_ALIASES: Readonly<Record<string, string>> = {
   Mihir: 'Ramakrishna',
   Dhanashree: 'Sujata'
@@ -21,7 +21,7 @@ export const LEGACY_PLAYER_NAME_ALIASES: Readonly<Record<string, string>> = {
 /**
  * Process-local alias cache for read-time display (fixtures, completed, live).
  * Updated via subscribePlayerNameAliases / propagatePlayerRename.
- * Concurrency: single-threaded UI; last write wins (same as Firebase listeners).
+ * Concurrency: single-threaded UI; last write wins (same as the data store listeners).
  */
 let cachedPlayerAliases: Record<string, string> = { ...LEGACY_PLAYER_NAME_ALIASES };
 
@@ -34,7 +34,7 @@ export function setPlayerNameAliasesCache(raw: unknown): Record<string, string> 
   return cachedPlayerAliases;
 }
 
-/** Keep the in-memory alias map synced with Firebase. */
+/** Keep the in-memory alias map synced with the data store. */
 export function subscribePlayerNameAliases(database: Database): Unsubscribe {
   if (!database) throw new Error('subscribePlayerNameAliases: database is required');
   return onValue(ref(database, PLAYER_NAME_ALIASES_PATH), (snap) => {
@@ -272,8 +272,8 @@ export type PropagatePlayerRenameResult = {
 };
 
 /**
- * Rewrite player name across Firebase: completedMatches, currentMatch, teams, aliases.
- * Concurrency: last-write-wins on RTDB (same as rest of app).
+ * Rewrite player name across the data store: completedMatches, currentMatch, teams, aliases.
+ * Concurrency: last-write-wins on data store (same as rest of app).
  */
 export async function propagatePlayerRename(
   database: Database,
@@ -351,7 +351,7 @@ export async function propagatePlayerRename(
 }
 
 /**
- * Idempotent migration for built-in renames. Skips Firebase writes when no old names remain.
+ * Idempotent migration for built-in renames. Skips the data store writes when no old names remain.
  */
 export async function migrateLegacyPlayerNames(database: Database): Promise<void> {
   if (!database) throw new Error('migrateLegacyPlayerNames: database is required');

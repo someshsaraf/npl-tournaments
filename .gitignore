@@ -32,3 +32,7 @@ npl/
 *serviceAccount*.json
 .env
 .env.*
+
+# Self-hosted server data (SQLite DB + uploaded media) and server build
+/data/
+/dist-server/

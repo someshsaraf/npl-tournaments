@@ -26,7 +26,7 @@ function normalizeGameScores(raw: unknown): GameScore[] {
 }
 
 /**
- * Normalize Firebase `currentMatch` payloads so missing/invalid fields
+ * Normalize the data store `currentMatch` payloads so missing/invalid fields
  * cannot falsely trigger winner UI (`undefined !== null` is true).
  */
 export function normalizeMatchState(data: unknown): MatchState {

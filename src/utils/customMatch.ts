@@ -35,7 +35,7 @@ export type CustomMatchInput = {
 
 /**
  * Build a fresh MatchState for an ad-hoc match.
- * Concurrency: pure/stateless — caller writes to Firebase.
+ * Concurrency: pure/stateless — caller writes to the data store.
  * Security: labels sanitized; match id generated locally.
  */
 export function buildCustomMatchState(

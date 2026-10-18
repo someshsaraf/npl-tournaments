@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { ApiRequest, ApiResponse } from './_lib/http.js';
 
 /**
  * Past live streams for https://www.youtube.com/@NatureWalkCSC/streams
@@ -194,11 +194,11 @@ async function enrichWithStreamTimes(
  * GET /api/youtube-recordings?pageToken=…
  * Lists completed live broadcasts for @NatureWalkCSC (same intent as /streams).
  *
- * Env (Vercel, not VITE_):
+ * Env (server .env, never VITE_):
  * - YOUTUBE_API_KEY (required)
  * - YOUTUBE_CHANNEL_ID (optional; defaults to NatureWalk CSC)
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     res.status(405).json({ error: 'Method not allowed', code: 'method_not_allowed' });
@@ -211,7 +211,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!apiKey) {
     res.status(503).json({
-      error: 'Recordings are not configured. Set YOUTUBE_API_KEY in Vercel env.',
+      error: 'Recordings are not configured. Set YOUTUBE_API_KEY in the server .env.',
       code: 'missing_config'
     });
     return;

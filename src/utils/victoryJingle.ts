@@ -2,7 +2,7 @@ import { parseYouTubeVideoId } from './youtube';
 
 /**
  * Allowed victory-jingle video IDs (after match finish on score surfaces).
- * Paths are fixed allowlist — never accept arbitrary URLs from Firebase/UI.
+ * Paths are fixed allowlist — never accept arbitrary URLs from the data store/UI.
  */
 const VICTORY_JINGLE_WATCH_URLS: readonly string[] = Object.freeze([
   'https://www.youtube.com/watch?v=Ax0G_P2dSBw',

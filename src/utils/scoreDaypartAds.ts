@@ -33,7 +33,7 @@ export function isScoreDaypartAdsWindow(now: Date = new Date()): boolean {
 }
 
 /**
- * Admin stop applies only for the calendar day stored in Firebase.
+ * Admin stop applies only for the calendar day stored in the data store.
  * Missing/invalid value → not stopped.
  */
 export function isScoreDaypartAdsStoppedToday(

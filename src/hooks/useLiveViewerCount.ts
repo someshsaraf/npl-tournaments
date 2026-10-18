@@ -7,8 +7,8 @@ import {
   serverTimestamp,
   set,
   update
-} from 'firebase/database';
-import { db, LIVE_VIEWERS_PRESENCE_PATH } from '../firebase';
+} from '../lib/realtime';
+import { db, LIVE_VIEWERS_PRESENCE_PATH } from '../db';
 
 const SESSION_STORAGE_KEY = 'npl-live-viewer-session';
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
@@ -54,13 +54,13 @@ function countFreshViewers(val: unknown, nowMs: number): number {
 }
 
 /**
- * Registers this /live tab in RTDB presence and returns the current viewer count.
+ * Registers this /live tab in data store presence and returns the current viewer count.
  * Leaves immediately on unmount / pagehide / beforeunload; onDisconnect covers hard kills.
  * Heartbeat + stale filter so abandoned rows stop counting within ~90s.
  *
  * Concurrency: each tab owns one path; no shared mutable globals.
  * Security: fixed allowlisted path prefix; session id validated before use.
- * Requires RTDB rules allowing public write/delete under presence/live/{id}.
+ * Requires data store rules allowing public write/delete under presence/live/{id}.
  */
 export function useLiveViewerCount(): number {
   const [count, setCount] = useState(0);

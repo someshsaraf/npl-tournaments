@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# Day-to-day commands for the production server. Run from anywhere:
+#
+#   ./deploy/npl up            build + start (or apply config changes)
+#   ./deploy/npl update        backup, pull latest code from git, rebuild, restart
+#   ./deploy/npl status        containers + an HTTPS health check
+#   ./deploy/npl logs [npl|caddy]
+#   ./deploy/npl backup        take a backup now (also runs nightly)
+#   ./deploy/npl backups       list backups
+#   ./deploy/npl restore FILE  restore a backup (current data is kept aside)
+#   ./deploy/npl admin-code    generate a NEW admin code (old one stops working)
+#   ./deploy/npl import FILE [--download-gallery] [--replace]
+#                              load a Firebase Realtime Database JSON export
+#   ./deploy/npl restart | stop
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="$ROOT/.env"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/npl}"
+
+# Docker needs root (or the docker group); re-run with sudo when needed.
+if ! docker info >/dev/null 2>&1; then
+  if [ "$(id -u)" -ne 0 ]; then exec sudo --preserve-env=BACKUP_DIR "$0" "$@"; fi
+  echo "Docker isn't running. Try: sudo systemctl start docker" >&2
+  exit 1
+fi
+
+[ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE — run deploy/setup.sh first." >&2; exit 1; }
+
+compose() {
+  docker compose -p npl -f "$ROOT/deploy/docker-compose.yml" --env-file "$ENV_FILE" "$@"
+}
+
+env_value() { # read KEY from .env without sourcing it ($ in hashes)
+  sed -n "s/^$1=//p" "$ENV_FILE" | tail -n1 | sed -e "s/^'\(.*\)'$/\1/" -e 's/^"\(.*\)"$/\1/'
+}
+
+# The app container runs as uid 1000 (the "node" user; also "ubuntu" on Oracle
+# images). Fix ownership when we can (root); harmless to skip otherwise.
+own_data() {
+  if [ "$(id -u)" -eq 0 ]; then chown "$@" 1000:1000 "$ROOT/data" 2>/dev/null || true; fi
+}
+
+ensure_data_dir() {
+  mkdir -p "$ROOT/data"
+  own_data
+}
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  up)
+    ensure_data_dir
+    compose up -d --build --remove-orphans
+    compose ps
+    ;;
+
+  update)
+    "$ROOT/deploy/backup.sh"
+    git -C "$ROOT" pull --ff-only
+    ensure_data_dir
+    compose pull caddy
+    compose up -d --build --remove-orphans
+    docker image prune -f >/dev/null
+    compose ps
+    ;;
+
+  status)
+    compose ps
+    domain="$(env_value SITE_DOMAIN)"
+    if [ -n "$domain" ]; then
+      if curl -fsS --max-time 10 "https://$domain/healthz" >/dev/null; then
+        echo "✓ https://$domain is up"
+      else
+        echo "✗ https://$domain did not answer (DNS, firewall/security list, or still starting?)"
+      fi
+    fi
+    ;;
+
+  logs)
+    compose logs -f --tail=200 "$@"
+    ;;
+
+  backup)
+    BACKUP_DIR="$BACKUP_DIR" "$ROOT/deploy/backup.sh"
+    ;;
+
+  backups)
+    ls -lh "$BACKUP_DIR" 2>/dev/null || echo "No backups yet in $BACKUP_DIR"
+    ;;
+
+  restore)
+    file="${1:-}"
+    [ -f "$file" ] || { echo "Usage: deploy/npl restore $BACKUP_DIR/npl-full-….tar.gz (or npl-db-….db.gz)" >&2; exit 1; }
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    compose stop npl
+    aside="$ROOT/data.before-restore-$stamp"
+    cp -a "$ROOT/data" "$aside"
+    echo "Current data copied to $aside"
+    case "$file" in
+      *.tar.gz)
+        rm -rf "$ROOT/data/media"
+        tar -xzf "$file" -C "$ROOT/data"
+        mv -f "$ROOT/data/app-snapshot.db" "$ROOT/data/app.db"
+        ;;
+      *.db.gz)
+        gunzip -c "$file" > "$ROOT/data/app.db.restoring"
+        mv -f "$ROOT/data/app.db.restoring" "$ROOT/data/app.db"
+        ;;
+      *) echo "Unknown backup type: $file" >&2; exit 1 ;;
+    esac
+    rm -f "$ROOT/data/app.db-wal" "$ROOT/data/app.db-shm"
+    own_data -R
+    compose start npl
+    echo "Restored $file"
+    ;;
+
+  admin-code)
+    # Builds the image if needed, generates a code with the server's AUTH_PEPPER,
+    # and writes only its hash into .env.
+    ensure_data_dir
+    compose build npl >/dev/null
+    out="$(compose run --rm --no-deps -T npl node scripts/hash-admin-password.mjs --generate)"
+    code="$(printf '%s\n' "$out" | sed -n 's/^Admin code[^:]*: //p')"
+    line="$(printf '%s\n' "$out" | grep '^ADMIN_CODE_HASH=')"
+    [ -n "$code" ] && [ -n "$line" ] || { echo "Could not generate an admin code:" >&2; echo "$out" >&2; exit 1; }
+    tmp="$(mktemp)"
+    grep -v '^ADMIN_CODE_HASH=' "$ENV_FILE" > "$tmp" || true
+    printf '%s\n' "$line" >> "$tmp"
+    cat "$tmp" > "$ENV_FILE" && rm -f "$tmp"
+    if compose ps --status running --services 2>/dev/null | grep -qx npl; then compose up -d npl >/dev/null; fi
+    echo
+    echo "  New admin code:  $code"
+    echo
+    echo "  Store it in a password manager and give it to staff directly."
+    echo "  It is not saved anywhere on this server (only its hash is)."
+    ;;
+
+  import)
+    file="${1:-}"
+    [ -f "$file" ] || { echo "Usage: deploy/npl import export.json [--download-gallery] [--replace]" >&2; exit 1; }
+    shift
+    ensure_data_dir
+    cp "$file" "$ROOT/data/firebase-export.json"
+    own_data -R
+    compose stop npl
+    compose run --rm --no-deps -T npl node dist-server/index.js import /data/firebase-export.json "$@" || {
+      rm -f "$ROOT/data/firebase-export.json"; compose start npl; exit 1; }
+    rm -f "$ROOT/data/firebase-export.json"
+    compose start npl
+    ;;
+
+  restart)
+    compose restart
+    ;;
+
+  stop)
+    compose stop
+    ;;
+
+  *)
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+esac

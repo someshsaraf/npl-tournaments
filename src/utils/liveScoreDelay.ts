@@ -4,7 +4,7 @@ export const MIN_LIVE_SCORE_DELAY_MS = 0;
 export const MAX_LIVE_SCORE_DELAY_MS = 30000;
 
 /**
- * Parse and clamp a live-score delay (milliseconds) from Firebase or form input.
+ * Parse and clamp a live-score delay (milliseconds) from the data store or form input.
  * Input: number | numeric string | unknown. Returns a safe integer in [0, 30000].
  */
 export function parseLiveScoreDelayMs(raw: unknown): number {

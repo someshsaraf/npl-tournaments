@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ref, set, onValue } from 'firebase/database';
-import { db, LIVE_SCORE_DELAY_MS_PATH, YOUTUBE_LIVE_URL_PATH } from '../firebase';
+import { ref, set, onValue } from '../lib/realtime';
+import { db, LIVE_SCORE_DELAY_MS_PATH, YOUTUBE_LIVE_URL_PATH } from '../db';
 import {
   FIXTURES,
   FIXTURE_DATES,
   INITIAL_MATCH,
   MAX_POINTS_OPTIONS,
   BEST_OF_OPTIONS,
-  TENNIS_STAGES,
-  TENNIS_MATCH_TYPES,
   isBestOf,
   isMaxPoints
 } from '../data/tournamentData';
@@ -19,9 +17,6 @@ import type {
   Fixture,
   CompletedMatch,
   MaxPoints,
-  Sport,
-  TennisStage,
-  TennisMatchType
 } from '../data/tournamentData';
 import { isValidYouTubeLiveUrl, parseYouTubeVideoId } from '../utils/youtube';
 import {
@@ -37,10 +32,8 @@ import {
   parseLiveScoreDelayMs
 } from '../utils/liveScoreDelay';
 import { normalizeMatchState } from '../utils/matchState';
-import { formatTennisStageLabel } from '../utils/tennisMatchState';
 import { AdminNav } from '../components/AdminNav';
 import { buildCustomMatchState, sanitizeLabel } from '../utils/customMatch';
-import { buildCustomTennisMatchState } from '../utils/tennisCustomMatch';
 import { useScoreDaypartAdsAdmin } from '../hooks/useScoreDaypartAds';
 
 const LIVE_DELAY_PRESETS_SECONDS = [0, 5, 7, 10, 15] as const;
@@ -68,7 +61,6 @@ export const AdminPanel: React.FC = () => {
   const [selectedBestOf, setSelectedBestOf] = useState<BestOf>(1);
 
   const fixtureCategories = Array.from(new Set(FIXTURES.map((f) => f.category)));
-  const [customSport, setCustomSport] = useState<Sport>('badminton');
   const [customSideA, setCustomSideA] = useState('');
   const [customSideB, setCustomSideB] = useState('');
   const [customCategory, setCustomCategory] = useState(fixtureCategories[0] ?? 'Exhibition');
@@ -76,8 +68,6 @@ export const AdminPanel: React.FC = () => {
   const [customStage, setCustomStage] = useState<string>(CUSTOM_MATCH_STAGES[0]);
   const [customMaxPoints, setCustomMaxPoints] = useState<MaxPoints>(11);
   const [customBestOf, setCustomBestOf] = useState<BestOf>(1);
-  const [customTennisStage, setCustomTennisStage] = useState<TennisStage>('qualifier');
-  const [customTennisMatchType, setCustomTennisMatchType] = useState<TennisMatchType>('singles');
   const [customMatchError, setCustomMatchError] = useState<string | null>(null);
   const [youtubeDraft, setYoutubeDraft] = useState('');
   const [youtubeSaveMessage, setYoutubeSaveMessage] = useState<string | null>(null);
@@ -122,7 +112,7 @@ export const AdminPanel: React.FC = () => {
   const updateMatchState = (newMatchState: MatchState) => {
     setMatch(newMatchState);
     set(ref(db, 'currentMatch'), newMatchState).catch((err) => {
-      console.error('Failed to sync match state to Firebase:', err);
+      console.error('Failed to sync match state to the server:', err);
     });
   };
 
@@ -168,30 +158,12 @@ export const AdminPanel: React.FC = () => {
 
   /**
    * Start an ad-hoc match that is not on the fixture schedule.
-   * Concurrency: single Firebase write via updateMatchState; no shared mutable globals.
+   * Concurrency: single the data store write via updateMatchState; no shared mutable globals.
    * Security: labels trimmed/length-capped; ids generated locally (not user-supplied).
    */
   const handleStartCustomMatch = () => {
     setCustomMatchError(null);
     try {
-      if (customSport === 'tennis') {
-        const category =
-          customCategory === '__other__'
-            ? sanitizeLabel(customCategoryOther, 'Category')
-            : sanitizeLabel(customCategory, 'Category');
-        updateMatchState(
-          buildCustomTennisMatchState(match, {
-            sideA: customSideA,
-            sideB: customSideB,
-            tennisStage: customTennisStage,
-            matchType: customTennisMatchType,
-            category,
-            stage: formatTennisStageLabel(customTennisStage)
-          })
-        );
-        navigate('/admin/score');
-        return;
-      }
       const category =
         customCategory === '__other__'
           ? sanitizeLabel(customCategoryOther, 'Category')
@@ -258,7 +230,7 @@ export const AdminPanel: React.FC = () => {
   };
 
   /**
-   * Persist /live score broadcast delay (seconds in UI → ms in Firebase).
+   * Persist /live score broadcast delay (seconds in UI → ms in the data store).
    * Validation: finite number in [0, 30] seconds.
    */
   const handleSaveLiveScoreDelay = async (secondsOverride?: number) => {
@@ -337,12 +309,12 @@ export const AdminPanel: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
 
-      <AdminNav />
+      <AdminNav subtitle="Badminton" />
       <Link
-        to="/admin/events"
+        to="/admin/sports"
         className="inline-block text-emerald-400 hover:text-emerald-300 text-sm font-semibold"
       >
-        ← Back to Events
+        ← Back to Sports
       </Link>
       <p className="text-[11px] text-slate-500 text-center max-w-lg mx-auto -mt-4">
         Pick a fixture below (or start a custom match) to open the score desk. After you save,
@@ -749,60 +721,30 @@ export const AdminPanel: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Sport
-          </span>
-          <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5 w-fit">
-            <button
-              type="button"
-              onClick={() => setCustomSport('badminton')}
-              className={`text-xs px-3 py-1.5 rounded font-bold ${
-                customSport === 'badminton'
-                  ? 'bg-emerald-400 text-slate-950'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Badminton
-            </button>
-            <button
-              type="button"
-              onClick={() => setCustomSport('tennis')}
-              className={`text-xs px-3 py-1.5 rounded font-bold ${
-                customSport === 'tennis'
-                  ? 'bg-emerald-400 text-slate-950'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Tennis
-            </button>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block space-y-1.5">
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              {customSport === 'tennis' ? 'Side A / Player or Team 1' : 'Side A / Player 1'}
+              Side A / Player 1
             </span>
             <input
               type="text"
               value={customSideA}
               onChange={(e) => setCustomSideA(e.target.value)}
               maxLength={80}
-              placeholder={customSport === 'tennis' ? 'e.g. Rahul & Priya' : 'e.g. Nitin Verma'}
+              placeholder="e.g. Nitin Verma"
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
             />
           </label>
           <label className="block space-y-1.5">
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              {customSport === 'tennis' ? 'Side B / Player or Team 2' : 'Side B / Player 2'}
+              Side B / Player 2
             </span>
             <input
               type="text"
               value={customSideB}
               onChange={(e) => setCustomSideB(e.target.value)}
               maxLength={80}
-              placeholder={customSport === 'tennis' ? 'e.g. Ishan & Abhishek' : 'e.g. Sambit Mahapatra'}
+              placeholder="e.g. Sambit Mahapatra"
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
             />
           </label>
@@ -810,19 +752,7 @@ export const AdminPanel: React.FC = () => {
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
               Category
             </span>
-            {customSport === 'tennis' ? (
-              <select
-                value={customCategory}
-                onChange={(e) => setCustomCategory(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-violet-500"
-              >
-                <option value="Tennis Singles">Tennis Singles</option>
-                <option value="Tennis Doubles">Tennis Doubles</option>
-                <option value="Mixed Doubles">Mixed Doubles</option>
-                <option value="__other__">Other (type below)</option>
-              </select>
-            ) : (
-              <select
+            <select
                 value={customCategory}
                 onChange={(e) => setCustomCategory(e.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-violet-500"
@@ -835,7 +765,6 @@ export const AdminPanel: React.FC = () => {
                 <option value="Exhibition">Exhibition</option>
                 <option value="__other__">Other (type below)</option>
               </select>
-            )}
             {customCategory === '__other__' && (
               <input
                 type="text"
@@ -847,8 +776,7 @@ export const AdminPanel: React.FC = () => {
               />
             )}
           </label>
-          {customSport === 'badminton' && (
-            <label className="block space-y-1.5">
+          <label className="block space-y-1.5">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                 Stage
               </span>
@@ -864,57 +792,8 @@ export const AdminPanel: React.FC = () => {
                 ))}
               </select>
             </label>
-          )}
         </div>
 
-        {customSport === 'tennis' ? (
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
-            <div className="flex items-center flex-wrap gap-2">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Stage
-              </span>
-              <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
-                {TENNIS_STAGES.map((stg) => (
-                  <button
-                    key={stg}
-                    type="button"
-                    onClick={() => setCustomTennisStage(stg)}
-                    className={`text-[10px] px-2.5 py-1 rounded font-bold ${
-                      customTennisStage === stg
-                        ? 'bg-violet-400 text-slate-950'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {formatTennisStageLabel(stg)}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 gap-0.5">
-                {TENNIS_MATCH_TYPES.map((mt) => (
-                  <button
-                    key={mt}
-                    type="button"
-                    onClick={() => setCustomTennisMatchType(mt)}
-                    className={`text-[10px] px-2.5 py-1 rounded font-bold capitalize ${
-                      customTennisMatchType === mt
-                        ? 'bg-amber-400 text-slate-950'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {mt}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleStartCustomMatch}
-              className="bg-violet-500 hover:bg-violet-400 text-slate-950 font-bold text-sm px-5 py-2.5 rounded-lg transition-colors shadow"
-            >
-              Start Tennis Match ({formatTennisStageLabel(customTennisStage)} · {customTennisMatchType})
-            </button>
-          </div>
-        ) : (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
           <div className="flex items-center flex-wrap gap-2">
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -961,7 +840,6 @@ export const AdminPanel: React.FC = () => {
             Start Custom Match ({customMaxPoints}p · BO{customBestOf})
           </button>
         </div>
-        )}
         {customMatchError && (
           <p className="text-xs text-red-400" role="alert">
             {customMatchError}

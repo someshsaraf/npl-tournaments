@@ -1,10 +1,10 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { ApiRequest, ApiResponse } from './_lib/http.js';
 
 /**
  * POST /api/ask
  * Strict NPL 2026 tournament chatbot via Gemini (server-only API key).
  *
- * Env (Vercel, not VITE_):
+ * Env (server .env, never VITE_):
  * - GEMINI_API_KEY (required)
  * - GEMINI_MODEL (optional; default gemini-2.5-flash — gemini-2.0-flash shut down June 2026)
  *
@@ -24,7 +24,7 @@ const GEMINI_TIMEOUT_MS = 28_000;
 /** Tried in order if GEMINI_MODEL is unset or the chosen model is unavailable. */
 const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-2.5-flash-lite'] as const;
 
-const SYSTEM_INSTRUCTION = `You are Renaissance Nature Walk Ask — the official assistant for the Renaissance Nature Walk Cultural & Sports event, covering both the Badminton and Tennis tournaments (singles & doubles) plus community cultural events.
+const SYSTEM_INSTRUCTION = `You are Renaissance Nature Walk Ask — the official assistant for the Renaissance Nature Walk sports tournaments, covering both the Badminton and Lawn Tennis tournaments (singles & doubles).
 
 STRICT RULES (non-negotiable):
 1. Answer ONLY using the CONTEXT JSON provided in the user message. Do not use outside knowledge.
@@ -71,14 +71,14 @@ function describeGeminiHttpError(status: number, body: unknown): { error: string
 
   if (status === 400 && /model|not found|not supported/i.test(geminiMsg)) {
     return {
-      error: `Gemini model is unavailable (${geminiMsg}). Set GEMINI_MODEL to gemini-2.5-flash (or newer) in Vercel and redeploy.`,
+      error: `Gemini model is unavailable (${geminiMsg}). Set GEMINI_MODEL to gemini-2.5-flash (or newer) in the server .env and restart.`,
       code: 'bad_model'
     };
   }
   if (status === 403 || status === 401 || /api key|permission|denied/i.test(geminiMsg)) {
     return {
       error:
-        'Gemini rejected the API key. Check GEMINI_API_KEY in Vercel (Generative Language API / AI Studio key) and redeploy.',
+        'Gemini rejected the API key. Check GEMINI_API_KEY in the server .env (Generative Language API / AI Studio key) and restart.',
       code: 'auth_error'
     };
   }
@@ -91,7 +91,7 @@ function describeGeminiHttpError(status: number, body: unknown): { error: string
   if (status === 404) {
     return {
       error:
-        'Gemini model not found. Set GEMINI_MODEL=gemini-2.5-flash in Vercel env and redeploy.',
+        'Gemini model not found. Set GEMINI_MODEL=gemini-2.5-flash in the server .env and restart.',
       code: 'bad_model'
     };
   }
@@ -199,7 +199,6 @@ function suggestLinks(question: string): AskLink[] {
   if (/\bschedule|when|fixture|upcoming|play\b/.test(q)) add('Schedule', '/schedule');
   if (/\bteam|roster|squad|who is on\b/.test(q)) add('Teams', '/teams');
   if (/\blive|now|on court|scoreboard\b/.test(q)) add('Live stream', '/live');
-  if (/\bcultural|festival|drawing|food|stall|carpet|community event\b/.test(q)) add('Events', '/events');
   if (links.length === 0) {
     add('Schedule', '/schedule');
     add('Results', '/results');
@@ -238,7 +237,7 @@ function extractGeminiText(data: unknown): { text: string; truncated: boolean } 
   return { text: joined, truncated };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   const apiKey =
     typeof process.env.GEMINI_API_KEY === 'string' ? process.env.GEMINI_API_KEY.trim() : '';
   const model = resolveModel();
@@ -252,7 +251,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model,
       message: apiKey
         ? 'Gemini Ask is configured.'
-        : 'GEMINI_API_KEY is not set. Add it in Vercel Project Settings → Environment Variables, then redeploy. Locally use a .env file and `npx vercel dev`.'
+        : 'GEMINI_API_KEY is not set. Add it to the server .env and restart the server.'
     });
     return;
   }
@@ -266,7 +265,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!apiKey) {
     res.status(503).json({
       error:
-        'Ask is not configured. Set GEMINI_API_KEY in Vercel env (Project Settings → Environment Variables), then redeploy. Locally: put it in .env and run `npx vercel dev`.',
+        'Ask is not configured. Set GEMINI_API_KEY in the server .env and restart the server.',
       code: 'missing_config'
     });
     return;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Camera, Home, Info, LogOut, Menu, MessageCircleQuestion, Radio, User, X } from 'lucide-react';
+import { Camera, Home, Info, Lock, Menu, MessageCircleQuestion, Trophy, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,14 +9,16 @@ const LOGO_SRC = '/nature-walk-logo-1.png';
 type NavItem = { to: string; label: string; end: boolean; icon: LucideIcon; disabled?: boolean };
 
 /**
- * Whole-site nav. Sport-specific pages (Schedule/Results/Stats/Teams/Live/
- * Recordings/Rules) are NOT here — they live inside each sport event's own
- * page (/events/:id), reached by tapping that event's tile on Home.
+ * Whole-site nav. Sport-specific pages (Schedule/Live/Recordings/Rules…) are
+ * NOT here — they live in each sport's hub (/badminton, /lawn-tennis),
+ * reached from the sport picker on Home.
  * Ask and About RNW are temporarily disabled — shown greyed out with a
  * "Soon" tag rather than removed. Flip `disabled` to re-enable.
  */
 const NAV: ReadonlyArray<NavItem> = [
-  { to: '/', label: 'Home', end: true, icon: Home },
+  { to: '/sports', label: 'Sports', end: true, icon: Home },
+  { to: '/badminton', label: 'Badminton', end: false, icon: Trophy },
+  { to: '/lawn-tennis', label: 'Lawn Tennis', end: false, icon: Trophy },
   { to: '/photos', label: 'Photos', end: false, icon: Camera },
   { to: '/ask', label: 'Ask', end: false, icon: MessageCircleQuestion, disabled: true },
   { to: '/about', label: 'About RNW', end: false, icon: Info, disabled: true }
@@ -24,14 +26,14 @@ const NAV: ReadonlyArray<NavItem> = [
 
 /**
  * Public viewer shell. Admin (/admin) and scorer (/scorer) are intentionally
- * omitted from this nav — staff reach them by direct URL only.
+ * not linked anywhere on resident pages — staff reach them by direct URL only.
  * Stateless layout; route state via React Router.
  */
 export function PublicLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading, logout } = useAuth();
+  const { loading, logout } = useAuth();
 
   // Close on route change (nav click) and on Escape.
   useEffect(() => {
@@ -83,39 +85,18 @@ export function PublicLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <Link
-              to="/live"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-ink text-white text-xs font-bold px-3.5 py-1.5 hover:bg-slate-800 transition-colors"
-            >
-              <Radio className="size-3.5" aria-hidden />
-              Live Score Hub
-            </Link>
             {!loading ? (
-              user ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft">
-                    <User className="size-3.5 text-ink-soft" aria-hidden />
-                    {user.username}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void logout()}
-                    aria-label="Log out"
-                    className="inline-flex items-center justify-center size-8 rounded-full border border-line bg-white text-ink-soft hover:bg-paper-soft transition-colors"
-                  >
-                    <LogOut className="size-3.5" aria-hidden />
-                  </button>
-                </div>
-              ) : (
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => navigate('/login')}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-ink text-white text-xs font-bold px-3.5 py-1.5 hover:bg-slate-800 transition-colors"
+                  onClick={() => void logout().then(() => navigate('/'))}
+                  aria-label="Lock this device"
+                  title="Lock this device (asks for the access code again)"
+                  className="inline-flex items-center justify-center size-8 rounded-full border border-line bg-white text-ink-soft hover:bg-paper-soft transition-colors"
                 >
-                  <User className="size-3.5" aria-hidden />
-                  Login
+                  <Lock className="size-3.5" aria-hidden />
                 </button>
-              )
+              </div>
             ) : null}
           </div>
         </div>
@@ -216,27 +197,23 @@ export function PublicLayout() {
           <div className="space-y-2">
             <p className="portal-display text-2xl tracking-wide">Renaissance</p>
             <p className="text-sm text-slate-400 max-w-xs">
-              Cultural celebrations and sports tournaments for the Renaissance Nature Walk community.
+              Sports tournaments for the Renaissance Nature Walk community.
             </p>
           </div>
           <div className="space-y-2.5">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Categories</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Sports</p>
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li>
-                <Link to="/?category=cultural" className="hover:text-white transition-colors">
-                  Cultural
+                <Link to="/badminton" className="hover:text-white transition-colors">
+                  Badminton
                 </Link>
               </li>
               <li>
-                <Link to="/?category=sports" className="hover:text-white transition-colors">
-                  Sports
+                <Link to="/lawn-tennis" className="hover:text-white transition-colors">
+                  Lawn Tennis
                 </Link>
               </li>
-              <li>
-                <Link to="/" className="hover:text-white transition-colors">
-                  All Events
-                </Link>
-              </li>
+              <li className="text-slate-600">Table Tennis (Soon)</li>
             </ul>
           </div>
           <div className="space-y-2.5">
@@ -249,16 +226,11 @@ export function PublicLayout() {
               </li>
               <li className="text-slate-600">Ask (Soon)</li>
               <li className="text-slate-600">About RNW (Soon)</li>
-              <li>
-                <Link to="/admin/login" className="hover:text-white transition-colors">
-                  Admin Login
-                </Link>
-              </li>
             </ul>
           </div>
         </div>
         <div className="border-t border-white/10 py-4 text-center text-[11px] text-slate-500 tracking-wide">
-          Renaissance Nature Walk · Cultural &amp; Sports 2026
+          Renaissance Nature Walk · Sports
         </div>
       </footer>
     </div>

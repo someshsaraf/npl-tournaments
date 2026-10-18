@@ -6,8 +6,9 @@ import {
   runTransaction,
   set,
   type Unsubscribe
-} from 'firebase/database';
-import { db, GALLERY_TOTAL_BYTES_PATH, GALLERY_UPLOADS_PATH } from '../firebase';
+} from '../lib/realtime';
+import { db, GALLERY_TOTAL_BYTES_PATH, GALLERY_UPLOADS_PATH } from '../db';
+import { isSafeMediaUrl, isSafeUploadUrl, putToUploadUrl } from './mediaUrl';
 import {
   GALLERY_DEFAULT_YEAR,
   galleryTagFromYear,
@@ -52,6 +53,9 @@ export type GalleryUploadRecord = {
   year: number;
   /** Community event id chosen at upload time, if any. */
   eventId?: string;
+  /** Uploader identity, resolved server-side from the session at upload time. */
+  uploaderUid?: string;
+  uploaderName?: string;
 };
 
 type PresignResponse = {
@@ -63,23 +67,16 @@ type PresignResponse = {
   contentType: string;
   kind: GalleryMediaKind;
   byteSize: number;
+  uploaderUid?: string;
+  uploaderName?: string;
 };
 
 /**
- * True for HTTPS media URLs (R2 public URL / CDN). Rejects non-https.
+ * True for displayable media URLs (https bucket/CDN, or this server's /media/…).
  * Concurrency: pure; Security: https-only, no credentials in URL.
  */
 export function isSafeGalleryDownloadUrl(value: unknown): value is string {
-  if (typeof value !== 'string' || !value.trim() || value.length > 2000) return false;
-  let parsed: URL;
-  try {
-    parsed = new URL(value.trim());
-  } catch {
-    return false;
-  }
-  if (parsed.protocol !== 'https:') return false;
-  if (parsed.username || parsed.password) return false;
-  return true;
+  return isSafeMediaUrl(value);
 }
 
 function sanitizeTitle(name: string): string {
@@ -102,8 +99,8 @@ function yearFromCreatedAt(createdAt: string, fallback: number): number {
 }
 
 /**
- * Resolve season tag + year from RTDB row (tag preferred, then year, then createdAt).
- * Input: untrusted RTDB fields; output always allowlisted.
+ * Resolve season tag + year from data store row (tag preferred, then year, then createdAt).
+ * Input: untrusted data store fields; output always allowlisted.
  */
 function resolveUploadSeason(row: {
   tag?: unknown;
@@ -205,6 +202,12 @@ function parseUploadRecord(id: string, raw: unknown): GalleryUploadRecord | null
   });
   const eventId =
     typeof row.eventId === 'string' && row.eventId.trim() ? row.eventId.trim().slice(0, 80) : undefined;
+  const uploaderUid =
+    typeof row.uploaderUid === 'string' && row.uploaderUid.trim() ? row.uploaderUid.trim() : undefined;
+  const uploaderName =
+    typeof row.uploaderName === 'string' && row.uploaderName.trim()
+      ? row.uploaderName.trim().slice(0, 80)
+      : undefined;
 
   return {
     id,
@@ -218,7 +221,9 @@ function parseUploadRecord(id: string, raw: unknown): GalleryUploadRecord | null
     byteSize,
     tag,
     year,
-    ...(eventId ? { eventId } : {})
+    ...(eventId ? { eventId } : {}),
+    ...(uploaderUid ? { uploaderUid } : {}),
+    ...(uploaderName ? { uploaderName } : {})
   };
 }
 
@@ -233,12 +238,16 @@ export function uploadsToGalleryItems(records: GalleryUploadRecord[]): GalleryMe
     title: r.title,
     year: r.year,
     tag: r.tag,
-    ...(r.eventId ? { eventId: r.eventId } : {})
+    ...(r.eventId ? { eventId: r.eventId } : {}),
+    ...(r.uploaderUid ? { uploaderUid: r.uploaderUid } : {}),
+    ...(r.uploaderName ? { uploaderName: r.uploaderName } : {}),
+    storagePath: r.storagePath,
+    byteSize: r.byteSize
   }));
 }
 
 /**
- * Live list of community gallery uploads from RTDB.
+ * Live list of community gallery uploads from data store.
  * Concurrency: one listener per subscribe call; caller must unsubscribe.
  * Security: only accepts https URLs + gallery/ paths.
  */
@@ -322,7 +331,7 @@ async function releaseGalleryBytes(bytes: number): Promise<void> {
   });
 }
 
-async function requestR2Presign(input: {
+async function requestUploadUrl(input: {
   contentType: string;
   byteSize: number;
   fileName: string;
@@ -370,8 +379,8 @@ async function requestR2Presign(input: {
   ) {
     throw new Error('Invalid upload URL response.');
   }
-  if (!row.uploadUrl.startsWith('https://')) {
-    throw new Error('Invalid presigned upload URL.');
+  if (!isSafeUploadUrl(row.uploadUrl)) {
+    throw new Error('Invalid upload URL.');
   }
   if (!isSafeGalleryDownloadUrl(row.publicUrl)) {
     throw new Error('Invalid public media URL from server.');
@@ -388,18 +397,23 @@ async function requestR2Presign(input: {
     fileName: row.fileName,
     contentType: row.contentType,
     kind: row.kind,
-    byteSize: Math.floor(row.byteSize)
+    byteSize: Math.floor(row.byteSize),
+    ...(typeof row.uploaderUid === 'string' && row.uploaderUid.trim()
+      ? { uploaderUid: row.uploaderUid.trim() }
+      : {}),
+    ...(typeof row.uploaderName === 'string' && row.uploaderName.trim()
+      ? { uploaderName: row.uploaderName.trim() }
+      : {})
   };
 }
 
 /**
- * Upload a gallery file to Cloudflare R2 (presigned PUT) and register metadata in RTDB.
+ * Upload a gallery file (PUT to the URL from /api/gallery-upload-url) and register its metadata.
  * Reserves quota first (atomic); rolls back quota on failure.
  *
- * Concurrency: RTDB transaction serializes the 5 GB counter across clients.
- * Security: MIME + allowlisted season tag validated; shared 5 GB RTDB quota;
- * R2 secrets stay on Vercel; object keys are UUID-based.
- * Local: use `npx vercel dev` so /api/gallery-upload-url is available.
+ * Concurrency: data store transaction serializes the 5 GB counter across clients.
+ * Security: MIME + allowlisted season tag validated; shared 5 GB data store quota;
+ * storage secrets stay on the server; object keys are UUID-based.
  */
 export async function uploadGalleryMedia(
   fileInput: unknown,
@@ -416,24 +430,13 @@ export async function uploadGalleryMedia(
   await reserveGalleryBytes(byteSize);
 
   try {
-    const presign = await requestR2Presign({
+    const presign = await requestUploadUrl({
       contentType,
       byteSize,
       fileName: file.name || `photo${EXT_BY_MIME[contentType] ?? '.jpg'}`
     });
 
-    const putRes = await fetch(presign.uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': contentType },
-      body: file
-    });
-    if (!putRes.ok) {
-      throw new Error(
-        putRes.status === 403
-          ? 'R2 rejected the upload (check bucket CORS allows PUT from this site).'
-          : `R2 upload failed (${putRes.status}).`
-      );
-    }
+    await putToUploadUrl(presign.uploadUrl, file, contentType);
 
     const metaRef = push(ref(db, GALLERY_UPLOADS_PATH));
     const rtdbId = metaRef.key;
@@ -454,7 +457,9 @@ export async function uploadGalleryMedia(
       byteSize,
       tag,
       year,
-      ...(eventId ? { eventId } : {})
+      ...(eventId ? { eventId } : {}),
+      ...(presign.uploaderUid ? { uploaderUid: presign.uploaderUid } : {}),
+      ...(presign.uploaderName ? { uploaderName: presign.uploaderName } : {})
     };
 
     await set(metaRef, {
@@ -468,7 +473,9 @@ export async function uploadGalleryMedia(
       byteSize: record.byteSize,
       tag: record.tag,
       year: record.year,
-      ...(eventId ? { eventId } : {})
+      ...(eventId ? { eventId } : {}),
+      ...(record.uploaderUid ? { uploaderUid: record.uploaderUid } : {}),
+      ...(record.uploaderName ? { uploaderName: record.uploaderName } : {})
     });
 
     return record;
@@ -481,11 +488,15 @@ export async function uploadGalleryMedia(
 const UPLOAD_ID_RE = /^[a-zA-Z0-9_-]{8,80}$/;
 
 /**
- * Delete a community gallery upload (admin).
- * Removes RTDB metadata, releases quota bytes, then best-effort deletes the R2 object.
+ * Delete a community gallery upload — either an admin (any record) or the
+ * resident who uploaded it (server checks `uploaderUid` against their
+ * session; see api/gallery-delete.ts). Calls the API FIRST, while the data store
+ * record still exists for the server to check ownership against, then only
+ * cleans up data store metadata + quota bytes once the API confirms it's allowed.
  *
- * Concurrency: RTDB remove is atomic per key; quota uses a transaction.
- * Security: validates id + gallery/ storagePath; R2 delete goes through serverless API.
+ * Concurrency: data store remove is atomic per key; quota uses a transaction.
+ * Security: validates id + gallery/ storagePath; ownership is enforced
+ * server-side, not just by this client-side check.
  * Input: GalleryUploadRecord (or equivalent fields); fails fast on bad values.
  */
 export async function deleteGalleryUpload(recordInput: unknown): Promise<void> {
@@ -507,17 +518,14 @@ export async function deleteGalleryUpload(recordInput: unknown): Promise<void> {
   const storagePath = row.storagePath.trim();
   const byteSize = normalizeUsedBytes(row.byteSize);
 
-  await remove(ref(db, `${GALLERY_UPLOADS_PATH}/${id}`));
-  await releaseGalleryBytes(byteSize);
-
   const res = await fetch('/api/gallery-delete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ storagePath })
+    body: JSON.stringify({ id, storagePath })
   });
 
   if (!res.ok) {
-    let message = `File removed from gallery, but R2 cleanup failed (${res.status}).`;
+    let message = `Could not delete this photo (${res.status}).`;
     try {
       const payload: unknown = await res.json();
       if (
@@ -526,12 +534,15 @@ export async function deleteGalleryUpload(recordInput: unknown): Promise<void> {
         !Array.isArray(payload) &&
         typeof (payload as { error?: unknown }).error === 'string'
       ) {
-        message = `File removed from gallery, but R2 cleanup failed: ${(payload as { error: string }).error}`;
+        message = (payload as { error: string }).error;
       }
     } catch {
       // keep default message
     }
     throw new Error(message);
   }
+
+  await remove(ref(db, `${GALLERY_UPLOADS_PATH}/${id}`));
+  await releaseGalleryBytes(byteSize);
 }
 

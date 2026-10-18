@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ref, onValue } from 'firebase/database';
-import { db, LIVE_SCORE_DELAY_MS_PATH, YOUTUBE_LIVE_URL_PATH } from '../firebase';
-import { INITIAL_MATCH, isMaxPoints } from '../data/tournamentData';
+import { ref, onValue } from '../lib/realtime';
+import { db, liveMatchPath, liveScoreDelayPath, youtubeLiveUrlPath } from '../db';
+import { useRouteSport } from '../hooks/useRouteSport';
+import { INITIAL_MATCH, isMaxPoints, resolveSport } from '../data/tournamentData';
 import type { CompletedMatch, MatchState, MaxPoints, Sport } from '../data/tournamentData';
 import { parseYouTubeVideoId } from '../utils/youtube';
 import { hasGameWinner, hasSeriesWinner, normalizeMatchState } from '../utils/matchState';
@@ -360,10 +361,11 @@ function compactNameBudget(nameA: unknown, nameB: unknown): number {
 }
 
 export const StreamOverlay: React.FC = () => {
-  /** Latest Firebase match (immediate). Not used for the on-screen score bug. */
+  const sport = useRouteSport();
+  /** Latest the data store match (immediate). Not used for the on-screen score bug. */
   const [liveMatch, setLiveMatch] = useState<MatchState>(INITIAL_MATCH);
   /**
-   * Score shown on /live. null until first Firebase snapshot (avoids INITIAL_MATCH flash).
+   * Score shown on /live. null until first the data store snapshot (avoids INITIAL_MATCH flash).
    * First snapshot applies immediately; later snapshots lag by LIVE_SCORE_DELAY_MS.
    */
   const [scoreMatch, setScoreMatch] = useState<MatchState | null>(null);
@@ -400,7 +402,7 @@ export const StreamOverlay: React.FC = () => {
   const scoreDelayTimersRef = useRef<Set<number>>(new Set());
   /** Broadcast lag for /live score bug — synced from admin settings. */
   const liveScoreDelayMsRef = useRef(DEFAULT_LIVE_SCORE_DELAY_MS);
-  /** Count of Firebase match updates received this page session. */
+  /** Count of the data store match updates received this page session. */
   const liveUpdateCountRef = useRef(0);
   /** After first real scoreMatch, we know load/refresh state and won't false-trigger. */
   const celebrateArmedRef = useRef(false);
@@ -505,7 +507,7 @@ export const StreamOverlay: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const matchRef = ref(db, 'currentMatch');
+    const matchRef = ref(db, liveMatchPath(sport));
     const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
       if (!data || typeof data !== 'object') return;
@@ -514,7 +516,7 @@ export const StreamOverlay: React.FC = () => {
       liveUpdateCountRef.current += 1;
       const updateN = liveUpdateCountRef.current;
 
-      // First Firebase snapshot: show current match immediately (no INITIAL_MATCH flash).
+      // First the data store snapshot: show current match immediately (no INITIAL_MATCH flash).
       if (updateN === 1) {
         setScoreMatch(next);
         return;
@@ -533,36 +535,38 @@ export const StreamOverlay: React.FC = () => {
       scoreDelayTimersRef.current.add(id);
     });
     return () => unsubscribe();
-  }, []);
+  }, [sport]);
 
   useEffect(() => {
-    const delayRef = ref(db, LIVE_SCORE_DELAY_MS_PATH);
+    const delayRef = ref(db, liveScoreDelayPath(sport));
     const unsubscribe = onValue(delayRef, (snapshot) => {
       liveScoreDelayMsRef.current = parseLiveScoreDelayMs(snapshot.val());
     });
     return () => unsubscribe();
-  }, []);
+  }, [sport]);
 
   useEffect(() => {
-    const youtubeRef = ref(db, YOUTUBE_LIVE_URL_PATH);
+    const youtubeRef = ref(db, youtubeLiveUrlPath(sport));
     const unsubscribe = onValue(youtubeRef, (snapshot) => {
       const val = snapshot.val();
       setSettingsYoutubeUrl(typeof val === 'string' ? val : '');
     });
     return () => unsubscribe();
-  }, []);
+  }, [sport]);
 
   useEffect(() => {
     const completedRef = ref(db, 'completedMatches');
     const unsubscribe = onValue(completedRef, (snapshot) => {
       const rows = sortCompletedMatches(
-        Object.values(completedMatchesFromFirebase(snapshot.val()))
+        Object.values(completedMatchesFromFirebase(snapshot.val())).filter(
+          (r) => resolveSport(r.sport) === sport
+        )
       );
       const top = rows[0];
       setLatestCompleted(top ? heldFromCompleted(top) : null);
     });
     return () => unsubscribe();
-  }, []);
+  }, [sport]);
 
   useEffect(() => {
     if (!scoreMatch) return;
@@ -1346,7 +1350,7 @@ export const StreamOverlay: React.FC = () => {
         <div className="absolute z-[70] bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] pointer-events-auto flex items-center gap-2">
           <LiveViewerCountBadge count={viewerCount} />
           <Link
-            to="/"
+            to="/sports"
             className="rounded-full bg-slate-900/85 hover:bg-emerald-500 text-white hover:text-slate-950 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 border border-white/25 shadow-lg"
             aria-label="Back to portal"
           >
@@ -1457,7 +1461,7 @@ export const StreamOverlay: React.FC = () => {
       <div className="absolute z-[70] bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] pointer-events-auto flex items-center gap-2">
         <LiveViewerCountBadge count={viewerCount} />
         <Link
-          to="/"
+          to="/sports"
           className="rounded-full bg-slate-900/85 hover:bg-emerald-500 text-white hover:text-slate-950 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 border border-white/25 shadow-lg"
           aria-label="Back to portal"
         >

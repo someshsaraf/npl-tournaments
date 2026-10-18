@@ -11,10 +11,10 @@ import {
 } from '../utils/galleryUploads';
 
 /**
- * Admin gallery manager — list and delete community uploads (R2 + RTDB).
+ * Admin gallery manager — list and delete community uploads (R2 + data store).
  * Static files under public/Gallery are not deletable here (repo-managed).
  *
- * Concurrency: RTDB listeners; delete is last-write-wins per upload id.
+ * Concurrency: data store listeners; delete is last-write-wins per upload id.
  * Security: staff UI by URL only (same as other admin pages); path validated before delete.
  * Input: confirmed delete of a subscribed GalleryUploadRecord.
  */

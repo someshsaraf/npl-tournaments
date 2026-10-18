@@ -64,7 +64,7 @@ function parseClientItem(raw: unknown): YouTubeRecording | null {
 }
 
 /**
- * Fetches past recordings via the Vercel serverless proxy (`/api/youtube-recordings`).
+ * Fetches past recordings via the server proxy (`/api/youtube-recordings`).
  * API key stays on the server (YOUTUBE_API_KEY) — never use VITE_ for the key.
  *
  * Concurrency: pure async; no shared mutable state.
@@ -98,7 +98,7 @@ export async function fetchPastRecordings(options?: {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
     throw new FetchPastRecordingsError(
       'http_error',
-      'Network error loading recordings. On local Vite, use `vercel dev` so /api works.'
+      'Network error loading recordings. Is the server running? (`npm run dev` starts it.)'
     );
   }
 
@@ -136,7 +136,7 @@ export async function fetchPastRecordings(options?: {
       code,
       errMsg ??
         (response.status === 404
-          ? 'Recordings API not found. Deploy with Vercel (or run `vercel dev`) so /api/youtube-recordings exists.'
+          ? 'Recordings API not found — is the server running? (`npm run dev` starts it.)'
           : `Failed to load recordings (${response.status}).`)
     );
   }

@@ -1,13 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Camera, LogOut, PartyPopper, Users } from 'lucide-react';
+import { Camera, KeyRound, LogOut, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { BrandBanner } from './BrandBanner';
 import { useAuth } from '../contexts/AuthContext';
 
 /**
- * Score Desk / Results / Teams / (badminton/tennis) Schedule are sport-specific
- * — reached from a sports event's own config page (its "Tournament Admin"
- * section), not from this general nav. Only whole-site tools live here.
+ * Score Desk / Results / Teams / Schedule are sport-specific — reached from
+ * each sport's admin page (via Sports), not from this general nav. Only
+ * whole-site tools live here.
  */
 const LINKS: ReadonlyArray<{
   to: string;
@@ -15,15 +15,14 @@ const LINKS: ReadonlyArray<{
   end: boolean;
   icon: LucideIcon;
 }> = [
-  { to: '/admin/events', label: 'Events', end: false, icon: PartyPopper },
+  { to: '/admin/sports', label: 'Sports', end: false, icon: Trophy },
   { to: '/admin/photos', label: 'Photos', end: false, icon: Camera },
-  { to: '/admin/users', label: 'Accounts', end: false, icon: Users }
+  { to: '/admin/access', label: 'Access', end: false, icon: KeyRound }
 ];
 
 /**
  * Shared staff nav for admin pages. Sport-specific tools (Score Desk,
- * Results, Teams, fixtures) are reached from each sports event's own
- * config page instead of this general nav.
+ * Results, Teams, fixtures) are reached from each sport's admin page.
  */
 export function AdminNav({ subtitle = 'Tournament Control' }: { subtitle?: string }) {
   const safeSubtitle =

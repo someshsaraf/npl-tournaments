@@ -1,6 +1,6 @@
 import type { MatchState, TennisMatchState, TennisPointGame, TennisStage, TennisMatchType } from '../data/tournamentData';
 import { isTennisStage, isTennisMatchType } from '../data/tournamentData';
-import { buildInitialTennisState } from './tennisScoring';
+import { buildInitialTennisState, normalizeTennisRules } from './tennisScoring';
 
 function normalizeTennisGameLog(raw: unknown): TennisPointGame[] {
   if (!Array.isArray(raw)) return [];
@@ -12,17 +12,20 @@ function normalizeTennisGameLog(raw: unknown): TennisPointGame[] {
     const points2 = Number(r.points2);
     const winner = r.winner === 2 ? 2 : r.winner === 1 ? 1 : null;
     if (!Number.isFinite(points1) || !Number.isFinite(points2) || winner === null) continue;
+    const deuceCount = Number(r.deuceCount);
     out.push({
       points1: Math.max(0, Math.trunc(points1)),
       points2: Math.max(0, Math.trunc(points2)),
       winner,
-      wasTiebreak: r.wasTiebreak === true
+      wasTiebreak: r.wasTiebreak === true,
+      ...(Number.isFinite(deuceCount) && deuceCount >= 0 ? { deuceCount: Math.trunc(deuceCount) } : {}),
+      ...(r.golden === true ? { golden: true } : {})
     });
   }
   return out;
 }
 
-/** Defensive Firebase payload healing for the `tennis` sub-object — same spirit as normalizeMatchState. */
+/** Defensive the data store payload healing for the `tennis` sub-object — same spirit as normalizeMatchState. */
 export function normalizeTennisMatchState(raw: unknown): TennisMatchState {
   if (!raw || typeof raw !== 'object') {
     return buildInitialTennisState('qualifier', 'singles');
@@ -51,6 +54,7 @@ export function normalizeTennisMatchState(raw: unknown): TennisMatchState {
   return {
     tennisStage,
     matchType,
+    rules: normalizeTennisRules(r.rules, tennisStage),
     points1,
     points2,
     isTiebreak: r.isTiebreak === true,
@@ -85,6 +89,7 @@ export function formatTennisGameLogLine(match: MatchState | null | undefined): s
 /** Human label for the tennis stage, e.g. for badges/headers. */
 export function formatTennisStageLabel(tennisStage: TennisStage): string {
   if (tennisStage === 'qualifier') return 'Qualifier';
+  if (tennisStage === 'quarterfinal') return 'Quarterfinal';
   if (tennisStage === 'semifinal') return 'Semifinal';
   return 'Final';
 }

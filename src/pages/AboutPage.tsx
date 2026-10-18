@@ -4,9 +4,9 @@ import { Reveal } from '../components/Reveal';
 
 const QUICK_LINKS = [
   {
-    to: '/',
-    label: 'Browse events',
-    description: 'Every cultural celebration and sports tournament, all year round.',
+    to: '/sports',
+    label: 'Browse sports',
+    description: 'Badminton, Lawn Tennis and Table Tennis tournaments, all year round.',
     icon: PartyPopper
   },
   {
@@ -41,8 +41,8 @@ export default function AboutPage() {
         </h1>
         <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
           Renaissance Nature Walk is our residential community, and this site is where we bring the
-          community together — cultural celebrations like Ganesh Utsav, Diwali, and Holi, alongside
-          sports tournaments like Badminton and Tennis, all through the year.
+          community together for sports tournaments — Badminton, Lawn Tennis and Table Tennis — all
+          through the year.
         </p>
         <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
           Browse what's coming up, catch live scores during a tournament, and look back at photos

@@ -5,37 +5,45 @@
   "type": "module",
   "scripts": {
     "gallery:manifest": "node scripts/generate-gallery-manifest.mjs",
-    "dev": "npm run gallery:manifest && vite",
-    "dev:ask": "npm run gallery:manifest && vercel dev",
-    "typecheck:api": "tsc --project tsconfig.api.json",
-    "build": "npm run gallery:manifest && tsc -b && npm run typecheck:api && vite build",
+    "dev": "npm run gallery:manifest && node scripts/dev.mjs",
+    "build": "npm run gallery:manifest && tsc -b && npm run typecheck:server && vite build && npm run build:server",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=dist-server/index.js",
+    "start": "node dist-server/index.js",
+    "import": "tsx server/index.ts import",
+    "typecheck:server": "tsc -p tsconfig.server.json",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "npm run build && npm start"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1130.0",
     "@aws-sdk/s3-request-presigner": "^3.1130.0",
     "bcryptjs": "^3.0.3",
-    "firebase": "^12.17.0",
-    "firebase-admin": "^14.4.0",
+    "express": "^5.3.0",
     "jose": "^6.2.12",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.28.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^7.18.2",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/express": "^5.0.6",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vercel/node": "^5.9.7",
+    "@types/ws": "^8.18.2",
     "@vitejs/plugin-react": "^6.0.4",
+    "esbuild": "^0.28.2",
     "oxlint": "^1.75.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"
+  },
+  "engines": {
+    "node": ">=22.13"
   }
 }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ref, onValue } from 'firebase/database';
-import { db } from '../firebase';
+import { ref, onValue } from '../lib/realtime';
+import { db, liveMatchPath } from '../db';
+import { useRouteSport } from '../hooks/useRouteSport';
+import { CourtWaitingScreen } from '../components/CourtWaitingScreen';
 import { INITIAL_MATCH, isFinalStage } from '../data/tournamentData';
 import type { MatchState } from '../data/tournamentData';
 import {
@@ -47,11 +49,14 @@ import { TennisScoreDisplay } from '../components/TennisScoreDisplay';
 
 /**
  * Full-viewport audience scoreboard (/score).
- * Large type for viewing from a distance; read-only Firebase sync.
+ * Large type for viewing from a distance; read-only the data store sync.
  * Concurrency: single onValue subscription; no shared mutable globals.
  */
 export const LiveScoreboard: React.FC = () => {
+  const sport = useRouteSport();
   const [match, setMatch] = useState<MatchState>(INITIAL_MATCH);
+  /** null until the first live snapshot arrives; then whether a match exists. */
+  const [hasLiveData, setHasLiveData] = useState<boolean | null>(null);
   const [celebration, setCelebration] = useState<{
     winnerName: string;
     opponentName: string;
@@ -90,13 +95,14 @@ export const LiveScoreboard: React.FC = () => {
   const allowAdsAndMusic = !isFinalMatch;
 
   useEffect(() => {
-    const matchRef = ref(db, 'currentMatch');
+    const matchRef = ref(db, liveMatchPath(sport));
     const unsubscribe = onValue(matchRef, (snapshot) => {
       const data = snapshot.val();
+      setHasLiveData(!!data);
       if (data) setMatch(normalizeMatchState(data));
     });
     return () => unsubscribe();
-  }, []);
+  }, [sport]);
 
   // Audience kiosk: auto-dismiss celebration — finals hold until next match starts.
   useEffect(() => {
@@ -293,6 +299,11 @@ export const LiveScoreboard: React.FC = () => {
       : [];
   const showBo3Inline = bo3GameScores.length > 0;
 
+  if (sport !== 'badminton' && hasLiveData !== true) {
+    // Blank while loading, so the "next match" screen doesn't flash before the score.
+    return hasLiveData === false ? <CourtWaitingScreen sport={sport} /> : <div className="fixed inset-0 bg-slate-950" />;
+  }
+
   return (
     <div
       ref={rootRef}
@@ -429,7 +440,7 @@ export const LiveScoreboard: React.FC = () => {
 
         <div className="min-w-0 flex items-center justify-end gap-2">
           <Link
-            to="/"
+            to="/sports"
             className="rounded-full px-3 py-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wide shadow border bg-slate-800 text-slate-100 border-slate-600 hover:bg-slate-700 active:scale-95"
           >
             Portal

@@ -1,4 +1,5 @@
 import type { CompletedMatch, Fixture, MatchState } from '../data/tournamentData';
+import { isSafeMediaUrl } from './mediaUrl';
 import { isBestOf, isMaxPoints } from '../data/tournamentData';
 import { formatGameScoresLine, hasSeriesWinner } from './matchState';
 import { formatTennisGameLogLine } from './tennisMatchState';
@@ -30,7 +31,7 @@ export function formatMatchTime(date: Date): string {
   return `${hh}:${mm}`;
 }
 
-/** Firebase RTDB path key — strips characters that are illegal in keys. */
+/** the data store path key — strips characters that are illegal in keys. */
 export function completedMatchStorageKey(fixtureId: unknown): string {
   if (typeof fixtureId !== 'string' || !fixtureId.trim()) {
     throw new Error('completedMatchStorageKey: non-empty fixtureId required');
@@ -39,7 +40,7 @@ export function completedMatchStorageKey(fixtureId: unknown): string {
 }
 
 /**
- * JSON-clone so Firebase never receives `undefined` (RTDB rejects it).
+ * JSON-clone so the data store never receives `undefined` (data store rejects it).
  * Concurrency: pure; returns a new plain object.
  */
 export function toFirebaseWritable<T>(value: T): T {
@@ -53,7 +54,7 @@ export function toFirebaseWritable<T>(value: T): T {
 /**
  * Builds a CompletedMatch record from the live match + schedule fixture.
  * For best-of-3, result includes games tally and each game score.
- * Concurrency: pure/stateless — caller writes to Firebase.
+ * Concurrency: pure/stateless — caller writes to the data store.
  */
 export function buildCompletedMatch(
   match: MatchState,
@@ -136,7 +137,7 @@ export function buildCompletedMatch(
     gamesWon1,
     gamesWon2,
     gameScores,
-    ...(typeof extras?.snapshotUrl === 'string' && extras.snapshotUrl.startsWith('https://')
+    ...(isSafeMediaUrl(extras?.snapshotUrl)
       ? { snapshotUrl: extras.snapshotUrl }
       : {}),
     ...(typeof extras?.snapshotPath === 'string' && extras.snapshotPath.startsWith('photos/')
@@ -201,7 +202,7 @@ function buildCompletedTennisMatch(
           gameLog: t.gameLog
         }
       : undefined,
-    ...(typeof extras?.snapshotUrl === 'string' && extras.snapshotUrl.startsWith('https://')
+    ...(isSafeMediaUrl(extras?.snapshotUrl)
       ? { snapshotUrl: extras.snapshotUrl }
       : {}),
     ...(typeof extras?.snapshotPath === 'string' && extras.snapshotPath.startsWith('photos/')
@@ -210,7 +211,7 @@ function buildCompletedTennisMatch(
   };
 }
 
-/** Merge static fixtures with completed-match overlays from Firebase. */
+/** Merge static fixtures with completed-match overlays from the data store. */
 export function mergeFixturesWithResults(
   fixtures: Fixture[],
   completedById: Record<string, CompletedMatch>
@@ -275,7 +276,7 @@ export function completedMatchesFromFirebase(
       base.completedDate = formatMatchDate(when);
       base.completedTime = formatMatchTime(when);
     }
-    // Display renamed players even before Firebase rows are rewritten.
+    // Display renamed players even before the data store rows are rewritten.
     out[id] = applyPlayerNameAliasesToCompletedMatch(base);
   }
   return out;
@@ -343,7 +344,7 @@ function parseNonNegInt(value: unknown, label: string): number {
  * Merge admin edits into an existing completed match.
  * Preserves id/fixtureId, snapshots, maxPoints, and gameScores.
  *
- * Concurrency: pure — caller writes the result to RTDB.
+ * Concurrency: pure — caller writes the result to data store.
  * Security: no secrets; validates types/ranges before write.
  * Input: existing CompletedMatch + edit payload; fails fast on bad values.
  */

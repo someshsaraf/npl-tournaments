@@ -16,10 +16,16 @@ export type GalleryMediaItem = {
   year: number;
   /** Upload tag when known, e.g. npl-2026. */
   tag?: GalleryYearTag;
-  /** Present for community uploads (RTDB id). */
+  /** Present for community uploads (data store id). */
   id?: string;
   /** Community event id this was uploaded against, when chosen at upload time. */
   eventId?: string;
+  /** Uploader identity, present for community uploads only (not curated/static items). */
+  uploaderUid?: string;
+  uploaderName?: string;
+  /** Present for community uploads only — needed to delete via the gallery-delete API. */
+  storagePath?: string;
+  byteSize?: number;
 };
 
 export type GalleryManifest = {

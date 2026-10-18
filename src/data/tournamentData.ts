@@ -12,27 +12,54 @@ export function resolveSport(value: unknown): Sport {
   return value === 'tennis' ? 'tennis' : 'badminton';
 }
 
+/**
+ * Display labels. The `tennis` id is kept for the data store back-compat (existing
+ * completedMatches rows) — residents see it as Lawn Tennis.
+ */
 export const SPORT_LABEL: Record<Sport, string> = {
   badminton: 'Badminton',
-  tennis: 'Tennis'
+  tennis: 'Lawn Tennis'
 };
 
-/** Tennis stage drives both the match-win condition and the point-level deuce rule. */
-export type TennisStage = 'qualifier' | 'semifinal' | 'final';
+/** Tennis stage — a label; the scoring rules themselves live on TennisRules. */
+export type TennisStage = 'qualifier' | 'quarterfinal' | 'semifinal' | 'final';
 
-export const TENNIS_STAGES: readonly TennisStage[] = ['qualifier', 'semifinal', 'final'] as const;
+export const TENNIS_STAGES: readonly TennisStage[] = [
+  'qualifier',
+  'quarterfinal',
+  'semifinal',
+  'final'
+] as const;
 
 export function isTennisStage(value: unknown): value is TennisStage {
-  return value === 'qualifier' || value === 'semifinal' || value === 'final';
+  return (
+    value === 'qualifier' || value === 'quarterfinal' || value === 'semifinal' || value === 'final'
+  );
 }
 
-/** Label only — doesn't change rules. Doubles sides are combined strings, same as badminton. */
-export type TennisMatchType = 'singles' | 'doubles';
+/** Label only — doesn't change rules. Doubles/team sides are combined strings, same as badminton. */
+export type TennisMatchType = 'singles' | 'doubles' | 'team';
 
-export const TENNIS_MATCH_TYPES: readonly TennisMatchType[] = ['singles', 'doubles'] as const;
+export const TENNIS_MATCH_TYPES: readonly TennisMatchType[] = ['singles', 'doubles', 'team'] as const;
 
 export function isTennisMatchType(value: unknown): value is TennisMatchType {
-  return value === 'singles' || value === 'doubles';
+  return value === 'singles' || value === 'doubles' || value === 'team';
+}
+
+/**
+ * How a tennis match is won.
+ * - `race`: first to `gamesTarget` games wins, no margin (qualifier "best of 4":
+ *   at 3-3 the next game decides).
+ * - `set`: a regular set — `gamesTarget` games with a 2-game margin, and a
+ *   tiebreak at gamesTarget-all when `tiebreak` is on.
+ * `goldenDeuce` = which deuce makes the next point sudden death (3 = third
+ * deuce); null keeps classic advantage play forever.
+ */
+export interface TennisRules {
+  format: 'race' | 'set';
+  gamesTarget: number;
+  goldenDeuce: number | null;
+  tiebreak: boolean;
 }
 
 /** One finished game (or tiebreak) within a tennis match. */
@@ -41,12 +68,18 @@ export interface TennisPointGame {
   points2: number;
   winner: 1 | 2;
   wasTiebreak: boolean;
+  /** Deuce count when the game ended — lets undo reopen a game exactly. */
+  deuceCount?: number;
+  /** Game was decided on a golden point (the winning point isn't in points1/points2). */
+  golden?: boolean;
 }
 
 /** Tennis-only mechanics, nested on MatchState.tennis when sport === 'tennis'. */
 export interface TennisMatchState {
   tennisStage: TennisStage;
   matchType: TennisMatchType;
+  /** Win condition + golden point rule for this match (set when the match starts). */
+  rules: TennisRules;
   /** Raw point count in the current game (0,1,2,3,4…), or tiebreak points when isTiebreak. */
   points1: number;
   points2: number;
@@ -140,7 +173,7 @@ export interface Fixture {
   sport?: Sport;
   teamA?: string;
   teamB?: string;
-  /** Runtime fields merged from Firebase when the match has been completed */
+  /** Runtime fields merged from the data store when the match has been completed */
   status?: 'scheduled' | 'completed';
   result?: string;
   winnerName?: string;
@@ -151,7 +184,7 @@ export interface Fixture {
   finalScore2?: number;
 }
 
-/** Persisted finished-match row (Firebase `completedMatches/{fixtureId}`). */
+/** Persisted finished-match row (the data store `completedMatches/{fixtureId}`). */
 export interface CompletedMatch {
   id: string;
   fixtureId: string;
@@ -226,7 +259,7 @@ export interface MatchState {
   trumpTeam: 1 | 2 | null;
   /** YouTube live (or VOD) URL consumed by the /live page */
   youtubeLiveUrl: string;
-  /** Defaults to 'badminton' for back-compat with existing Firebase rows. */
+  /** Defaults to 'badminton' for back-compat with existing the data store rows. */
   sport: Sport;
   /** Present only when sport === 'tennis'; badminton fields above are unused in that case. */
   tennis?: TennisMatchState;

@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { ref, onValue, set } from 'firebase/database';
-import { db } from '../firebase';
+import { ref, onValue, set } from '../lib/realtime';
+import { db } from '../db';
 import { TEAMS, type Team } from '../data/tournamentData';
 import { AdminNav } from '../components/AdminNav';
 import { propagatePlayerRename } from '../utils/playerRename';
 
 /**
  * Admin team roster editor. Moved off the main /admin schedule page.
- * Writes to Firebase `teams`; player renames also cascade to completed matches
+ * Writes to the data store `teams`; player renames also cascade to completed matches
  * and the live currentMatch so Results / Ask / overlays stay in sync.
  */
 export default function AdminTeamsPage() {
@@ -24,7 +24,7 @@ export default function AdminTeamsPage() {
       if (Array.isArray(data) && data.length > 0) {
         setTeams(data);
       } else {
-        set(ref(db, 'teams'), TEAMS).catch((err) => console.error('Firebase write error:', err));
+        set(ref(db, 'teams'), TEAMS).catch((err) => console.error('Write error:', err));
       }
     });
     return () => unsub();
@@ -34,7 +34,7 @@ export default function AdminTeamsPage() {
     if (!Array.isArray(newTeams)) return;
     setTeams(newTeams);
     set(ref(db, 'teams'), newTeams).catch((err) => {
-      console.error('Failed to sync teams to Firebase:', err);
+      console.error('Failed to sync teams to the server:', err);
     });
   };
 

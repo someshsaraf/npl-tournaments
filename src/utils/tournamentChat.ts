@@ -491,7 +491,7 @@ function answerLive(live: MatchState | null): ChatAnswer | null {
       text: 'I don’t have a live match snapshot right now. Check Live Stream or the home page for the current score.',
       links: [
         { label: 'Live stream', to: '/live' },
-        { label: 'Home', to: '/' }
+        { label: 'Home', to: '/sports' }
       ]
     };
   }

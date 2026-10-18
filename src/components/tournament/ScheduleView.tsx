@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ref, onValue } from 'firebase/database';
-import { db } from '../../firebase';
+import { ref, onValue } from '../../lib/realtime';
+import { db } from '../../db';
 import {
   FIXTURES,
   FIXTURE_DATES,

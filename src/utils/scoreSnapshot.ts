@@ -1,5 +1,4 @@
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
+import { isSafeMediaUrl, putToUploadUrl } from './mediaUrl';
 import type { MatchState } from '../data/tournamentData';
 import { formatGameScoresLine, formatGamesWonLabel, hasSeriesWinner } from './matchState';
 import { formatTennisGameLogLine, formatTennisGamesLabel, formatTennisStageLabel } from './tennisMatchState';
@@ -143,7 +142,7 @@ export function renderScoreSnapshotCanvas(match: MatchState): HTMLCanvasElement 
   ctx.fillStyle = '#64748b';
   ctx.font = '600 24px "Source Sans 3", system-ui, sans-serif';
   ctx.fillText(
-    `Renaissance Nature Walk · ${isTennis ? 'Tennis' : 'Badminton'}`,
+    `Renaissance Nature Walk · ${isTennis ? 'Lawn Tennis' : 'Badminton'}`,
     w / 2,
     1280
   );
@@ -186,8 +185,9 @@ export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 /**
- * Upload snapshot to Firebase Storage `photos/` and return public URL.
- * Security: path is generated server-side from match id + timestamp (not user path input).
+ * Upload snapshot to media storage `photos/` and return its public URL.
+ * Security: file name is built from match id + timestamp (not user input);
+ * the server only issues upload URLs for staff sessions.
  */
 export async function saveScoreSnapshotToPhotos(
   match: MatchState,
@@ -203,17 +203,22 @@ export async function saveScoreSnapshotToPhotos(
   const id = safeFilePart(match.currentMatchId || 'match', 'match');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const fileName = `npl-${id}-${stamp}.png`;
-  const storagePath = `photos/${fileName}`;
-  const objectRef = storageRef(storage, storagePath);
-  await uploadBytes(objectRef, blob, {
-    contentType: 'image/png',
-    customMetadata: {
-      matchId: String(match.currentMatchId || ''),
-      category: String(match.category || '').slice(0, 80)
-    }
+  const res = await fetch('/api/snapshot-upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileName, byteSize: blob.size })
   });
-  const downloadUrl = await getDownloadURL(objectRef);
-  return { storagePath, downloadUrl, fileName };
+  const ticket = (await res.json().catch(() => ({}))) as {
+    uploadUrl?: string;
+    publicUrl?: string;
+    storagePath?: string;
+    error?: string;
+  };
+  if (!res.ok || !ticket.uploadUrl || !isSafeMediaUrl(ticket.publicUrl) || !ticket.storagePath) {
+    throw new Error(ticket.error || `Snapshot upload unavailable (${res.status}).`);
+  }
+  await putToUploadUrl(ticket.uploadUrl, blob, 'image/png');
+  return { storagePath: ticket.storagePath, downloadUrl: ticket.publicUrl, fileName };
 }
 
 /** Trigger a browser download of the snapshot PNG. */
@@ -258,7 +263,7 @@ export async function shareScoreSnapshot(options: {
   const file = new File([blob], safeName, { type: 'image/png' });
   const nav = typeof navigator !== 'undefined' ? navigator : null;
   const withLink =
-    typeof downloadUrl === 'string' && downloadUrl.startsWith('https://')
+    isSafeMediaUrl(downloadUrl)
       ? `${shareText}\n${downloadUrl}`
       : shareText;
 
@@ -323,7 +328,7 @@ export async function captureAndPersistScoreSnapshot(
       downloadUrl = uploaded.downloadUrl;
       fileName = uploaded.fileName;
     } catch (err) {
-      console.error('Firebase Storage upload failed (continuing with local share):', err);
+      console.error('Snapshot upload failed (continuing with local share):', err);
     }
   }
 
