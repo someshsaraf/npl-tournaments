@@ -1,0 +1,40 @@
+src/components/PublicLayout.tsx
+  s_cd483d3188506b::t_fd8fb29658c89f 22,217-221
+src/pages/TournamentRegisterPage.tsx
+  s_cd483d3188506b::t_e3be6c9fede44f 4-5,14,16-17
+  s_cd483d3188506b::t_1457c508f9eb9d 97
+src/data/registration.ts
+  s_cd483d3188506b::t_e3be6c9fede44f 37-47,63-75,80
+api/registrations.ts
+  s_cd483d3188506b::t_e3be6c9fede44f 7,39
+src/components/tournamentAdmin/RegistrationsPanel.tsx
+  s_cd483d3188506b::t_e3be6c9fede44f 13-14,17,30,100
+src/App.tsx
+  s_cd483d3188506b::t_dfcabf7ce6902c 24,89,111
+src/components/TournamentDates.tsx
+  s_cd483d3188506b::t_514723c8d50e70 19-23
+src/pages/AdminRegistrationsPage.tsx
+  s_cd483d3188506b::t_c3aed6ce4aae3c 1-32
+src/pages/AdminSportsPage.tsx
+  s_cd483d3188506b::t_3eeb0376065388 5,32-39
+src/pages/HomePage.tsx
+  s_cd483d3188506b::t_81bd7a53fe35e3 7,105-107,113-118,121-132,134-144
+src/pages/TableTennisPage.tsx
+  s_cd483d3188506b::t_e82e4e3dc1301d 2-5,7-10,12,14,22-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b827c2d4c639e39c588ac93ad3ad015e71bc4134",
+  "prompts": {},
+  "sessions": {
+    "s_cd483d3188506b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6459fae-10c1-4de4-9af6-70d00db19da2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
