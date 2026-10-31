@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Camera, ShieldCheck } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { ArrowRight, Camera } from 'lucide-react';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
 import { Reveal } from '../components/Reveal';
 import { SPORT_CARDS, type SportCard } from '../data/sports';
@@ -14,8 +13,6 @@ import type { Sport } from '../data/tournamentData';
  */
 export default function HomePage() {
   const homeAds = useHomeEventAds();
-  // Staff-only shortcut — residents (community code) never see it.
-  const { admin } = useAuth();
 
   return (
     <div className="relative space-y-10">
@@ -26,7 +23,7 @@ export default function HomePage() {
               Renaissance Nature Walk · Sports
             </p>
             <h1 className="portal-display text-5xl sm:text-6xl text-ink leading-[0.95] tracking-wide">
-              Pick your sport
+              Pick the sport
             </h1>
             <p className="text-sm sm:text-base text-ink-soft">
               Schedules, live scores, streams, recordings and photos for every tournament on our
@@ -41,15 +38,6 @@ export default function HomePage() {
               <Camera className="size-3.5" aria-hidden />
               Photos
             </Link>
-            {admin ? (
-              <Link
-                to="/admin/sports"
-                className="inline-flex items-center gap-1.5 rounded-full bg-ink text-white px-3.5 py-2 text-xs font-bold hover:bg-slate-800 transition-colors"
-              >
-                <ShieldCheck className="size-3.5" aria-hidden />
-                Admin
-              </Link>
-            ) : null}
           </div>
         </header>
       </Reveal>
