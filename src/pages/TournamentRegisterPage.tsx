@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
-import type { Sport } from '../data/tournamentData';
-import { REGISTRATIONS, categoryFor, formatsOf, groupsOf } from '../data/registration';
-import { sportCardBySport, sportSlug } from '../data/sports';
+import { REGISTRATIONS, categoryFor, formatsOf, groupsOf, type RegistrationKey } from '../data/registration';
+import { SPORT_CARDS } from '../data/sports';
 import { Reveal } from '../components/Reveal';
 import { TournamentDates } from '../components/TournamentDates';
 
@@ -12,10 +11,10 @@ import { TournamentDates } from '../components/TournamentDates';
  * age group (Kids or Adults) with Singles, Doubles or both. Saved on the
  * server where only admins can see it.
  */
-export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
+export default function TournamentRegisterPage({ sport }: { sport: RegistrationKey }) {
   const config = REGISTRATIONS[sport];
-  const card = sportCardBySport(sport);
-  const slug = sportSlug(sport);
+  const card = SPORT_CARDS.find((c) => c.sport === sport || c.slug === sport)!;
+  const slug = card.slug;
   const [name, setName] = useState('');
   const [group, setGroup] = useState('');
   const [formats, setFormats] = useState<string[]>([]);
@@ -95,7 +94,7 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
       </Link>
 
       <Reveal>
-        <section className="relative rounded-3xl overflow-hidden border border-line shadow-xl">
+        <section className="relative rounded-3xl overflow-hidden border border-line shadow-xl bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)]">
           {card.heroImage ? (
             <img
               src={card.heroImage}

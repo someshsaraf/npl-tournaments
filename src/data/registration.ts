@@ -34,7 +34,17 @@ const cat = (id: string, group: string, format: string): RegistrationCategory =>
   label: `${group} · ${format}`
 });
 
-export const REGISTRATIONS: Partial<Record<'badminton' | 'tennis', RegistrationConfig>> = {
+/**
+ * Which tournament a registration is for: a scored sport's id ('tennis',
+ * 'badminton') or a sport that's only taking sign-ups so far ('table-tennis').
+ */
+export type RegistrationKey = 'badminton' | 'tennis' | 'table-tennis';
+
+export function isRegistrationKey(v: unknown): v is RegistrationKey {
+  return v === 'badminton' || v === 'tennis' || v === 'table-tennis';
+}
+
+export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>> = {
   tennis: {
     title: 'Lawn Tennis Tournament 2026',
     dates: 'Fri–Sun 20, 21, 22 Nov & Fri–Sun 27, 28, 29 Nov 2026',
@@ -50,11 +60,24 @@ export const REGISTRATIONS: Partial<Record<'badminton' | 'tennis', RegistrationC
       cat('adults-singles', 'Adults (21 and over)', 'Singles'),
       cat('adults-doubles', 'Adults (21 and over)', 'Doubles')
     ]
+  },
+  'table-tennis': {
+    title: 'Table Tennis Tournament 2026',
+    dates: 'Fri–Sun 4, 5, 6 Dec 2026',
+    shortDates: '4–6 Dec 2026',
+    weekends: [['2026-12-04', '2026-12-05', '2026-12-06']],
+    firstDay: '2026-12-04',
+    categories: [
+      cat('kids-singles', 'Kids (under 21)', 'Singles'),
+      cat('kids-doubles', 'Kids (under 21)', 'Doubles'),
+      cat('adults-singles', 'Adults (21 and over)', 'Singles'),
+      cat('adults-doubles', 'Adults (21 and over)', 'Doubles')
+    ]
   }
 };
 
 /** Data path for one sport's registrations (admin-only — see server/rules.ts). */
-export function registrationsPath(sport: 'badminton' | 'tennis'): string {
+export function registrationsPath(sport: RegistrationKey): string {
   return `registrations/${sport}`;
 }
 

@@ -21,6 +21,7 @@ import AdminPhotosPage from './pages/AdminPhotosPage';
 import AdminTeamsPage from './pages/AdminTeamsPage';
 import AdminSportsPage from './pages/AdminSportsPage';
 import AdminTournamentPage from './pages/AdminTournamentPage';
+import AdminRegistrationsPage from './pages/AdminRegistrationsPage';
 import LiveScoreboard from './pages/LiveScoreboard';
 import StreamOverlay from './pages/StreamOverlay';
 import ScoreControl from './pages/ScoreControl';
@@ -85,6 +86,7 @@ export default function App() {
               <Route path="/lawn-tennis" element={<TournamentHubPage sport="tennis" />} />
               <Route path="/lawn-tennis/register" element={<TournamentRegisterPage sport="tennis" />} />
               <Route path="/table-tennis" element={<TableTennisPage />} />
+              <Route path="/table-tennis/register" element={<TournamentRegisterPage sport="table-tennis" />} />
               <Route path="/photos" element={<MatchPhotosPage />} />
               <Route path="/ask" element={<AskPage />} />
               <Route path="/about" element={<AboutPage />} />
@@ -106,6 +108,7 @@ export default function App() {
             {/* Tournament consoles — key forces a fresh console when switching sport. */}
             <Route path="/admin/lawn-tennis" element={<AdminTournamentPage key="tennis" sport="tennis" />} />
             <Route path="/admin/badminton" element={<AdminTournamentPage key="badminton" sport="badminton" />} />
+            <Route path="/admin/table-tennis" element={<AdminRegistrationsPage sport="table-tennis" />} />
             <Route path="/admin/tournament" element={<Navigate to="/admin/badminton" replace />} />
             <Route path="/admin/score" element={<AdminScorePage />} />
             <Route path="/admin/results" element={<AdminResultsPage />} />
