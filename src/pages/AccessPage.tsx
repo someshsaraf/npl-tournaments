@@ -4,6 +4,11 @@ import { KeyRound, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { enterAccessCode } from '../utils/authClient';
 
+/** Staff-only screens (admin console, scorer tablet). */
+function isStaffPath(path: string): boolean {
+  return /^\/(admin|scorer)(\/|\?|$)/.test(path);
+}
+
 /** A deep link to return to after unlocking (same-site paths only), or null. */
 function safeNext(raw: string | null): string | null {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
@@ -13,9 +18,12 @@ function safeNext(raw: string | null): string | null {
 
 /**
  * The site's front page (/): always asks for a code, and the code decides
- * where you go — community code → sport picker (/sports), admin code → staff
- * tools (/admin/sports). A locked deep link (?next=, e.g. a court TV on
- * /score/lawn-tennis) is returned to instead. No accounts or personal details.
+ * where you go:
+ * - community code → the locked page it came from (?next=, e.g. a court TV
+ *   on /score/lawn-tennis), else the sport picker (/sports);
+ * - admin code → the staff tools (/admin/sports) — or back to a staff page it
+ *   came from (e.g. /scorer/lawn-tennis), never to a resident page.
+ * No accounts or personal details.
  */
 export default function AccessPage() {
   const navigate = useNavigate();
@@ -32,7 +40,12 @@ export default function AccessPage() {
     try {
       const result = await enterAccessCode(code);
       await refresh();
-      navigate(next ?? (result.admin ? '/admin/sports' : '/sports'), { replace: true });
+      const to = result.admin
+        ? next && isStaffPath(next)
+          ? next
+          : '/admin/sports'
+        : (next ?? '/sports');
+      navigate(to, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not unlock.');
     } finally {

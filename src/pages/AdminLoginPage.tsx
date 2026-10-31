@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { adminLogin } from '../utils/authClient';
@@ -10,6 +10,7 @@ const INPUT_CLASS =
 /** Staff unlock with the fixed admin code — gates /admin/* and /scorer. */
 export default function AdminLoginPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { refresh } = useAuth();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -21,7 +22,9 @@ export default function AdminLoginPage() {
     try {
       await adminLogin(code);
       await refresh();
-      navigate('/admin/sports');
+      // Back to the staff page that asked for login (admin console / scorer only).
+      const next = params.get('next') ?? '';
+      navigate(/^\/(admin|scorer)(\/|\?|$)/.test(next) && !next.startsWith('/admin/login') ? next : '/admin/sports');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log in.');
     } finally {
