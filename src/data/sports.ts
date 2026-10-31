@@ -54,7 +54,7 @@ export const SPORT_CARDS: readonly SportCard[] = [
     slug: 'table-tennis',
     sport: null,
     label: 'Table Tennis',
-    tagline: 'Coming soon.',
+    tagline: 'Fast rallies, spin and smashes — singles and doubles for kids and adults.',
     heroImage: '',
     cardImage: '',
     galleryImages: [],

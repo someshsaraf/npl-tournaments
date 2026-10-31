@@ -24,6 +24,12 @@ export interface RegistrationConfig {
   weekends: string[][];
   /** First match day (YYYY-MM-DD) — for "see you on …". */
   firstDay: string;
+  /**
+   * Last moment residents can register, with its UTC offset (India time),
+   * e.g. "2026-11-13T23:59:59+05:30". Enforced by the server; staff (admin
+   * code) can still add late entries.
+   */
+  closesAt: string;
   categories: RegistrationCategory[];
 }
 
@@ -54,6 +60,7 @@ export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>>
       ['2026-11-27', '2026-11-28', '2026-11-29']
     ],
     firstDay: '2026-11-20',
+    closesAt: '2026-11-13T23:59:59+05:30',
     categories: [
       cat('kids-singles', 'Kids (under 21)', 'Singles'),
       cat('kids-doubles', 'Kids (under 21)', 'Doubles'),
@@ -67,6 +74,7 @@ export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>>
     shortDates: '4–6 Dec 2026',
     weekends: [['2026-12-04', '2026-12-05', '2026-12-06']],
     firstDay: '2026-12-04',
+    closesAt: '2026-11-13T23:59:59+05:30',
     categories: [
       cat('kids-singles', 'Kids (under 21)', 'Singles'),
       cat('kids-doubles', 'Kids (under 21)', 'Doubles'),
@@ -75,6 +83,21 @@ export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>>
     ]
   }
 };
+
+/** Still taking resident registrations? */
+export function registrationOpen(config: RegistrationConfig, now: number = Date.now()): boolean {
+  return now <= Date.parse(config.closesAt);
+}
+
+/** "Fri 13 Nov" — the closing day, in India time whatever the viewer's clock zone. */
+export function closesLabel(config: RegistrationConfig): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Asia/Kolkata'
+  }).format(new Date(config.closesAt));
+}
 
 /** Data path for one sport's registrations (admin-only — see server/rules.ts). */
 export function registrationsPath(sport: RegistrationKey): string {

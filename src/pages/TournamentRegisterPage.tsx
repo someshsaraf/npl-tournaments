@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
-import { REGISTRATIONS, categoryFor, formatsOf, groupsOf, type RegistrationKey } from '../data/registration';
+import { ArrowLeft, CalendarX2, CheckCircle2, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  REGISTRATIONS,
+  categoryFor,
+  closesLabel,
+  formatsOf,
+  groupsOf,
+  registrationOpen,
+  type RegistrationKey
+} from '../data/registration';
 import { SPORT_CARDS } from '../data/sports';
 import { Reveal } from '../components/Reveal';
 import { TournamentDates } from '../components/TournamentDates';
@@ -21,6 +30,7 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ name: string; category: string } | null>(null);
+  const { admin } = useAuth();
 
   if (!config) {
     return (
@@ -30,6 +40,8 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
     );
   }
 
+  const open = registrationOpen(config);
+  const closes = closesLabel(config);
   const groups = groupsOf(config);
   const allFormats = formatsOf(config);
   const toggleFormat = (f: string) => {
@@ -106,15 +118,43 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/25" />
           <div className="relative p-6 sm:p-8 space-y-4">
             <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-lime-300 font-bold">Registration open</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-lime-300 font-bold">
+                {open ? 'Registration open' : `Registration closed on ${closes}`}
+              </p>
               <h1 className="portal-display text-4xl sm:text-5xl text-white tracking-wide leading-none">{config.title}</h1>
             </div>
             <TournamentDates weekends={config.weekends} tone="dark" />
+            {open ? (
+              <p className="inline-flex rounded-full bg-amber-300 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-slate-950">
+                Registration closes {closes}
+              </p>
+            ) : null}
           </div>
         </section>
       </Reveal>
 
-      {done ? (
+      {!open && !admin ? (
+        <Reveal>
+          <section className="rounded-3xl border border-line bg-paper-soft p-6 sm:p-8 text-center space-y-3" role="status">
+            <CalendarX2 className="size-12 mx-auto text-slate-400" aria-hidden />
+            <h2 className="portal-display text-4xl text-ink tracking-wide">Registration closed</h2>
+            <p className="text-ink-soft">
+              Registration for the {config.title} closed on <span className="font-bold text-ink">{closes}</span>.
+            </p>
+            <p className="text-sm text-slate-500">
+              Missed it? Please contact the organisers. The draw and match times will be published on the {card.label} page.
+            </p>
+            <div className="pt-2">
+              <Link
+                to={`/${slug}`}
+                className="rounded-full bg-ink px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-slate-800"
+              >
+                Back to {card.label}
+              </Link>
+            </div>
+          </section>
+        </Reveal>
+      ) : done ? (
         <Reveal>
           <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8 text-center space-y-3" role="status">
             <CheckCircle2 className="size-12 mx-auto text-emerald-600" aria-hidden />
@@ -152,6 +192,11 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
               void submit();
             }}
           >
+            {!open ? (
+              <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                Registration closed on {closes}. You're signed in as staff, so you can still add a late entry.
+              </p>
+            ) : null}
             <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.14em] text-ink">Full name</span>
               <input

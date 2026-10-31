@@ -41,7 +41,13 @@ export function SportHero({
             loading="eager"
           />
         ) : (
-          <div className="absolute inset-0 bg-slate-900" />
+          // No photo yet (Table Tennis): a table-tennis table — centre line, net, ball.
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)]" aria-hidden>
+            <div className="absolute inset-6 rounded-2xl border-2 border-white/10" />
+            <div className="absolute inset-y-6 left-1/2 w-px bg-white/10" />
+            <div className="absolute inset-x-6 top-1/2 h-0.5 bg-white/15" />
+            <span className="absolute top-[20%] right-[14%] size-5 rounded-full bg-orange-300 shadow-[0_0_24px_rgba(253,186,116,0.7)]" />
+          </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/10" />
         <div className="relative h-full min-h-[300px] sm:min-h-[380px] flex flex-col justify-end p-5 sm:p-8 space-y-2.5 max-w-3xl">

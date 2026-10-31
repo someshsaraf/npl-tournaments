@@ -3,7 +3,9 @@ import { getAccessSession, getAdminSession } from './_lib/session.js';
 import { getAdminDb } from './_lib/db.js';
 import {
   REGISTRATIONS,
+  closesLabel,
   describeSelection,
+  registrationOpen,
   isRegistrationKey,
   normalizeName,
   registrationCategories,
@@ -40,6 +42,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const config = sport ? REGISTRATIONS[sport] : undefined;
   if (!sport || !config) {
     res.status(400).json({ error: 'Registration is not open for this sport.' });
+    return;
+  }
+
+  // Closed for residents after the deadline; staff can still add late entries.
+  if (!admin && !registrationOpen(config)) {
+    res.status(403).json({ error: `Registration closed on ${closesLabel(config)}. Please contact the organisers.` });
     return;
   }
 

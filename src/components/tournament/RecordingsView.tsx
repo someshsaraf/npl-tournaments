@@ -3,6 +3,10 @@ import { Loader2 } from 'lucide-react';
 import { RecordingsInPagePlayer } from '../RecordingsInPagePlayer';
 import type { Sport } from '../../data/tournamentData';
 import { SPORT_LABEL } from '../../data/tournamentData';
+
+/** A scored sport, or Table Tennis (recordings only so far). */
+type RecordingSport = Sport | 'table-tennis';
+const RECORDING_LABEL: Record<RecordingSport, string> = { ...SPORT_LABEL, 'table-tennis': 'Table Tennis' };
 import {
   FetchPastRecordingsError,
   fetchPastRecordings,
@@ -43,7 +47,8 @@ function optionLabel(row: YouTubeRecording): string {
 }
 
 /** Does a stream title mention this sport? ("Table Tennis" never counts as lawn tennis.) */
-function titleMatchesSport(title: string, sport: Sport): boolean {
+function titleMatchesSport(title: string, sport: RecordingSport): boolean {
+  if (sport === 'table-tennis') return /table[\s-]*tennis|ping[\s-]*pong/i.test(title);
   if (sport === 'tennis') return /tennis/i.test(title) && !/table[\s-]*tennis/i.test(title);
   return /badminton/i.test(title);
 }
@@ -53,7 +58,7 @@ function titleMatchesSport(title: string, sport: Sport): boolean {
  * sport's hub. The channel isn't split by sport, so recordings are matched
  * on the sport name in the stream title, with a toggle to show everything.
  */
-export function RecordingsView({ sport }: { sport?: Sport }) {
+export function RecordingsView({ sport }: { sport?: RecordingSport }) {
   const [showAll, setShowAll] = useState(false);
   const selectId = useId();
   const [items, setItems] = useState<YouTubeRecording[]>([]);
@@ -131,15 +136,15 @@ export function RecordingsView({ sport }: { sport?: Sport }) {
             {showAll
               ? `Showing all ${items.length} channel recordings.`
               : sportItems.length > 0
-                ? `${sportItems.length} ${SPORT_LABEL[sport]} recording${sportItems.length === 1 ? '' : 's'}.`
-                : `No streams titled "${SPORT_LABEL[sport]}" yet.`}
+                ? `${sportItems.length} ${RECORDING_LABEL[sport]} recording${sportItems.length === 1 ? '' : 's'}.`
+                : `No streams titled "${RECORDING_LABEL[sport]}" yet.`}
           </span>
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
             className="font-bold uppercase tracking-wide text-emerald-700 hover:text-emerald-800"
           >
-            {showAll ? `Only ${SPORT_LABEL[sport]}` : 'Show all recordings'}
+            {showAll ? `Only ${RECORDING_LABEL[sport]}` : 'Show all recordings'}
           </button>
         </div>
       ) : null}
