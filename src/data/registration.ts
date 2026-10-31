@@ -16,8 +16,12 @@ export interface RegistrationCategory {
 
 export interface RegistrationConfig {
   title: string;
-  /** Human-readable dates for the form and the sport page. */
+  /** Human-readable dates for text contexts (admin console, CSV). */
   dates: string;
+  /** Compact form for headlines, e.g. "20–22 & 27–29 Nov 2026". */
+  shortDates: string;
+  /** Match days grouped by weekend (YYYY-MM-DD) — drives the date tiles. */
+  weekends: string[][];
   /** First match day (YYYY-MM-DD) — for "see you on …". */
   firstDay: string;
   categories: RegistrationCategory[];
@@ -34,6 +38,11 @@ export const REGISTRATIONS: Partial<Record<'badminton' | 'tennis', RegistrationC
   tennis: {
     title: 'Lawn Tennis Tournament 2026',
     dates: 'Fri–Sun 20, 21, 22 Nov & Fri–Sun 27, 28, 29 Nov 2026',
+    shortDates: '20–22 & 27–29 Nov 2026',
+    weekends: [
+      ['2026-11-20', '2026-11-21', '2026-11-22'],
+      ['2026-11-27', '2026-11-28', '2026-11-29']
+    ],
     firstDay: '2026-11-20',
     categories: [
       cat('kids-singles', 'Kids (under 21)', 'Singles'),
