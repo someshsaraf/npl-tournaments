@@ -1,26 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { onValue, ref, set } from '../../../lib/realtime';
+import { onValue, ref, set } from '../../lib/realtime';
 import { ExternalLink, Play } from 'lucide-react';
-import { db, liveMatchPath, liveScoreDelayPath, youtubeLiveUrlPath } from '../../../db';
+import { db, liveMatchPath, liveScoreDelayPath, youtubeLiveUrlPath } from '../../db';
 import {
+  BEST_OF_OPTIONS,
   INITIAL_MATCH,
+  MAX_POINTS_OPTIONS,
+  SPORT_LABEL,
   TENNIS_MATCH_TYPES,
   TENNIS_STAGES,
+  type BestOf,
   type MatchState,
+  type MaxPoints,
+  type Sport,
   type TennisMatchType,
   type TennisStage
-} from '../../../data/tournamentData';
+} from '../../data/tournamentData';
 import {
   STAGE_LABEL,
   categoryLabel,
   matchTypeForFormat,
   tennisStageForFixture,
-  type PublishedTennisTournament,
+  type PublishedTournament,
   type TournamentFixture
-} from '../../../data/tennisTournament';
-import { buildCustomTennisMatchState } from '../../../utils/tennisCustomMatch';
-import { formatTennisStageLabel } from '../../../utils/tennisMatchState';
+} from '../../data/tournament';
+import { sportSlug } from '../../data/sports';
+import { buildCustomTennisMatchState } from '../../utils/tennisCustomMatch';
+import { buildCustomMatchState } from '../../utils/customMatch';
+import { formatTennisStageLabel } from '../../utils/tennisMatchState';
 import {
   compareFixtureTime,
   fixtureStageLabel,
@@ -28,44 +36,51 @@ import {
   formatFixtureDate,
   resolveSide,
   type TournamentContext
-} from '../../../utils/tennisTournament';
-import { delayMsToSeconds, delaySecondsToMs, parseLiveScoreDelayMs } from '../../../utils/liveScoreDelay';
-import { isValidYouTubeLiveUrl } from '../../../utils/youtube';
-import { isMatchOnCourt } from '../../../hooks/useSportLiveMatch';
-import { LiveScoreBug } from '../../tournament/LiveView';
+} from '../../utils/tournament';
+import { delayMsToSeconds, delaySecondsToMs, parseLiveScoreDelayMs } from '../../utils/liveScoreDelay';
+import { isValidYouTubeLiveUrl } from '../../utils/youtube';
+import { isMatchOnCourt } from '../../hooks/useSportLiveMatch';
+import { useScoreDaypartAdsAdmin } from '../../hooks/useScoreDaypartAds';
+import { LiveScoreBug } from '../tournament/LiveView';
 import { Btn, Chip, ConfirmBtn, FieldLabel, Notice, Panel, inputCls } from './ui';
 
-const SCREENS = [
-  { path: '/score/lawn-tennis', label: 'Court scoreboard', hint: 'Big-font scores for the screen at the court.' },
-  { path: '/live/lawn-tennis', label: 'Stream overlay', hint: 'YouTube stream + score bug (for OBS / TV).' },
-  { path: '/scorer/lawn-tennis', label: 'Scorer (tablet)', hint: 'Tap-to-score controls for the umpire.' },
-  { path: '/admin/score?sport=tennis', label: 'Admin score desk', hint: 'Score + save results from here.' }
-] as const;
+function screensFor(sport: Sport) {
+  const slug = sportSlug(sport);
+  return [
+    { path: `/score/${slug}`, label: 'Court scoreboard', hint: 'Big-font scores for the screen at the court.' },
+    { path: `/live/${slug}`, label: 'Stream overlay', hint: 'YouTube stream + score bug (for OBS / TV).' },
+    { path: `/scorer/${slug}`, label: 'Scorer (tablet)', hint: 'Tap-to-score controls for the umpire.' },
+    { path: `/admin/score?sport=${sport}`, label: 'Admin score desk', hint: 'Score + save results from here.' }
+  ];
+}
 
 /**
- * Live control for Lawn Tennis: court screen links, the stream URL, the
+ * Match-day control for one sport: court screen links, the stream URL, the
  * match on court, and the published schedule's next matches with Start
- * buttons (which load the right stage rules onto the court).
+ * buttons (which load that stage's scoring rules onto the court).
  */
 export function LivePanel({
+  sport,
   published,
   ctx,
   live
 }: {
-  published: PublishedTennisTournament | null;
+  sport: Sport;
+  published: PublishedTournament | null;
   ctx: TournamentContext | null;
   live: MatchState | null;
 }) {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const onCourt = isMatchOnCourt(live);
+  const deskPath = `/admin/score?sport=${sport}`;
 
   const startMatch = (next: MatchState) => {
     setError(null);
-    set(ref(db, liveMatchPath('tennis')), next)
-      .then(() => navigate('/admin/score?sport=tennis'))
-      .catch((err) => {
-        console.error('Failed to start tennis match:', err);
+    set(ref(db, liveMatchPath(sport)), next)
+      .then(() => navigate(deskPath))
+      .catch((err: unknown) => {
+        console.error('Failed to start match:', err);
         setError('Could not start the match — check your connection.');
       });
   };
@@ -76,22 +91,38 @@ export function LivePanel({
     const a = resolveSide(ctx, f.sideA);
     const b = resolveSide(ctx, f.sideB);
     if (!cat || !a.entry || !b.entry) {
-      setError('Both sides must be known before this match can start (finish the earlier round, or pin the sides on the Schedule tab).');
+      setError('Both sides must be known before this match can start (finish the earlier round, or set the sides on the Schedule tab).');
       return;
     }
+    const stage = f.stage === 'pool' ? fixtureStageLabel(ctx, f) : STAGE_LABEL[f.stage];
     try {
-      startMatch(
-        buildCustomTennisMatchState(live ?? INITIAL_MATCH, {
-          sideA: a.entry.name,
-          sideB: b.entry.name,
-          tennisStage: tennisStageForFixture(f.stage),
-          matchType: matchTypeForFormat(cat.format),
-          category: categoryLabel(cat),
-          stage: f.stage === 'pool' ? fixtureStageLabel(ctx, f) : STAGE_LABEL[f.stage],
-          rules: published.rules[f.stage],
-          matchId: f.id
-        })
-      );
+      if (sport === 'tennis') {
+        startMatch(
+          buildCustomTennisMatchState(live ?? INITIAL_MATCH, {
+            sideA: a.entry.name,
+            sideB: b.entry.name,
+            tennisStage: tennisStageForFixture(f.stage),
+            matchType: matchTypeForFormat(cat.format),
+            category: categoryLabel(cat),
+            stage,
+            rules: published.rules[f.stage],
+            matchId: f.id
+          })
+        );
+      } else {
+        const rules = published.badmintonRules[f.stage];
+        startMatch(
+          buildCustomMatchState(live ?? INITIAL_MATCH, {
+            sideA: a.entry.name,
+            sideB: b.entry.name,
+            maxPoints: rules.maxPoints,
+            bestOf: rules.bestOf,
+            category: categoryLabel(cat),
+            stage,
+            matchId: f.id
+          })
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start match.');
     }
@@ -109,9 +140,9 @@ export function LivePanel({
 
   return (
     <div className="space-y-6">
-      <Panel title="Court screens" subtitle="Open these on the court TV, the streaming PC and the umpire's tablet. They only show Lawn Tennis.">
+      <Panel title="Court screens" subtitle={`Open these on the court TV, the streaming PC and the umpire's tablet. They only show ${SPORT_LABEL[sport]}.`}>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {SCREENS.map((s) => (
+          {screensFor(sport).map((s) => (
             <a
               key={s.path}
               href={s.path}
@@ -130,7 +161,7 @@ export function LivePanel({
         </div>
       </Panel>
 
-      <StreamSettings />
+      <StreamSettings sport={sport} />
 
       <Panel title="On court now">
         {live ? (
@@ -140,13 +171,13 @@ export function LivePanel({
               <p className="text-xs text-slate-400">
                 {live.category} · {live.stage} {onCourt ? '' : '(not started / finished)'}
               </p>
-              <Btn tone="primary" onClick={() => navigate('/admin/score?sport=tennis')}>
+              <Btn tone="primary" onClick={() => navigate(deskPath)}>
                 Open score desk
               </Btn>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No Lawn Tennis match loaded yet.</p>
+          <p className="text-sm text-slate-500">No {SPORT_LABEL[sport]} match loaded yet.</p>
         )}
       </Panel>
 
@@ -157,7 +188,7 @@ export function LivePanel({
         {!published || !ctx ? (
           <Notice tone="warn">Publish the schedule first — matches start from the published copy.</Notice>
         ) : queue.length === 0 ? (
-          <p className="text-sm text-slate-500">Every scheduled match has a result. 🎾</p>
+          <p className="text-sm text-slate-500">Every scheduled match has a result.</p>
         ) : (
           <ul className="divide-y divide-slate-800">
             {queue.slice(0, 40).map((f) => {
@@ -183,7 +214,7 @@ export function LivePanel({
                     </p>
                   </div>
                   {isLive ? (
-                    <Btn small onClick={() => navigate('/admin/score?sport=tennis')}>
+                    <Btn small onClick={() => navigate(deskPath)}>
                       Resume
                     </Btn>
                   ) : onCourt ? (
@@ -203,29 +234,30 @@ export function LivePanel({
         {error ? <Notice tone="error">{error}</Notice> : null}
       </Panel>
 
-      <AdHocMatch published={published} live={live} onStart={startMatch} />
+      <AdHocMatch sport={sport} published={published} live={live} onStart={startMatch} />
+      <CourtAdsPanel />
     </div>
   );
 }
 
-function StreamSettings() {
+function StreamSettings({ sport }: { sport: Sport }) {
   const [url, setUrl] = useState('');
   const [delay, setDelay] = useState('0');
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    const u1 = onValue(ref(db, youtubeLiveUrlPath('tennis')), (snap) => {
+    const u1 = onValue(ref(db, youtubeLiveUrlPath(sport)), (snap) => {
       const v = snap.val();
       setUrl(typeof v === 'string' ? v : '');
     });
-    const u2 = onValue(ref(db, liveScoreDelayPath('tennis')), (snap) => {
+    const u2 = onValue(ref(db, liveScoreDelayPath(sport)), (snap) => {
       setDelay(String(delayMsToSeconds(parseLiveScoreDelayMs(snap.val()))));
     });
     return () => {
       u1();
       u2();
     };
-  }, []);
+  }, [sport]);
 
   const save = async () => {
     const trimmed = url.trim();
@@ -239,17 +271,17 @@ function StreamSettings() {
       return;
     }
     try {
-      await set(ref(db, youtubeLiveUrlPath('tennis')), trimmed);
-      await set(ref(db, liveScoreDelayPath('tennis')), delaySecondsToMs(seconds));
-      setMsg(trimmed ? 'Saved — the Lawn Tennis Live tab and overlay now use this stream.' : 'Stream cleared.');
+      await set(ref(db, youtubeLiveUrlPath(sport)), trimmed);
+      await set(ref(db, liveScoreDelayPath(sport)), delaySecondsToMs(seconds));
+      setMsg(trimmed ? `Saved — the ${SPORT_LABEL[sport]} Live tab and overlay now use this stream.` : 'Stream cleared.');
     } catch (err) {
-      console.error('Failed to save tennis stream settings:', err);
+      console.error('Failed to save stream settings:', err);
       setMsg('Save failed — check your connection.');
     }
   };
 
   return (
-    <Panel title="YouTube Live" subtitle="Lawn Tennis has its own stream, separate from Badminton.">
+    <Panel title="YouTube Live" subtitle={`${SPORT_LABEL[sport]} has its own stream, separate from the other sports.`}>
       <div className="grid gap-3 sm:grid-cols-[1fr_9rem_auto] items-end">
         <label className="block">
           <FieldLabel>Live URL</FieldLabel>
@@ -273,11 +305,13 @@ function StreamSettings() {
 
 /** Friendly / exhibition match outside the schedule — result saves under a custom-* id. */
 function AdHocMatch({
+  sport,
   published,
   live,
   onStart
 }: {
-  published: PublishedTennisTournament | null;
+  sport: Sport;
+  published: PublishedTournament | null;
   live: MatchState | null;
   onStart: (m: MatchState) => void;
 }) {
@@ -285,22 +319,37 @@ function AdHocMatch({
   const [sideB, setSideB] = useState('');
   const [stage, setStage] = useState<TennisStage>('qualifier');
   const [matchType, setMatchType] = useState<TennisMatchType>('singles');
+  const [maxPoints, setMaxPoints] = useState<MaxPoints>(21);
+  const [bestOf, setBestOf] = useState<BestOf>(1);
   const [error, setError] = useState<string | null>(null);
 
   const start = () => {
     try {
-      const stageKey = stage === 'qualifier' ? 'pool' : stage;
-      onStart(
-        buildCustomTennisMatchState(live ?? INITIAL_MATCH, {
-          sideA,
-          sideB,
-          tennisStage: stage,
-          matchType,
-          category: `Friendly ${matchType === 'team' ? 'Team' : matchType === 'doubles' ? 'Doubles' : 'Singles'}`,
-          stage: formatTennisStageLabel(stage),
-          ...(published ? { rules: published.rules[stageKey] } : {})
-        })
-      );
+      if (sport === 'tennis') {
+        const stageKey = stage === 'qualifier' ? 'pool' : stage;
+        onStart(
+          buildCustomTennisMatchState(live ?? INITIAL_MATCH, {
+            sideA,
+            sideB,
+            tennisStage: stage,
+            matchType,
+            category: `Friendly ${matchType === 'team' ? 'Team' : matchType === 'doubles' ? 'Doubles' : 'Singles'}`,
+            stage: formatTennisStageLabel(stage),
+            ...(published ? { rules: published.rules[stageKey] } : {})
+          })
+        );
+      } else {
+        onStart(
+          buildCustomMatchState(live ?? INITIAL_MATCH, {
+            sideA,
+            sideB,
+            maxPoints,
+            bestOf,
+            category: 'Friendly',
+            stage: 'Exhibition'
+          })
+        );
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start match.');
@@ -308,28 +357,78 @@ function AdHocMatch({
   };
 
   return (
-    <Panel title="Ad-hoc match" subtitle="Not on the schedule — e.g. an exhibition. Uses the chosen stage's rules.">
+    <Panel title="Ad-hoc match" subtitle="Not on the schedule — e.g. an exhibition or a friendly.">
       <div className="grid gap-3 sm:grid-cols-2">
         <input value={sideA} onChange={(e) => setSideA(e.target.value)} maxLength={80} placeholder="Side A (e.g. Rahul & Priya)" className={inputCls} />
         <input value={sideB} onChange={(e) => setSideB(e.target.value)} maxLength={80} placeholder="Side B" className={inputCls} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {TENNIS_STAGES.map((s) => (
-          <Chip key={s} active={stage === s} onClick={() => setStage(s)}>
-            {formatTennisStageLabel(s)}
-          </Chip>
-        ))}
-        <span className="w-px h-6 bg-slate-700 mx-1" aria-hidden />
-        {TENNIS_MATCH_TYPES.map((m) => (
-          <Chip key={m} active={matchType === m} onClick={() => setMatchType(m)}>
-            <span className="capitalize">{m}</span>
-          </Chip>
-        ))}
+        {sport === 'tennis' ? (
+          <>
+            {TENNIS_STAGES.map((s) => (
+              <Chip key={s} active={stage === s} onClick={() => setStage(s)}>
+                {formatTennisStageLabel(s)}
+              </Chip>
+            ))}
+            <span className="w-px h-6 bg-slate-700 mx-1" aria-hidden />
+            {TENNIS_MATCH_TYPES.map((m) => (
+              <Chip key={m} active={matchType === m} onClick={() => setMatchType(m)}>
+                <span className="capitalize">{m}</span>
+              </Chip>
+            ))}
+          </>
+        ) : (
+          <>
+            {MAX_POINTS_OPTIONS.map((p) => (
+              <Chip key={p} active={maxPoints === p} onClick={() => setMaxPoints(p)}>
+                {p} points
+              </Chip>
+            ))}
+            <span className="w-px h-6 bg-slate-700 mx-1" aria-hidden />
+            {BEST_OF_OPTIONS.map((b) => (
+              <Chip key={b} active={bestOf === b} onClick={() => setBestOf(b)}>
+                {b === 3 ? 'Best of 3' : 'Single game'}
+              </Chip>
+            ))}
+          </>
+        )}
         <Btn tone="primary" onClick={start}>
           <Play className="size-3" aria-hidden /> Start
         </Btn>
       </div>
       {error ? <Notice tone="error">{error}</Notice> : null}
+    </Panel>
+  );
+}
+
+/** Daytime poster rotation on /score and /live — shared by every sport. */
+function CourtAdsPanel() {
+  const { stoppedToday, inWindow, stopAds, resumeAds, busy, message } = useScoreDaypartAdsAdmin();
+  return (
+    <Panel
+      title="Court-screen posters"
+      subtitle="Between 1 and 4 PM the court scoreboard and stream overlay rotate community posters full-screen. Stop them for today if they get in the way."
+    >
+      <p className="text-xs text-slate-300">
+        {inWindow ? (stoppedToday ? '● Stopped for today' : '● Showing now (1–4 PM)') : '● Outside 1–4 PM'}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Btn onClick={() => void stopAds()} disabled={busy || stoppedToday}>
+          {busy ? 'Saving…' : 'Stop for today'}
+        </Btn>
+        <Btn onClick={() => void resumeAds()} disabled={busy || !stoppedToday}>
+          Resume
+        </Btn>
+        <a
+          href="/ads"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-slate-100 hover:bg-slate-700"
+        >
+          Preview
+        </a>
+      </div>
+      {message ? <p className={`text-[11px] ${message.startsWith('Failed') ? 'text-red-400' : 'text-emerald-400'}`}>{message}</p> : null}
     </Panel>
   );
 }

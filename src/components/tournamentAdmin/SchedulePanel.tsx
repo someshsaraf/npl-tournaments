@@ -5,10 +5,10 @@ import {
   categoryLabel,
   type FixtureSide,
   type FixtureStage,
-  type TennisTournament,
+  type Tournament,
   type TournamentCategory,
   type TournamentFixture
-} from '../../../data/tennisTournament';
+} from '../../data/tournament';
 import {
   autoSchedule,
   compareFixtureTime,
@@ -19,7 +19,7 @@ import {
   resolveSide,
   resultFor,
   type TournamentContext
-} from '../../../utils/tennisTournament';
+} from '../../utils/tournament';
 import { Btn, CommitInput, ConfirmBtn, FieldLabel, Notice, Panel, inputBaseCls, inputCls } from './ui';
 
 const STAGES: FixtureStage[] = ['pool', 'quarterfinal', 'semifinal', 'final'];
@@ -30,9 +30,9 @@ export function SchedulePanel({
   ctx,
   onChange
 }: {
-  t: TennisTournament;
+  t: Tournament;
   ctx: TournamentContext;
-  onChange: (next: TennisTournament) => void;
+  onChange: (next: Tournament) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
 
@@ -117,7 +117,7 @@ export function SchedulePanel({
   );
 }
 
-function AutoSchedulePanel({ t, onChange }: { t: TennisTournament; onChange: (next: TennisTournament) => void }) {
+function AutoSchedulePanel({ t, onChange }: { t: Tournament; onChange: (next: Tournament) => void }) {
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('07:00');
   const [endTime, setEndTime] = useState('10:00');
@@ -224,10 +224,10 @@ function CategoryFixtures({
   onChange,
   setFixture
 }: {
-  t: TennisTournament;
+  t: Tournament;
   ctx: TournamentContext;
   cat: TournamentCategory;
-  onChange: (next: TennisTournament) => void;
+  onChange: (next: Tournament) => void;
   setFixture: (id: string, patch: Partial<TournamentFixture>) => void;
 }) {
   const fixtures = useMemo(
@@ -281,8 +281,30 @@ function CategoryFixtures({
                 const side = which === 'A' ? f.sideA : f.sideB;
                 const auto = (which === 'A' ? f.autoSideA : f.autoSideB) ?? side;
                 const resolved = resolveSide(ctx, side);
-                if (f.stage === 'pool' || bye) {
-                  return <span className={bye && side.kind === 'bye' ? 'text-slate-500 italic' : 'text-slate-100'}>{resolved.label}</span>;
+                if (bye) {
+                  return <span className={side.kind === 'bye' ? 'text-slate-500 italic' : 'text-slate-100'}>{resolved.label}</span>;
+                }
+                if (f.stage === 'pool') {
+                  // Pool matches: swap in any entry from the same pool.
+                  const choices = cat.pools.find((p) => p.id === f.poolId)?.entries ?? entries;
+                  const key = which === 'A' ? 'sideA' : 'sideB';
+                  return (
+                    <select
+                      value={side.kind === 'entry' ? side.entryId : ''}
+                      onChange={(e) =>
+                        setFixture(f.id, { [key]: e.target.value ? { kind: 'entry', entryId: e.target.value } : { kind: 'tbd' } })
+                      }
+                      className={`${inputCls} py-1.5`}
+                      aria-label={`${fixtureStageLabel(ctx, f)} side ${which}`}
+                    >
+                      <option value="">TBD</option>
+                      {choices.map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.name}
+                        </option>
+                      ))}
+                    </select>
+                  );
                 }
                 const autoLabel = resolveSide(ctx, auto).label;
                 return (

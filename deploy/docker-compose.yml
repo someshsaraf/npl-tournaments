@@ -1,4 +1,4 @@
-# Production stack for a single server (AWS EC2, Oracle Cloud, any Ubuntu VPS).
+# Production stack for a single AWS EC2 instance (Ubuntu).
 # Run via the helper:  ./deploy/npl up      (see deploy/HOSTING.md)
 #
 #   caddy  :80/:443  → automatic HTTPS for SITE_DOMAIN, proxies to the app

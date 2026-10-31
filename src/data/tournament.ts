@@ -1,30 +1,33 @@
-import type { TennisMatchType, TennisRules, TennisStage } from './tournamentData';
+import type { BestOf, MaxPoints, Sport, TennisMatchType, TennisRules, TennisStage } from './tournamentData';
+import { SPORT_LABEL } from './tournamentData';
 import { defaultTennisRulesForStage } from '../utils/tennisScoring';
 
 /**
- * Lawn Tennis tournament built by admins at /admin/lawn-tennis.
- * Stored at `tournaments/tennis/draft` (admin working copy) and copied to
- * `tournaments/tennis/published` on Publish — residents only ever see the
+ * A sport's tournament, built by admins in the tournament console
+ * (/admin/badminton, /admin/lawn-tennis). Stored at
+ * `tournaments/{sport}/draft` (admin working copy) and copied to
+ * `tournaments/{sport}/published` on Publish — residents only ever see the
  * published copy.
  *
- * Structure: categories (format × division, e.g. "Adults Singles") → pools of
- * entries (a player, a doubles pair, or a team) → fixtures (round robin per
- * pool, then knockouts fed by pool winners).
+ * Structure: categories (format × division like "Adults Singles", or custom
+ * names like "Men's Singles <35") → pools of entries (a player, a doubles
+ * pair, or a team) → fixtures (round robin per pool, then knockouts fed by
+ * pool winners, plus any matches added by hand).
  */
 
-export type TennisFormat = 'singles' | 'doubles' | 'team';
-export type TennisDivision = 'kids' | 'adults' | 'women';
+export type TournamentFormat = 'singles' | 'doubles' | 'team';
+export type TournamentDivision = 'kids' | 'adults' | 'women';
 
-export const TENNIS_FORMATS: readonly TennisFormat[] = ['singles', 'doubles', 'team'] as const;
-export const TENNIS_DIVISIONS: readonly TennisDivision[] = ['kids', 'adults', 'women'] as const;
+export const TOURNAMENT_FORMATS: readonly TournamentFormat[] = ['singles', 'doubles', 'team'] as const;
+export const TOURNAMENT_DIVISIONS: readonly TournamentDivision[] = ['kids', 'adults', 'women'] as const;
 
-export const FORMAT_LABEL: Record<TennisFormat, string> = {
+export const FORMAT_LABEL: Record<TournamentFormat, string> = {
   singles: 'Singles',
   doubles: 'Doubles',
   team: 'Team Championship'
 };
 
-export const DIVISION_LABEL: Record<TennisDivision, string> = {
+export const DIVISION_LABEL: Record<TournamentDivision, string> = {
   kids: 'Kids',
   adults: 'Adults',
   women: 'Women'
@@ -42,6 +45,11 @@ export interface TournamentPool {
   id: string;
   name: string;
   entries: TournamentEntry[];
+  /**
+   * Just a list of entries (e.g. the two finalists) — no round robin is
+   * generated and it's hidden from the pool tables.
+   */
+  listOnly?: boolean;
 }
 
 /** Where pool winners go next. `auto` picks from the number of qualifiers. */
@@ -49,9 +57,13 @@ export type KnockoutStart = 'auto' | 'quarterfinal' | 'semifinal' | 'final' | 'n
 
 export interface TournamentCategory {
   id: string;
-  format: TennisFormat;
-  /** Absent for the Team Championship (no divisions). */
-  division?: TennisDivision;
+  format: TournamentFormat;
+  /** Absent for the Team Championship (no divisions) and custom categories. */
+  division?: TournamentDivision;
+  /** Display name override, e.g. "Men's Singles <35". */
+  name?: string;
+  /** Added by hand (kept regardless of the format/division picks). */
+  custom?: boolean;
   pools: TournamentPool[];
   /** Pool finishers that advance from each pool (1 = pool winner only). */
   qualifiersPerPool: number;
@@ -100,21 +112,47 @@ export interface StageRules {
   final: TennisRules;
 }
 
-export interface TennisTournament {
+/** Badminton scoring for one stage: race-to points and best-of games. */
+export interface BadmintonRules {
+  maxPoints: MaxPoints;
+  bestOf: BestOf;
+}
+
+export interface BadmintonStageRules {
+  pool: BadmintonRules;
+  quarterfinal: BadmintonRules;
+  semifinal: BadmintonRules;
+  final: BadmintonRules;
+}
+
+export function defaultBadmintonStageRules(): BadmintonStageRules {
+  return {
+    pool: { maxPoints: 15, bestOf: 1 },
+    quarterfinal: { maxPoints: 15, bestOf: 1 },
+    semifinal: { maxPoints: 21, bestOf: 1 },
+    final: { maxPoints: 21, bestOf: 3 }
+  };
+}
+
+export interface Tournament {
+  sport: Sport;
   title: string;
   year: number;
   venue: string;
-  formats: TennisFormat[];
-  divisions: TennisDivision[];
+  formats: TournamentFormat[];
+  divisions: TournamentDivision[];
   categories: TournamentCategory[];
   fixtures: TournamentFixture[];
+  /** Lawn Tennis scoring per stage. */
   rules: StageRules;
+  /** Badminton scoring per stage. */
+  badmintonRules: BadmintonStageRules;
   /** Pool table points for a win (house rule: 2). */
   pointsPerWin: number;
   updatedAt: string;
 }
 
-export interface PublishedTennisTournament extends TennisTournament {
+export interface PublishedTournament extends Tournament {
   publishedAt: string;
 }
 
@@ -127,9 +165,10 @@ export function defaultStageRules(): StageRules {
   };
 }
 
-export function buildBlankTournament(year: number): TennisTournament {
+export function buildBlankTournament(sport: Sport, year: number): Tournament {
   return {
-    title: `NPL Lawn Tennis ${year}`,
+    sport,
+    title: `NPL ${SPORT_LABEL[sport]} ${year}`,
     year,
     venue: 'Nature Walk Courts',
     formats: ['singles', 'doubles'],
@@ -137,18 +176,20 @@ export function buildBlankTournament(year: number): TennisTournament {
     categories: [],
     fixtures: [],
     rules: defaultStageRules(),
+    badmintonRules: defaultBadmintonStageRules(),
     pointsPerWin: 2,
     updatedAt: new Date().toISOString()
   };
 }
 
-export function categoryLabel(cat: Pick<TournamentCategory, 'format' | 'division'>): string {
+export function categoryLabel(cat: Pick<TournamentCategory, 'format' | 'division' | 'name'>): string {
+  if (cat.name?.trim()) return cat.name.trim();
   if (cat.format === 'team' || !cat.division) return FORMAT_LABEL[cat.format];
   return `${DIVISION_LABEL[cat.division]} ${FORMAT_LABEL[cat.format]}`;
 }
 
 /** Stable id for a format × division pair, so toggling a division off/on keeps its pools. */
-export function categoryIdFor(format: TennisFormat, division?: TennisDivision): string {
+export function categoryIdFor(format: TournamentFormat, division?: TournamentDivision): string {
   return format === 'team' || !division ? 'team' : `${division}-${format}`;
 }
 
@@ -171,12 +212,12 @@ export function tennisStageForFixture(stage: FixtureStage): TennisStage {
   return stage === 'pool' ? 'qualifier' : stage;
 }
 
-export function matchTypeForFormat(format: TennisFormat): TennisMatchType {
+export function matchTypeForFormat(format: TournamentFormat): TennisMatchType {
   return format;
 }
 
 /** Players per entry the UI asks for. Team size is a soft range (3-4). */
-export const ENTRY_SIZE: Record<TennisFormat, { min: number; max: number }> = {
+export const ENTRY_SIZE: Record<TournamentFormat, { min: number; max: number }> = {
   singles: { min: 1, max: 1 },
   doubles: { min: 2, max: 2 },
   team: { min: 3, max: 4 }

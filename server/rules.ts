@@ -5,6 +5,7 @@ import type { Json } from './store.js';
  * database.rules.json). Enforced on the server for every realtime request.
  *
  * - Private (access-code hashes, legacy accounts): server code only.
+ * - Tournament registrations (names): admins only; residents add via the API.
  * - Reading anything else needs the community code (or the admin code).
  * - Writes need the admin code, except, for community-code devices:
  *     presence/live/{id}             live viewer count
@@ -16,6 +17,8 @@ export interface Principal {
   /** Community-pass device id (random, not a person), when the community code was entered. */
   uid: string | null;
   admin: boolean;
+  /** Access-code version the community pass was issued for (see api/_lib/accessCode.ts). */
+  version?: number;
 }
 
 /** Has this connection unlocked the site at all? */
@@ -24,12 +27,15 @@ export function hasAccess(who: Principal): boolean {
 }
 
 const PRIVATE_TOP = new Set(['access', 'users', 'usernames', 'emails', 'loginAttempts', 'otps']);
+/** Readable (and writable) by admins only — residents add to it via the server API. */
+const ADMIN_ONLY_TOP = new Set(['registrations']);
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 const MAX_GALLERY_BYTES = 5 * 1024 * 1024 * 1024;
 
 export function canRead(who: Principal, segs: string[]): boolean {
   if (!hasAccess(who)) return false;
   if (segs.length === 0) return false; // root contains private data
+  if (ADMIN_ONLY_TOP.has(segs[0])) return who.admin;
   return !PRIVATE_TOP.has(segs[0]);
 }
 

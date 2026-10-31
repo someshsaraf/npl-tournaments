@@ -47,6 +47,9 @@ interface Pending {
 
 const CONNECTED_PATH = '.info/connected';
 
+/** Fired on `window` when the server revokes this device's live connection. */
+export const ACCESS_REVOKED_EVENT = 'realtime:access-revoked';
+
 function cleanPath(path: string | undefined): string {
   return (path ?? '').split('/').filter(Boolean).join('/');
 }
@@ -101,7 +104,10 @@ class RealtimeClient {
       this.emitConnected();
     };
     ws.onmessage = (ev) => this.onMessage(ev.data);
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      // Server dropped us because this device's pass is no longer valid (the
+      // community code changed) — let the app re-check and show the code screen.
+      if (ev.code === 4001) window.dispatchEvent(new Event(ACCESS_REVOKED_EVENT));
       const wasOpen = this.open;
       this.ws = null;
       this.open = false;

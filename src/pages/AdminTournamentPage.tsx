@@ -4,50 +4,67 @@ import { CheckCircle2, ExternalLink } from 'lucide-react';
 import { db } from '../db';
 import { AdminNav } from '../components/AdminNav';
 import { HubTabs } from '../components/SportHero';
-import { SetupPanel } from '../components/lawnTennis/admin/SetupPanel';
-import { DrawPanel } from '../components/lawnTennis/admin/DrawPanel';
-import { SchedulePanel } from '../components/lawnTennis/admin/SchedulePanel';
-import { LivePanel } from '../components/lawnTennis/admin/LivePanel';
-import { Btn, ConfirmBtn, Notice, Panel } from '../components/lawnTennis/admin/ui';
-import { useTennisResults, useTournamentContext } from '../components/lawnTennis/useTennisTournament';
-import { buildBlankTournament, type PublishedTennisTournament, type TennisTournament } from '../data/tennisTournament';
+import { SetupPanel } from '../components/tournamentAdmin/SetupPanel';
+import { DrawPanel } from '../components/tournamentAdmin/DrawPanel';
+import { SchedulePanel } from '../components/tournamentAdmin/SchedulePanel';
+import { LivePanel } from '../components/tournamentAdmin/LivePanel';
+import { ResultsPanel } from '../components/tournamentAdmin/ResultsPanel';
+import { RegistrationsPanel } from '../components/tournamentAdmin/RegistrationsPanel';
+import { REGISTRATIONS } from '../data/registration';
+import { Btn, ConfirmBtn, Notice, Panel } from '../components/tournamentAdmin/ui';
+import { useSportResults, useTournamentContext } from '../components/tournamentViews/useTournament';
+import { buildBlankTournament, type PublishedTournament, type Tournament } from '../data/tournament';
+import { SPORT_LABEL, type Sport } from '../data/tournamentData';
+import { sportSlug } from '../data/sports';
+import { buildTournamentFromLegacyBadminton } from '../utils/legacyBadminton';
 import { useSportLiveMatch } from '../hooks/useSportLiveMatch';
 import {
   buildContext,
-  publishTennisTournament,
-  saveTennisDraft,
+  publishTournament,
+  saveDraft,
   sameTournamentContent,
-  subscribePublishedTennis,
-  subscribeTennisDraft,
+  subscribeDraft,
+  subscribePublished,
   syncCategories,
-  unpublishTennisTournament,
+  unpublishTournament,
   validateTournament
-} from '../utils/tennisTournament';
+} from '../utils/tournament';
 
-type TabKey = 'setup' | 'draw' | 'schedule' | 'publish' | 'live';
+type TabKey = 'registrations' | 'setup' | 'draw' | 'schedule' | 'results' | 'publish' | 'live';
+
+function blankFor(sport: Sport): Tournament {
+  const blank = buildBlankTournament(sport, new Date().getFullYear());
+  return { ...blank, categories: syncCategories(blank) };
+}
 
 /**
- * Lawn Tennis admin (/admin/lawn-tennis). Admins edit a draft (Setup → Draw
- * → Schedule), Publish it for residents, then run match day from Live.
- * Every edit saves the draft immediately; residents see nothing until Publish.
+ * Tournament console for one sport (/admin/badminton, /admin/lawn-tennis).
+ * Opens straight onto the full console — every section editable at any
+ * time: Setup (formats, categories, rules) → Draw (teams, pools, players) →
+ * Schedule (fixtures) → Results, then Publish for residents and run match
+ * day from Live. Edits save to the draft immediately; residents see them
+ * after Publish. (Results are live data and show straight away.)
  */
-export default function AdminLawnTennisPage() {
-  const [draft, setDraft] = useState<TennisTournament | null>(null);
-  const [published, setPublished] = useState<PublishedTennisTournament | null>(null);
+export default function AdminTournamentPage({ sport }: { sport: Sport }) {
+  const [draft, setDraft] = useState<Tournament | null>(null);
+  const [published, setPublished] = useState<PublishedTournament | null>(null);
   const [loaded, setLoaded] = useState({ draft: false, published: false });
-  const [tab, setTab] = useState<TabKey>('setup');
+  const [tab, setTab] = useState<TabKey>(REGISTRATIONS[sport] ? 'registrations' : 'setup');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const live = useSportLiveMatch('tennis');
-  const results = useTennisResults();
-  const draftCtx = useTournamentContext(draft);
+  const live = useSportLiveMatch(sport);
+  const results = useSportResults(sport);
+  // No draft yet → work on a blank one; the first edit saves it.
+  const working = useMemo(() => draft ?? blankFor(sport), [draft, sport]);
+  const draftCtx = useTournamentContext(working);
   const publishedCtx = useMemo(() => (published ? buildContext(published, results) : null), [published, results]);
 
   useEffect(() => {
-    const u1 = subscribeTennisDraft(db, (t) => {
+    setLoaded({ draft: false, published: false });
+    const u1 = subscribeDraft(db, sport, (t) => {
       setDraft(t);
       setLoaded((l) => ({ ...l, draft: true }));
     });
-    const u2 = subscribePublishedTennis(db, (t) => {
+    const u2 = subscribePublished(db, sport, (t) => {
       setPublished(t);
       setLoaded((l) => ({ ...l, published: true }));
     });
@@ -55,37 +72,40 @@ export default function AdminLawnTennisPage() {
       u1();
       u2();
     };
-  }, []);
+  }, [sport]);
 
   /** Optimistic local update + whole-draft write. */
-  const update = (next: TennisTournament) => {
+  const update = (next: Tournament) => {
     setDraft(next);
-    saveTennisDraft(db, next)
+    saveDraft(db, next)
       .then(() => setSaveError(null))
-      .catch((err) => {
-        console.error('Saving tennis draft failed:', err);
+      .catch((err: unknown) => {
+        console.error('Saving draft failed:', err);
         setSaveError('Changes are not saving — check your connection.');
       });
   };
 
   const dirty = !!draft && (!published || !sameTournamentContent(draft, published));
   const tabs: ReadonlyArray<{ key: TabKey; label: string; badge?: string }> = [
-    { key: 'setup', label: '1 · Setup' },
-    { key: 'draw', label: '2 · Draw' },
-    { key: 'schedule', label: '3 · Schedule' },
-    { key: 'publish', label: '4 · Publish', ...(dirty ? { badge: '!' } : {}) },
+    ...(REGISTRATIONS[sport] ? [{ key: 'registrations' as const, label: 'Registrations' }] : []),
+    { key: 'setup', label: 'Setup' },
+    { key: 'draw', label: 'Teams & Draw' },
+    { key: 'schedule', label: 'Schedule' },
+    { key: 'results', label: 'Results' },
+    { key: 'publish', label: 'Publish', ...(dirty ? { badge: '!' } : {}) },
     { key: 'live', label: 'Live' }
   ];
+  const label = SPORT_LABEL[sport];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-6 max-w-7xl mx-auto">
-      <AdminNav subtitle="Lawn Tennis" />
+      <AdminNav subtitle={label} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link to="/admin/sports" className="text-emerald-400 hover:text-emerald-300 text-sm font-semibold">
           ← Back to Sports
         </Link>
         <a
-          href="/lawn-tennis"
+          href={`/${sportSlug(sport)}`}
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-300 hover:text-white"
@@ -96,40 +116,63 @@ export default function AdminLawnTennisPage() {
 
       {!loaded.draft ? (
         <p className="text-sm text-slate-500">Loading…</p>
-      ) : !draft ? (
-        <Panel
-          title="Start the Lawn Tennis tournament"
-          subtitle="Creates a draft. Nothing is visible to residents until you publish."
-        >
-          <div className="flex flex-wrap gap-2">
-            <Btn
-              tone="primary"
-              onClick={() => {
-                const blank = buildBlankTournament(new Date().getFullYear());
-                update({ ...blank, categories: syncCategories(blank) });
-              }}
-            >
-              Create {new Date().getFullYear()} tournament
-            </Btn>
-            {published ? (
-              <Btn onClick={() => update({ ...published })}>Copy the published tournament into a draft</Btn>
-            ) : null}
-          </div>
-        </Panel>
       ) : (
         <>
+          {!draft ? (
+            <StartNotice
+              sport={sport}
+              published={published}
+              onLoad={(t) => {
+                update(t);
+                setTab('setup');
+              }}
+            />
+          ) : null}
           <HubTabs tabs={tabs} active={tab} onChange={setTab} />
           {saveError ? <Notice tone="error">{saveError}</Notice> : null}
-          {tab === 'setup' ? <SetupPanel t={draft} onChange={update} /> : null}
-          {tab === 'draw' ? <DrawPanel t={draft} onChange={update} /> : null}
-          {tab === 'schedule' && draftCtx ? <SchedulePanel t={draft} ctx={draftCtx} onChange={update} /> : null}
+          {tab === 'registrations' ? <RegistrationsPanel sport={sport} /> : null}
+          {tab === 'setup' ? <SetupPanel t={working} onChange={update} /> : null}
+          {tab === 'draw' ? <DrawPanel t={working} onChange={update} /> : null}
+          {tab === 'schedule' && draftCtx ? <SchedulePanel t={working} ctx={draftCtx} onChange={update} /> : null}
+          {tab === 'results' && draftCtx ? <ResultsPanel t={working} ctx={draftCtx} /> : null}
           {tab === 'publish' ? (
-            <PublishPanel draft={draft} published={published} dirty={dirty} onReset={update} />
+            <PublishPanel draft={working} published={published} dirty={dirty || !draft} onReset={update} />
           ) : null}
-          {tab === 'live' ? <LivePanel published={published} ctx={publishedCtx} live={live} /> : null}
+          {tab === 'live' ? <LivePanel sport={sport} published={published} ctx={publishedCtx} live={live} /> : null}
         </>
       )}
     </div>
+  );
+}
+
+/** Shown above the console until the first edit creates this sport's draft. */
+function StartNotice({
+  sport,
+  published,
+  onLoad
+}: {
+  sport: Sport;
+  published: PublishedTournament | null;
+  onLoad: (t: Tournament) => void;
+}) {
+  return (
+    <Notice tone="warn">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-auto">
+          No {SPORT_LABEL[sport]} tournament yet — set it up below (your first change saves a draft), or start from:
+        </span>
+        {sport === 'badminton' ? (
+          <Btn small onClick={() => onLoad(buildTournamentFromLegacyBadminton())}>
+            The NPL 2026 schedule (keeps recorded results)
+          </Btn>
+        ) : null}
+        {published ? (
+          <Btn small onClick={() => onLoad({ ...published })}>
+            The published tournament
+          </Btn>
+        ) : null}
+      </div>
+    </Notice>
   );
 }
 
@@ -139,17 +182,17 @@ function PublishPanel({
   dirty,
   onReset
 }: {
-  draft: TennisTournament;
-  published: PublishedTennisTournament | null;
+  draft: Tournament;
+  published: PublishedTournament | null;
   dirty: boolean;
-  onReset: (t: TennisTournament) => void;
+  onReset: (t: Tournament) => void;
 }) {
   const { errors, warnings } = validateTournament(draft);
   const [msg, setMsg] = useState<string | null>(null);
   const fixtures = draft.fixtures.length;
 
   const publish = () => {
-    publishTennisTournament(db, draft)
+    publishTournament(db, draft)
       .then(() => setMsg('Published — residents can see the schedule now.'))
       .catch((err) => {
         console.error('Publish failed:', err);
@@ -161,7 +204,7 @@ function PublishPanel({
     <div className="space-y-6">
       <Panel
         title="Publish"
-        subtitle="Copies the draft to the resident Lawn Tennis page. Keep editing the draft any time and publish again — results already played stay attached to their matches."
+        subtitle={`Copies the draft to the resident ${SPORT_LABEL[draft.sport]} page. Keep editing the draft any time and publish again — results already played stay attached to their matches.`}
       >
         <div className="grid gap-3 sm:grid-cols-3 text-sm">
           <Stat label="Categories" value={draft.categories.length} />
@@ -199,7 +242,7 @@ function PublishPanel({
           {published ? (
             <ConfirmBtn
               onConfirm={() =>
-                unpublishTennisTournament(db)
+                unpublishTournament(db, draft.sport)
                   .then(() => setMsg('Unpublished — residents see "Draw coming soon".'))
                   .catch(() => setMsg('Unpublish failed.'))
               }
@@ -220,7 +263,7 @@ function PublishPanel({
       <Panel title="New season" subtitle="Start over with an empty draft (the published copy stays until you publish again).">
         <ConfirmBtn
           onConfirm={() => {
-            const blank = buildBlankTournament(draft.year + 1);
+            const blank = buildBlankTournament(draft.sport, draft.year + 1);
             onReset({ ...blank, categories: syncCategories(blank) });
           }}
           confirmLabel="Erase the whole draft?"

@@ -31,6 +31,8 @@ export type CustomMatchInput = {
   bestOf?: BestOf;
   category?: string;
   stage?: string;
+  /** Use a scheduled fixture's id instead of a generated custom-… id (results link back to the schedule). */
+  matchId?: string;
 };
 
 /**
@@ -62,7 +64,10 @@ export function buildCustomMatchState(
     ...current,
     sport: 'badminton',
     tennis: undefined,
-    currentMatchId: createCustomMatchId(),
+    currentMatchId:
+      typeof input.matchId === 'string' && /^[\w-]{1,80}$/.test(input.matchId)
+        ? input.matchId
+        : createCustomMatchId(),
     category,
     stage,
     teamA: sideA,

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Camera, Monitor } from 'lucide-react';
 import { Reveal } from '../components/Reveal';
+import { usePublishedTournament } from '../components/tournamentViews/useTournament';
+import TournamentHubPage from './TournamentHubPage';
 import { HubTabs, SportHero } from '../components/SportHero';
 import { ScheduleView } from '../components/tournament/ScheduleView';
 import { ResultsView } from '../components/tournament/ResultsView';
@@ -15,8 +17,30 @@ import { isMatchOnCourt, useSportLiveMatch } from '../hooks/useSportLiveMatch';
 
 type TabKey = 'schedule' | 'results' | 'stats' | 'teams' | 'live' | 'recordings' | 'rules';
 
-/** Badminton hub (/badminton) — the existing NPL badminton views, one tab each. */
+/**
+ * Badminton hub (/badminton). Once a Badminton tournament is published from
+ * the console it uses the shared tournament views (plus Results and Stats);
+ * until then it shows the original NPL 2026 views below.
+ */
 export default function BadmintonHubPage() {
+  const { loaded, tournament } = usePublishedTournament('badminton');
+  if (!loaded) return null;
+  if (tournament) {
+    return (
+      <TournamentHubPage
+        sport="badminton"
+        extraTabs={[
+          { key: 'results', label: 'Results', render: () => <ResultsView sport="badminton" /> },
+          { key: 'stats', label: 'Stats', render: () => <StatsView sport="badminton" /> }
+        ]}
+      />
+    );
+  }
+  return <LegacyBadmintonHub />;
+}
+
+/** The pre-console NPL 2026 Badminton page (built-in fixtures, legacy team rosters). */
+function LegacyBadmintonHub() {
   const card = sportCardBySport('badminton');
   const live = isMatchOnCourt(useSportLiveMatch('badminton'));
   const [tab, setTab] = useState<TabKey>(live ? 'live' : 'schedule');

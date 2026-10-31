@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# One-time setup for a fresh Ubuntu 22.04/24.04 server — AWS EC2, Oracle
-# Cloud, DigitalOcean or any similar VPS. Safe to re-run. From the repo folder:
+# One-time setup for a fresh AWS EC2 instance running Ubuntu 22.04/24.04.
+# Safe to re-run. From the repo folder:
 #
 #   sudo ./deploy/setup.sh
 #
 # It will:
 #   1. install Docker + Compose, fail2ban and automatic security updates
 #      (with automatic reboots at 04:30 when an update needs one)
-#   2. open ports 80/443 in the server firewall (needed on Oracle images;
-#      nothing to do on AWS)
-#   3. turn off SSH password login (only if you already log in with a key)
-#   4. add swap on small machines
-#   5. create .env with fresh secrets (asks for your domain + DuckDNS token)
-#   6. keep your DuckDNS name pointed at this server
-#   7. build + start the site with automatic HTTPS
-#   8. create the admin code (shown once) and schedule nightly backups
+#   2. turn off SSH password login (only if you already log in with a key)
+#   3. add swap on small machines
+#   4. create .env with fresh secrets (asks for your domain + DuckDNS token)
+#   5. keep your DuckDNS name pointed at this server
+#   6. build + start the site with automatic HTTPS
+#   7. create the admin code (shown once) and schedule nightly backups
+#
+# The firewall is the instance's AWS security group (SSH, HTTP, HTTPS) — see
+# deploy/HOSTING.md.
 #
 # Non-interactive use: export SITE_DOMAIN, DUCKDNS_TOKEN, COMMUNITY_ACCESS_CODE first.
 set -euo pipefail
@@ -33,11 +34,9 @@ warn() { printf '\033[1;33m!! %s\033[0m\n' "$*"; }
 export DEBIAN_FRONTEND=noninteractive
 
 # ─── 1. packages ────────────────────────────────────────────────────────────
-say "Installing Docker, firewall persistence, fail2ban and automatic updates"
+say "Installing Docker, fail2ban and automatic updates"
 apt-get update -y
-echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
-echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
-apt-get install -y ca-certificates curl git openssl cron iptables-persistent fail2ban unattended-upgrades
+apt-get install -y ca-certificates curl git openssl cron fail2ban unattended-upgrades
 
 if ! docker compose version >/dev/null 2>&1; then
   # Ubuntu's own packages first (patched by unattended-upgrades) …
@@ -69,33 +68,7 @@ Unattended-Upgrade::Automatic-Reboot-Time "04:30";
 EOF
 systemctl enable --now unattended-upgrades fail2ban
 
-# ─── 2. firewall ────────────────────────────────────────────────────────────
-# Oracle's Ubuntu images end the INPUT chain with a REJECT rule (only SSH is
-# open). Open 80/443 live, and in the saved rules file so it survives reboots.
-# (We edit the file rather than "netfilter-persistent save", which would also
-# freeze Docker's own temporary rules into it.)
-say "Opening ports 80 and 443 in the server firewall"
-RULES=/etc/iptables/rules.v4
-open_port() {
-  local proto="$1" port="$2" reject_line
-  if ! iptables -C INPUT -p "$proto" -m state --state NEW -m "$proto" --dport "$port" -j ACCEPT 2>/dev/null; then
-    reject_line="$(iptables -L INPUT --line-numbers -n | awk '$2=="REJECT" {print $1; exit}')"
-    if [ -n "$reject_line" ]; then
-      iptables -I INPUT "$reject_line" -p "$proto" -m state --state NEW -m "$proto" --dport "$port" -j ACCEPT
-    fi
-  fi
-  local rule="-A INPUT -p $proto -m state --state NEW -m $proto --dport $port -j ACCEPT"
-  if [ -f "$RULES" ] && ! grep -qxF -- "$rule" "$RULES"; then
-    # Insert just above the first INPUT REJECT line (if there is one).
-    awk -v rule="$rule" '!done && /^-A INPUT .*-j REJECT/ { print rule; done=1 } { print }' "$RULES" > "$RULES.npl" \
-      && cat "$RULES.npl" > "$RULES" && rm -f "$RULES.npl"
-  fi
-}
-open_port tcp 80
-open_port tcp 443
-open_port udp 443
-
-# ─── 3. SSH ─────────────────────────────────────────────────────────────────
+# ─── 2. SSH ─────────────────────────────────────────────────────────────────
 OWNER_HOME="$(getent passwd "$OWNER" | cut -d: -f6)"
 if [ -s "$OWNER_HOME/.ssh/authorized_keys" ]; then
   say "Locking SSH to key logins only"
@@ -114,7 +87,7 @@ else
   warn "No SSH key found for $OWNER — not touching SSH settings."
 fi
 
-# ─── 4. swap (small machines, e.g. the 1 GB AMD micro shape) ────────────────
+# ─── 3. swap (small instances, e.g. t3.micro with 1 GB) ──────────────────────
 mem_kb="$(awk '/MemTotal/ {print $2}' /proc/meminfo)"
 if [ "$mem_kb" -lt 3000000 ] && ! swapon --show | grep -q .; then
   say "Adding 2 GB of swap (this machine has little memory)"
@@ -122,7 +95,7 @@ if [ "$mem_kb" -lt 3000000 ] && ! swapon --show | grep -q .; then
   grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
-# ─── 5. .env ────────────────────────────────────────────────────────────────
+# ─── 4. .env ────────────────────────────────────────────────────────────────
 set_env() { # set KEY=VALUE in .env (value written verbatim)
   local key="$1" value="$2" tmp
   tmp="$(mktemp)"
@@ -163,7 +136,7 @@ case "$community" in
 esac
 set_env COMMUNITY_ACCESS_CODE "'$community'"
 
-# ─── 6. DuckDNS ─────────────────────────────────────────────────────────────
+# ─── 5. DuckDNS ─────────────────────────────────────────────────────────────
 case "$domain" in
   *.duckdns.org)
     say "Keeping $domain pointed at this server (DuckDNS, every 5 minutes)"
@@ -193,11 +166,11 @@ EOF
     ;;
 esac
 
-# ─── 7. start ───────────────────────────────────────────────────────────────
+# ─── 6. start ───────────────────────────────────────────────────────────────
 say "Building and starting the site (first build takes a few minutes)"
 "$ROOT/deploy/npl" up
 
-# ─── 8. admin code + backups ────────────────────────────────────────────────
+# ─── 7. admin code + backups ────────────────────────────────────────────────
 if [ -z "$(get_env ADMIN_CODE_HASH)" ]; then
   say "Creating the admin code"
   "$ROOT/deploy/npl" admin-code
@@ -217,8 +190,8 @@ cat <<EOF
   Staff:       open the site and enter the admin code (shown above)
 
   If the site doesn't load in a few minutes:
-    • allow TCP 80 and 443 from anywhere in your cloud firewall
-      (AWS: the instance's security group · Oracle: the subnet's security list)
+    • EC2 → your instance → Security → security group: allow HTTP (80) and
+      HTTPS (443) from anywhere
     • check it:  ./deploy/npl status     (and ./deploy/npl logs caddy)
 
   Everyday commands: ./deploy/npl  (update, backup, logs, status …)

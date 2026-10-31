@@ -1,5 +1,5 @@
 import type { MatchState } from '../../data/tournamentData';
-import { categoryLabel, type TournamentFixture } from '../../data/tennisTournament';
+import { categoryLabel, type TournamentFixture } from '../../data/tournament';
 import {
   fixtureStageLabel,
   fixtureStatus,
@@ -7,7 +7,7 @@ import {
   resultFor,
   winnerSideOf,
   type TournamentContext
-} from '../../utils/tennisTournament';
+} from '../../utils/tournament';
 import { formatTennisPointLabel } from '../../utils/tennisScoring';
 
 /**
@@ -49,6 +49,14 @@ export function FixtureCard({
       : [t.gamesWon2, t.gamesWon1, t.points2, t.points1];
     gamesA = `${ga} · ${formatTennisPointLabel(pa, pb, t.isTiebreak)}`;
     gamesB = `${gb} · ${formatTennisPointLabel(pb, pa, t.isTiebreak)}`;
+  } else if (status === 'live' && live) {
+    // Badminton: points in the current game (plus games won in best-of-3).
+    const aIsP1 = (live.player1 || '').trim().toLowerCase() !== b.label.trim().toLowerCase();
+    const [pa, pb, ga, gb] = aIsP1
+      ? [live.score1, live.score2, live.gamesWon1, live.gamesWon2]
+      : [live.score2, live.score1, live.gamesWon2, live.gamesWon1];
+    gamesA = live.bestOf === 3 ? `${ga} · ${pa}` : pa;
+    gamesB = live.bestOf === 3 ? `${gb} · ${pb}` : pb;
   }
 
   const sideRow = (label: string, resolved: boolean, isWinner: boolean, score: string | number) => (

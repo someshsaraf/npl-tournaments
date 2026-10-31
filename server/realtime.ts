@@ -42,11 +42,19 @@ function related(a: string[], b: string[]): boolean {
   return true;
 }
 
+/** Close code sent when a device's pass stops being valid (community code changed). */
+export const CLOSE_ACCESS_REVOKED = 4001;
+
+export interface RealtimeHub {
+  /** Disconnect every socket whose principal no longer passes `stillValid`. */
+  revoke(stillValid: (who: Principal) => boolean): number;
+}
+
 export function attachRealtime(
   server: Server,
   store: Store,
   identify: (req: IncomingMessage) => Promise<Principal>
-): void {
+): RealtimeHub {
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
   const conns = new Set<Conn>();
 
@@ -200,4 +208,16 @@ export function attachRealtime(
     }
   }, 30_000);
   server.on('close', () => clearInterval(interval));
+
+  return {
+    revoke(stillValid) {
+      let n = 0;
+      for (const c of conns) {
+        if (stillValid(c.who)) continue;
+        c.ws.close(CLOSE_ACCESS_REVOKED, 'access code changed');
+        n++;
+      }
+      return n;
+    }
+  };
 }

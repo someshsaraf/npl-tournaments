@@ -5,12 +5,12 @@ import {
   STAGE_LABEL,
   categoryLabel,
   type KnockoutStart,
-  type TennisFormat,
-  type TennisTournament,
+  type TournamentFormat,
+  type Tournament,
   type TournamentCategory,
   type TournamentEntry,
   type TournamentPool
-} from '../../../data/tennisTournament';
+} from '../../data/tournament';
 import {
   buildEntry,
   distributeIntoPools,
@@ -20,10 +20,10 @@ import {
   poolName,
   resolvedKnockoutStart,
   suggestPoolCount
-} from '../../../utils/tennisTournament';
+} from '../../utils/tournament';
 import { Btn, Chip, CommitInput, ConfirmBtn, FieldLabel, Notice, Panel, inputCls } from './ui';
 
-const PASTE_HINT: Record<TennisFormat, string> = {
+const PASTE_HINT: Record<TournamentFormat, string> = {
   singles: 'One player per line\nRahul Mehta\nPriya Nair\n…',
   doubles: 'One pair per line\nRahul & Priya\nAmit / Neha\n…',
   team: 'One team per line — Team name: players\nAces: Rahul, Priya, Amit\nSmashers: Neha, Ravi, Sam, Jo\n…'
@@ -34,8 +34,8 @@ export function DrawPanel({
   t,
   onChange
 }: {
-  t: TennisTournament;
-  onChange: (next: TennisTournament) => void;
+  t: Tournament;
+  onChange: (next: Tournament) => void;
 }) {
   const [categoryId, setCategoryId] = useState(t.categories[0]?.id ?? '');
   const cat = t.categories.find((c) => c.id === categoryId) ?? t.categories[0];
@@ -348,7 +348,7 @@ function PoolCard({
           className="flex-1 bg-transparent border-b border-slate-700 text-base font-black text-lime-300 focus:outline-none focus:border-lime-400"
           aria-label="Pool name"
         />
-        <span className={`text-[10px] font-bold ${size >= 3 && size <= 4 ? 'text-slate-500' : 'text-amber-400'}`}>
+        <span className={`text-[10px] font-bold ${pool.listOnly || (size >= 3 && size <= 4) ? 'text-slate-500' : 'text-amber-400'}`}>
           {size} {size === 1 ? 'entry' : 'entries'}
         </span>
         <ConfirmBtn
@@ -359,6 +359,15 @@ function PoolCard({
           <Trash2 className="size-3" aria-label="Delete pool" />
         </ConfirmBtn>
       </div>
+      <label className="flex items-center gap-2 text-[11px] text-slate-400">
+        <input
+          type="checkbox"
+          checked={!!pool.listOnly}
+          onChange={(e) => setPool({ ...pool, listOnly: e.target.checked || undefined })}
+          className="accent-lime-400"
+        />
+        Entry list only — no pool matches (e.g. finalists)
+      </label>
       <ul className="space-y-1.5">
         {pool.entries.map((entry) => (
           <EntryRow
@@ -387,7 +396,7 @@ function EntryRow({
   onRemove,
   onMove
 }: {
-  format: TennisFormat;
+  format: TournamentFormat;
   entry: TournamentEntry;
   pools: TournamentPool[];
   currentPoolId: string;
@@ -451,7 +460,7 @@ function EntryRow({
   );
 }
 
-function AddEntryForm({ format, onAdd }: { format: TennisFormat; onAdd: (e: TournamentEntry) => void }) {
+function AddEntryForm({ format, onAdd }: { format: TournamentFormat; onAdd: (e: TournamentEntry) => void }) {
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -484,7 +493,7 @@ function EntryForm({
   onSubmit,
   onCancel
 }: {
-  format: TennisFormat;
+  format: TournamentFormat;
   initial?: TournamentEntry;
   submitLabel: string;
   keepOpen?: boolean;
