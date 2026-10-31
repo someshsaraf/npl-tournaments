@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
 import { Reveal } from '../components/Reveal';
 import { SPORT_CARDS, type SportCard } from '../data/sports';
-import { REGISTRATIONS, closesLabel, registrationOpen, type RegistrationKey } from '../data/registration';
+import { REGISTRATIONS, closesLabel, countdownLabel, registrationOpen, type RegistrationKey } from '../data/registration';
 import { isMatchOnCourt, useSportLiveMatch } from '../hooks/useSportLiveMatch';
 import type { Sport } from '../data/tournamentData';
 
@@ -69,6 +69,8 @@ export default function HomePage() {
 
 function SportTile({ card, sport }: { card: SportCard; sport: Sport }) {
   const live = isMatchOnCourt(useSportLiveMatch(sport));
+  const registration = REGISTRATIONS[sport];
+  const regOpen = registration ? registrationOpen(registration) : false;
   return (
     <Link
       to={`/${card.slug}`}
@@ -81,12 +83,19 @@ function SportTile({ card, sport }: { card: SportCard; sport: Sport }) {
         loading="eager"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/5" />
-      {live ? (
-        <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 shadow-lg">
-          <span className="npl-glow-pulse size-1.5 rounded-full bg-white" aria-hidden />
-          Live now
-        </span>
-      ) : null}
+      <div className="absolute top-4 left-4 right-4 flex flex-wrap gap-1.5">
+        {live ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 shadow-lg">
+            <span className="npl-glow-pulse size-1.5 rounded-full bg-white" aria-hidden />
+            Live now
+          </span>
+        ) : null}
+        {registration && regOpen ? (
+          <span className="rounded-full border border-rose-400 bg-rose-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-lg shadow-rose-900/40">
+            Registration closes {closesLabel(registration)} · {countdownLabel(registration)}
+          </span>
+        ) : null}
+      </div>
       <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 space-y-2">
         <h2 className="portal-display text-5xl sm:text-6xl text-white tracking-wide leading-none [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
           {card.label}
@@ -120,10 +129,10 @@ function ComingSoonTile({ card }: { card: SportCard }) {
       <span className="absolute top-[38%] left-[62%] size-5 rounded-full bg-orange-300 shadow-[0_0_24px_rgba(253,186,116,0.7)]" aria-hidden />
       <span
         className={`absolute top-4 left-4 rounded-full text-[10px] font-black uppercase tracking-wider px-2.5 py-1 border ${
-          open ? 'bg-lime-300 text-slate-950 border-lime-200' : 'bg-white/10 text-white/80 border-white/20'
+          open ? 'bg-rose-600 text-white border-rose-400 shadow-lg shadow-rose-900/40' : 'bg-white/10 text-white/80 border-white/20'
         }`}
       >
-        {registration ? (open ? `Registration open · closes ${closesLabel(registration)}` : 'Registration closed') : 'Coming soon'}
+        {registration ? (open ? `Registration closes ${closesLabel(registration)} · ${countdownLabel(registration)}` : 'Registration closed') : 'Coming soon'}
       </span>
       <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 space-y-2">
         <h2 className="portal-display text-5xl sm:text-6xl text-white tracking-wide leading-none [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">

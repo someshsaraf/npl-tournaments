@@ -14,6 +14,7 @@ import {
 import { SPORT_CARDS } from '../data/sports';
 import { Reveal } from '../components/Reveal';
 import { TournamentDates } from '../components/TournamentDates';
+import { DeadlineTile } from '../components/RegistrationBanner';
 
 /**
  * Tournament registration (/lawn-tennis/register): full name + exactly one
@@ -124,11 +125,7 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
               <h1 className="portal-display text-4xl sm:text-5xl text-white tracking-wide leading-none">{config.title}</h1>
             </div>
             <TournamentDates weekends={config.weekends} tone="dark" />
-            {open ? (
-              <p className="inline-flex rounded-full bg-amber-300 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-slate-950">
-                Registration closes {closes}
-              </p>
-            ) : null}
+            <DeadlineTile config={config} tone="dark" />
           </div>
         </section>
       </Reveal>
