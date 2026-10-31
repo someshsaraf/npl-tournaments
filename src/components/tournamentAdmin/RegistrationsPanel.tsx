@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, Download } from 'lucide-react';
-import { onValue, ref, remove, set } from '../../lib/realtime';
+import { onValue, ref, remove, update } from '../../lib/realtime';
 import { db } from '../../db';
 import type { Sport } from '../../data/tournamentData';
-import { REGISTRATIONS, registrationsPath, type Registration } from '../../data/registration';
+import {
+  REGISTRATIONS,
+  categoryFor,
+  describeSelection,
+  formatsOf,
+  groupsOf,
+  registrationCategories,
+  registrationsPath,
+  type Registration
+} from '../../data/registration';
 import { Btn, Chip, ConfirmBtn, Notice, Panel, inputBaseCls } from './ui';
 
 type Row = Registration & { id: string };
@@ -27,10 +36,10 @@ export function RegistrationsPanel({ sport }: { sport: Sport }) {
     const unsub = onValue(
       ref(db, registrationsPath(sport)),
       (snap) => {
-        const raw = (snap.val() ?? {}) as Record<string, Partial<Registration>>;
+        const raw = (snap.val() ?? {}) as Record<string, Partial<Registration> & { category?: string }>;
         const list: Row[] = Object.entries(raw)
           .filter(([, r]) => typeof r?.name === 'string')
-          .map(([id, r]) => ({ id, name: r.name!, category: r.category ?? '', createdAt: r.createdAt ?? '' }));
+          .map(([id, r]) => ({ id, name: r.name!, categories: registrationCategories(r), createdAt: r.createdAt ?? '' }));
         list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         setRows(list);
       },
@@ -39,17 +48,26 @@ export function RegistrationsPanel({ sport }: { sport: Sport }) {
     return () => unsub();
   }, [sport]);
 
-  const labelOf = useMemo(() => new Map(config?.categories.map((c) => [c.id, c.label]) ?? []), [config]);
+  const groupOf = useMemo(() => new Map(config?.categories.map((c) => [c.id, c.group]) ?? []), [config]);
   if (!config) return <Panel title="Registrations"><p className="text-sm text-slate-400">Registration isn't set up for this sport.</p></Panel>;
 
   const all = rows ?? [];
-  const shown = filter === 'all' ? all : all.filter((r) => r.category === filter);
-  const count = (id: string) => all.filter((r) => r.category === id).length;
+  const shown = filter === 'all' ? all : all.filter((r) => r.categories.includes(filter));
+  const count = (id: string) => all.filter((r) => r.categories.includes(id)).length;
   const path = registrationsPath(sport);
+  /** Save a new age group / events choice (and drop the old single-category field). */
+  const saveChoice = (r: Row, group: string, formats: string[]) => {
+    const categories = formats.map((f) => categoryFor(config, group, f)?.id).filter((x): x is string => !!x);
+    if (categories.length === 0) {
+      setMsg({ tone: 'error', text: `${r.name} needs at least one event — remove the registration instead.` });
+      return;
+    }
+    update(ref(db, `${path}/${r.id}`), { categories, category: null }).catch(fail);
+  };
   const fail = (err: unknown) => setMsg({ tone: 'error', text: err instanceof Error ? err.message : 'Save failed.' });
 
   const copyNames = async (catId: string) => {
-    const names = all.filter((r) => r.category === catId).map((r) => r.name).reverse(); // oldest first
+    const names = all.filter((r) => r.categories.includes(catId)).map((r) => r.name).reverse(); // oldest first
     try {
       await navigator.clipboard.writeText(names.join('\n'));
       setMsg({ tone: 'ok', text: `Copied ${names.length} name${names.length === 1 ? '' : 's'} — paste into Teams & Draw → Quick draw (pair doubles players as “A & B”).` });
@@ -59,8 +77,13 @@ export function RegistrationsPanel({ sport }: { sport: Sport }) {
   };
 
   const downloadCsv = () => {
-    const lines = ['Name,Category,Registered at'];
-    for (const r of [...all].reverse()) lines.push([r.name, labelOf.get(r.category) ?? r.category, r.createdAt].map(csvCell).join(','));
+    const formats = formatsOf(config);
+    const lines = [['Name', 'Age group', ...formats, 'Registered at'].join(',')];
+    for (const r of [...all].reverse()) {
+      const group = groupOf.get(r.categories[0] ?? '') ?? '';
+      const ticks = formats.map((f) => (r.categories.includes(categoryFor(config, group, f)?.id ?? '') ? 'Yes' : ''));
+      lines.push([r.name, group, ...ticks, r.createdAt].map(csvCell).join(','));
+    }
     const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
     const a = document.createElement('a');
     a.href = url;
@@ -128,7 +151,8 @@ export function RegistrationsPanel({ sport }: { sport: Sport }) {
               <thead>
                 <tr className="text-[10px] uppercase tracking-wider text-slate-500 text-left">
                   <th className="py-2 pr-3">Name</th>
-                  <th className="py-2 pr-3">Category</th>
+                  <th className="py-2 pr-3">Age group</th>
+                  <th className="py-2 pr-3">Events</th>
                   <th className="py-2 pr-3">Registered</th>
                   <th className="py-2" />
                 </tr>
@@ -137,20 +161,7 @@ export function RegistrationsPanel({ sport }: { sport: Sport }) {
                 {shown.map((r) => (
                   <tr key={r.id} className="border-t border-slate-800">
                     <td className="py-2 pr-3 font-semibold text-slate-100">{r.name}</td>
-                    <td className="py-2 pr-3">
-                      <select
-                        value={r.category}
-                        onChange={(e) => set(ref(db, `${path}/${r.id}/category`), e.target.value).catch(fail)}
-                        className={`${inputBaseCls} py-1 w-56`}
-                        aria-label={`Category for ${r.name}`}
-                      >
-                        {config.categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
+                    <RowChoice config={config} row={r} onSave={(g, f) => saveChoice(r, g, f)} />
                     <td className="py-2 pr-3 text-[11px] font-mono text-slate-400">
                       {r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}
                     </td>
@@ -168,5 +179,58 @@ export function RegistrationsPanel({ sport }: { sport: Sport }) {
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       </Panel>
     </div>
+  );
+}
+
+/** Age group select + event tick boxes for one registration. */
+function RowChoice({
+  config,
+  row,
+  onSave
+}: {
+  config: NonNullable<(typeof REGISTRATIONS)['tennis']>;
+  row: Row;
+  onSave: (group: string, formats: string[]) => void;
+}) {
+  const cats = row.categories
+    .map((id) => config.categories.find((c) => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => !!c);
+  const group = cats[0]?.group ?? '';
+  const chosen = cats.map((c) => c.format);
+  return (
+    <>
+      <td className="py-2 pr-3">
+        <select
+          value={group}
+          onChange={(e) => onSave(e.target.value, chosen)}
+          className={`${inputBaseCls} py-1 w-48`}
+          aria-label={`Age group for ${row.name}`}
+          title={describeSelection(config, row.categories)}
+        >
+          {group ? null : <option value="">—</option>}
+          {groupsOf(config).map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="py-2 pr-3">
+        <div className="flex gap-3">
+          {formatsOf(config).map((f) => (
+            <label key={f} className="inline-flex items-center gap-1.5 text-xs text-slate-200">
+              <input
+                type="checkbox"
+                checked={chosen.includes(f)}
+                onChange={() => onSave(group, chosen.includes(f) ? chosen.filter((x) => x !== f) : [...chosen, f])}
+                className="accent-lime-400"
+                aria-label={`${f} for ${row.name}`}
+              />
+              {f}
+            </label>
+          ))}
+        </div>
+      </td>
+    </>
   );
 }

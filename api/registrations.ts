@@ -1,13 +1,21 @@
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
 import { getAccessSession, getAdminSession } from './_lib/session.js';
 import { getAdminDb } from './_lib/db.js';
-import { REGISTRATIONS, normalizeName, registrationsPath } from '../src/data/registration.js';
+import {
+  REGISTRATIONS,
+  describeSelection,
+  normalizeName,
+  registrationCategories,
+  registrationsPath,
+  selectionError
+} from '../src/data/registration.js';
 
 /**
- * POST /api/registrations  { sport, name, category }
+ * POST /api/registrations  { sport, name, categories: [ids] }
  *
  * Tournament sign-up from the resident form. Needs the community (or admin)
- * code. Stores { name, category, createdAt } under registrations/{sport} —
+ * code. One age group (Kids or Adults) with Singles, Doubles or both.
+ * Stores { name, categories, createdAt } under registrations/{sport} —
  * readable only by admins (server/rules.ts). One registration per person:
  * a name that's already registered (case/spacing-insensitive) is refused.
  */
@@ -39,16 +47,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     res.status(400).json({ error: 'Please enter your full name (letters only, 2–60 characters).' });
     return;
   }
-  const category = config.categories.find((c) => c.id === body.category);
-  if (!category) {
-    res.status(400).json({ error: 'Please choose one category.' });
+  const categories = registrationCategories(body as { categories?: unknown; category?: unknown });
+  const invalid = selectionError(config, categories);
+  if (invalid) {
+    res.status(400).json({ error: invalid });
     return;
   }
 
   const db = getAdminDb();
   const existing = ((await db.ref(registrationsPath(sport)).get()).val() ?? {}) as Record<
     string,
-    { name?: string; category?: string }
+    { name?: string; category?: string; categories?: string[] }
   >;
   const rows = Object.values(existing);
   if (rows.length >= MAX_PER_SPORT) {
@@ -57,14 +66,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
   const already = rows.find((r) => typeof r.name === 'string' && normalizeName(r.name) === normalizeName(name));
   if (already) {
-    const where = config.categories.find((c) => c.id === already.category)?.label ?? 'a category';
+    const where = describeSelection(config, registrationCategories(already));
     res.status(409).json({
-      error: `${already.name} is already registered (${where}). Each person can register in one category only — ask an organiser if it needs changing.`
+      error: `${already.name} is already registered (${where}). Each person registers once — ask an organiser if it needs changing.`
     });
     return;
   }
 
   const ref = db.ref(registrationsPath(sport)).push();
-  await ref.set({ name, category: category.id, createdAt: new Date().toISOString() });
-  res.status(200).json({ ok: true, name, category: category.label });
+  await ref.set({ name, categories, createdAt: new Date().toISOString() });
+  res.status(200).json({ ok: true, name, category: describeSelection(config, categories) });
 }
