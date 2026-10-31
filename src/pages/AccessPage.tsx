@@ -21,7 +21,7 @@ export default function AccessPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = safeNext(params.get('next'));
-  const { access, admin, refresh } = useAuth();
+  const { access, refresh } = useAuth();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +105,7 @@ export default function AccessPage() {
           </p>
           {access ? (
             <Link
-              to={next ?? (admin ? '/admin/sports' : '/sports')}
+              to={next ?? '/sports'}
               className="inline-block text-xs font-bold uppercase tracking-wide text-slate-400 hover:text-white"
             >
               Already unlocked on this device — continue →
