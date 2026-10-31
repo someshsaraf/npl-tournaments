@@ -99,6 +99,32 @@ export function closesLabel(config: RegistrationConfig): string {
   }).format(new Date(config.closesAt));
 }
 
+const IST_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }); // → YYYY-MM-DD
+
+/**
+ * Whole calendar days (India time) from today to the closing day: 0 on the
+ * last day, negative once closed.
+ */
+export function daysUntilClose(config: RegistrationConfig, now: number = Date.now()): number {
+  const today = Date.parse(`${IST_DAY.format(new Date(now))}T00:00:00Z`);
+  const closeDay = Date.parse(`${IST_DAY.format(new Date(config.closesAt))}T00:00:00Z`);
+  return Math.round((closeDay - today) / 86_400_000);
+}
+
+/** "13 days left" / "1 day left" / "Last day today!" — while open. */
+export function countdownLabel(config: RegistrationConfig, now: number = Date.now()): string {
+  const d = daysUntilClose(config, now);
+  if (d <= 0) return 'Last day today!';
+  return d === 1 ? '1 day left' : `${d} days left`;
+}
+
+/** Day parts of the closing date in India time, for the deadline tile. */
+export function closeDayParts(config: RegistrationConfig): { weekday: string; day: string; month: string } {
+  const at = new Date(config.closesAt);
+  const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-GB', { ...o, timeZone: 'Asia/Kolkata' }).format(at);
+  return { weekday: f({ weekday: 'short' }), day: f({ day: 'numeric' }), month: f({ month: 'short' }) };
+}
+
 /** Data path for one sport's registrations (admin-only — see server/rules.ts). */
 export function registrationsPath(sport: RegistrationKey): string {
   return `registrations/${sport}`;
