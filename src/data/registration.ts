@@ -58,10 +58,53 @@ export function registrationsPath(sport: 'badminton' | 'tennis'): string {
   return `registrations/${sport}`;
 }
 
+/**
+ * One person's registration: one age group, one or both events — stored as
+ * the matching category ids, e.g. ["adults-singles", "adults-doubles"].
+ */
 export interface Registration {
   name: string;
-  category: string;
+  categories: string[];
   createdAt: string;
+}
+
+/** Category ids of a stored row (rows saved before multi-event sign-up had a single `category`). */
+export function registrationCategories(row: { categories?: unknown; category?: unknown }): string[] {
+  if (Array.isArray(row.categories)) return row.categories.filter((c): c is string => typeof c === 'string');
+  return typeof row.category === 'string' && row.category ? [row.category] : [];
+}
+
+export function groupsOf(config: RegistrationConfig): string[] {
+  return [...new Set(config.categories.map((c) => c.group))];
+}
+
+export function formatsOf(config: RegistrationConfig): string[] {
+  return [...new Set(config.categories.map((c) => c.format))];
+}
+
+/** The category id for an age group + event, if that combination exists. */
+export function categoryFor(config: RegistrationConfig, group: string, format: string): RegistrationCategory | undefined {
+  return config.categories.find((c) => c.group === group && c.format === format);
+}
+
+/** Why a selection isn't allowed, or null: one age group, at least one event, no repeats. */
+export function selectionError(config: RegistrationConfig, ids: string[]): string | null {
+  const cats = ids.map((id) => config.categories.find((c) => c.id === id));
+  if (cats.length === 0) return 'Please choose your age group and at least one event.';
+  if (cats.some((c) => !c)) return 'Please choose from the listed categories.';
+  if (new Set(ids).size !== ids.length) return 'Each event can be chosen once.';
+  if (new Set(cats.map((c) => c!.group)).size > 1) return 'Please choose either Kids or Adults — not both.';
+  return null;
+}
+
+/** "Adults (21 and over) · Singles & Doubles". */
+export function describeSelection(config: RegistrationConfig, ids: string[]): string {
+  const cats = ids
+    .map((id) => config.categories.find((c) => c.id === id))
+    .filter((c): c is RegistrationCategory => !!c)
+    .sort((a, b) => config.categories.indexOf(a) - config.categories.indexOf(b));
+  if (cats.length === 0) return 'no category';
+  return `${cats[0].group} · ${cats.map((c) => c.format).join(' & ')}`;
 }
 
 /** "  priya   nair " → "priya nair" — how duplicate names are compared. */

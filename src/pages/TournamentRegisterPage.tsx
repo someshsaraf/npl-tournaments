@@ -2,21 +2,23 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import type { Sport } from '../data/tournamentData';
-import { REGISTRATIONS } from '../data/registration';
+import { REGISTRATIONS, categoryFor, formatsOf, groupsOf } from '../data/registration';
 import { sportCardBySport, sportSlug } from '../data/sports';
 import { Reveal } from '../components/Reveal';
 import { TournamentDates } from '../components/TournamentDates';
 
 /**
  * Tournament registration (/lawn-tennis/register): full name + exactly one
- * category. Saved on the server where only admins can see it.
+ * age group (Kids or Adults) with Singles, Doubles or both. Saved on the
+ * server where only admins can see it.
  */
 export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
   const config = REGISTRATIONS[sport];
   const card = sportCardBySport(sport);
   const slug = sportSlug(sport);
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
+  const [group, setGroup] = useState('');
+  const [formats, setFormats] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ name: string; category: string } | null>(null);
@@ -29,7 +31,12 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
     );
   }
 
-  const groups = [...new Set(config.categories.map((c) => c.group))];
+  const groups = groupsOf(config);
+  const allFormats = formatsOf(config);
+  const toggleFormat = (f: string) => {
+    setError(null);
+    setFormats((cur) => (cur.includes(f) ? cur.filter((x) => x !== f) : allFormats.filter((x) => x === f || cur.includes(x))));
+  };
   const firstDay = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(
     new Date(`${config.firstDay}T00:00:00`)
   );
@@ -40,8 +47,12 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
       setError('Please enter your full name.');
       return;
     }
-    if (!category) {
-      setError('Please choose one category.');
+    if (!group) {
+      setError('Please choose Kids or Adults.');
+      return;
+    }
+    if (formats.length === 0) {
+      setError('Please choose Singles, Doubles or both.');
       return;
     }
     setBusy(true);
@@ -49,7 +60,11 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
       const res = await fetch('/api/registrations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sport, name, category })
+        body: JSON.stringify({
+          sport,
+          name,
+          categories: formats.map((f) => categoryFor(config, group, f)?.id).filter(Boolean)
+        })
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; name?: string; category?: string };
       if (!res.ok) throw new Error(data.error || `Registration failed (${res.status}).`);
@@ -64,7 +79,8 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
   const reset = () => {
     setDone(null);
     setName('');
-    setCategory('');
+    setGroup('');
+    setFormats([]);
     setError(null);
   };
 
@@ -141,7 +157,10 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
               <span className="text-xs font-black uppercase tracking-[0.14em] text-ink">Full name</span>
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setError(null);
+                  setName(e.target.value);
+                }}
                 autoComplete="name"
                 maxLength={60}
                 placeholder="e.g. Priya Nair"
@@ -150,39 +169,54 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
               />
             </label>
 
-            <fieldset className="space-y-3" disabled={busy}>
-              <legend className="text-xs font-black uppercase tracking-[0.14em] text-ink">
-                Category <span className="font-semibold normal-case tracking-normal text-slate-500">— choose one</span>
+            <fieldset className="space-y-2" disabled={busy}>
+              <legend className="text-xs font-black uppercase tracking-[0.14em] text-ink mb-2">
+                Age group <span className="font-semibold normal-case tracking-normal text-slate-500">— choose one</span>
               </legend>
-              {groups.map((group) => (
-                <div key={group} className="space-y-2">
-                  <p className="text-sm font-bold text-ink-soft">{group}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {config.categories
-                      .filter((c) => c.group === group)
-                      .map((c) => (
-                        <label
-                          key={c.id}
-                          className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
-                            category === c.id
-                              ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
-                              : 'border-line bg-white hover:border-slate-300'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="category"
-                            value={c.id}
-                            checked={category === c.id}
-                            onChange={() => setCategory(c.id)}
-                            className="size-4 accent-emerald-600"
-                          />
-                          <span className="font-semibold text-ink">{c.format}</span>
-                        </label>
-                      ))}
-                  </div>
-                </div>
-              ))}
+              <div className="grid grid-cols-2 gap-2">
+                {groups.map((g) => (
+                  <label key={g} className={choiceCls(group === g)}>
+                    <input
+                      type="radio"
+                      name="group"
+                      value={g}
+                      checked={group === g}
+                      onChange={() => {
+                        setError(null);
+                        setGroup(g);
+                      }}
+                      className="size-4 accent-emerald-600"
+                    />
+                    <span className="font-semibold text-ink">{g}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-2" disabled={busy}>
+              <legend className="text-xs font-black uppercase tracking-[0.14em] text-ink mb-2">
+                Events <span className="font-semibold normal-case tracking-normal text-slate-500">— Singles, Doubles or both</span>
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {allFormats.map((f) => (
+                  <label key={f} className={choiceCls(formats.includes(f))}>
+                    <input
+                      type="checkbox"
+                      name="events"
+                      value={f}
+                      checked={formats.includes(f)}
+                      onChange={() => toggleFormat(f)}
+                      className="size-4 rounded accent-emerald-600"
+                    />
+                    <span className="font-semibold text-ink">{f}</span>
+                  </label>
+                ))}
+              </div>
+              {group && formats.length > 0 ? (
+                <p className="text-xs text-emerald-700 font-semibold">
+                  You're registering for {group} · {formats.join(' & ')}
+                </p>
+              ) : null}
             </fieldset>
 
             {error ? (
@@ -201,7 +235,7 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
             </button>
 
             <p className="text-[11px] text-slate-500 text-center">
-              Your name is used only to organise the draw and is visible to the organisers only. One category per
+              Your name is used only to organise the draw and is visible to the organisers only. One registration per
               person.
             </p>
           </form>
@@ -209,4 +243,10 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
       )}
     </div>
   );
+}
+
+function choiceCls(selected: boolean): string {
+  return `flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
+    selected ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-line bg-white hover:border-slate-300'
+  }`;
 }
