@@ -19,6 +19,7 @@ const NAV: ReadonlyArray<NavItem> = [
   { to: '/sports', label: 'Sports', end: true, icon: Home },
   { to: '/badminton', label: 'Badminton', end: false, icon: Trophy },
   { to: '/lawn-tennis', label: 'Lawn Tennis', end: false, icon: Trophy },
+  { to: '/table-tennis', label: 'Table Tennis', end: false, icon: Trophy },
   { to: '/photos', label: 'Photos', end: false, icon: Camera },
   { to: '/ask', label: 'Ask', end: false, icon: MessageCircleQuestion, disabled: true },
   { to: '/about', label: 'About RNW', end: false, icon: Info, disabled: true }
@@ -213,7 +214,11 @@ export function PublicLayout() {
                   Lawn Tennis
                 </Link>
               </li>
-              <li className="text-slate-600">Table Tennis (Soon)</li>
+              <li>
+                <Link to="/table-tennis" className="hover:text-white transition-colors">
+                  Table Tennis
+                </Link>
+              </li>
             </ul>
           </div>
           <div className="space-y-2.5">

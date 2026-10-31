@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Copy, Download } from 'lucide-react';
 import { onValue, ref, remove, update } from '../../lib/realtime';
 import { db } from '../../db';
-import type { Sport } from '../../data/tournamentData';
 import {
   REGISTRATIONS,
   categoryFor,
@@ -11,9 +10,11 @@ import {
   groupsOf,
   registrationCategories,
   registrationsPath,
-  type Registration
+  type Registration,
+  type RegistrationKey
 } from '../../data/registration';
 import { Btn, Chip, ConfirmBtn, Notice, Panel, inputBaseCls } from './ui';
+import { SPORT_CARDS } from '../../data/sports';
 
 type Row = Registration & { id: string };
 
@@ -26,7 +27,7 @@ function csvCell(v: string): string {
  * a person's category, remove them, copy a category's names straight into
  * the Draw tab's Quick draw, or download everything as CSV.
  */
-export function RegistrationsPanel({ sport }: { sport: Sport }) {
+export function RegistrationsPanel({ sport }: { sport: RegistrationKey }) {
   const config = REGISTRATIONS[sport];
   const [rows, setRows] = useState<Row[] | null>(null);
   const [filter, setFilter] = useState('all');
@@ -96,7 +97,7 @@ export function RegistrationsPanel({ sport }: { sport: Sport }) {
     <div className="space-y-6">
       <Panel
         title={`Registrations — ${all.length}`}
-        subtitle={`${config.title} · ${config.dates}. Visible to admins only. Residents register from the Register button on the ${sport === 'tennis' ? 'Lawn Tennis' : 'Badminton'} page.`}
+        subtitle={`${config.title} · ${config.dates}. Visible to admins only. Residents register from the Register button on the ${SPORT_CARDS.find((c) => c.slug === sport || c.sport === sport)?.label ?? ''} page.`}
         actions={
           <>
             <Btn small onClick={downloadCsv} disabled={all.length === 0}>

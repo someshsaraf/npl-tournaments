@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
 import { Reveal } from '../components/Reveal';
 import { SPORT_CARDS, type SportCard } from '../data/sports';
+import { REGISTRATIONS, type RegistrationKey } from '../data/registration';
 import { isMatchOnCourt, useSportLiveMatch } from '../hooks/useSportLiveMatch';
 import type { Sport } from '../data/tournamentData';
 
@@ -101,25 +102,46 @@ function SportTile({ card, sport }: { card: SportCard; sport: Sport }) {
 }
 
 function ComingSoonTile({ card }: { card: SportCard }) {
-  return (
-    <div
-      aria-disabled="true"
-      className="relative h-[340px] sm:h-[420px] rounded-3xl overflow-hidden border border-line bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)]"
-    >
+  const registration = REGISTRATIONS[card.slug as RegistrationKey];
+  const body = (
+    <>
       {/* Table-tennis table motif: net line + centre line */}
       <div className="absolute inset-8 rounded-2xl border-2 border-white/15" aria-hidden />
       <div className="absolute inset-y-8 left-1/2 w-px bg-white/15" aria-hidden />
       <div className="absolute inset-x-8 top-1/2 h-0.5 bg-white/25" aria-hidden />
       <span className="absolute top-[38%] left-[62%] size-5 rounded-full bg-orange-300 shadow-[0_0_24px_rgba(253,186,116,0.7)]" aria-hidden />
-      <span className="absolute top-4 left-4 rounded-full bg-white/10 text-white/80 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 border border-white/20">
-        Coming soon
+      <span
+        className={`absolute top-4 left-4 rounded-full text-[10px] font-black uppercase tracking-wider px-2.5 py-1 border ${
+          registration ? 'bg-lime-300 text-slate-950 border-lime-200' : 'bg-white/10 text-white/80 border-white/20'
+        }`}
+      >
+        {registration ? 'Registration open' : 'Coming soon'}
       </span>
       <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 space-y-2">
-        <h2 className="portal-display text-5xl sm:text-6xl text-white/90 tracking-wide leading-none">
-          {card.label}
-        </h2>
-        <p className="text-sm text-slate-300/80">Schedules and live scoring are on the way.</p>
+        <h2 className="portal-display text-5xl sm:text-6xl text-white/90 tracking-wide leading-none">{card.label}</h2>
+        {registration ? (
+          <>
+            <p className="text-sm text-slate-300/90">{registration.shortDates} · Singles &amp; Doubles</p>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-950 text-xs font-bold uppercase tracking-wide px-4 py-2 mt-1 transition-all group-hover:gap-2.5">
+              Register
+              <ArrowRight className="size-3.5" aria-hidden />
+            </span>
+          </>
+        ) : (
+          <p className="text-sm text-slate-300/80">Schedules and live scoring are on the way.</p>
+        )}
       </div>
+    </>
+  );
+  const cls =
+    'group relative block h-[340px] sm:h-[420px] rounded-3xl overflow-hidden border border-line bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)]';
+  return registration ? (
+    <Link to={`/${card.slug}`} className={`${cls} focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400/60`}>
+      {body}
+    </Link>
+  ) : (
+    <div aria-disabled="true" className={cls}>
+      {body}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { getAdminDb } from './_lib/db.js';
 import {
   REGISTRATIONS,
   describeSelection,
+  isRegistrationKey,
   normalizeName,
   registrationCategories,
   registrationsPath,
@@ -35,7 +36,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
-  const sport = body.sport === 'badminton' || body.sport === 'tennis' ? body.sport : null;
+  const sport = isRegistrationKey(body.sport) ? body.sport : null;
   const config = sport ? REGISTRATIONS[sport] : undefined;
   if (!sport || !config) {
     res.status(400).json({ error: 'Registration is not open for this sport.' });

@@ -16,9 +16,11 @@ export function TournamentDates({ weekends, tone = 'light' }: { weekends: string
     <div className="flex flex-wrap gap-x-5 gap-y-3" role="list" aria-label="Tournament dates">
       {weekends.map((days, i) => (
         <div key={days[0]} role="listitem" className="space-y-1.5">
-          <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${dark ? 'text-lime-300' : 'text-emerald-700'}`}>
-            Weekend {i + 1}
-          </p>
+          {weekends.length > 1 ? (
+            <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${dark ? 'text-lime-300' : 'text-emerald-700'}`}>
+              Weekend {i + 1}
+            </p>
+          ) : null}
           <div className="flex gap-1.5">
             {days.map((iso) => {
               const p = parts(iso);
