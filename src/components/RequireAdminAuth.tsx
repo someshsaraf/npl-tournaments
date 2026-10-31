@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
  */
 export function RequireAdminAuth() {
   const { admin, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -18,7 +19,8 @@ export function RequireAdminAuth() {
   }
 
   if (!admin) {
-    return <Navigate to="/admin/login" replace />;
+    // Remember the staff page (e.g. a scorer tablet's /scorer/lawn-tennis) for after login.
+    return <Navigate to={`/admin/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
   return <Outlet />;
