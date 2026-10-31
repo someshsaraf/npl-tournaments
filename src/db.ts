@@ -55,5 +55,7 @@ export function liveScoreDelayPath(sport: 'badminton' | 'tennis'): string {
   return sport === 'badminton' ? LIVE_SCORE_DELAY_MS_PATH : `settings/sports/${sport}/liveScoreDelayMs`;
 }
 
-/** Data root for the Lawn Tennis tournament builder (`draft` + `published`). */
-export const TENNIS_TOURNAMENT_PATH = 'tournaments/tennis';
+/** Data root for a sport's tournament console (`draft` + `published`). */
+export function tournamentPath(sport: 'badminton' | 'tennis'): string {
+  return `tournaments/${sport}`;
+}

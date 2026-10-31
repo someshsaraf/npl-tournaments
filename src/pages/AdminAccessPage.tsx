@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Copy, RefreshCw } from 'lucide-react';
 import { AdminNav } from '../components/AdminNav';
-import { Btn, ConfirmBtn, FieldLabel, Notice, Panel, inputCls } from '../components/lawnTennis/admin/ui';
+import { Btn, ConfirmBtn, FieldLabel, Notice, Panel, inputCls } from '../components/tournamentAdmin/ui';
 import { fetchAccessCodeInfo, setCommunityAccessCode, type AccessCodeInfo } from '../utils/authClient';
 
 const WORDS = [

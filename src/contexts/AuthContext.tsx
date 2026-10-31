@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { reconnectRealtime } from '../lib/realtime';
+import { ACCESS_REVOKED_EVENT, reconnectRealtime } from '../lib/realtime';
 import { fetchSession, logout as logoutRequest } from '../utils/authClient';
 
 type AuthContextValue = {
@@ -36,6 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  // The community code was changed while this page was open: re-check the
+  // pass, so the access gate sends this screen to the code page.
+  useEffect(() => {
+    const onRevoked = () => void refresh();
+    window.addEventListener(ACCESS_REVOKED_EVENT, onRevoked);
+    return () => window.removeEventListener(ACCESS_REVOKED_EVENT, onRevoked);
   }, [refresh]);
 
   // The live-data socket carries the pass it was opened with; reopen it

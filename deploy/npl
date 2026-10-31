@@ -35,8 +35,8 @@ env_value() { # read KEY from .env without sourcing it ($ in hashes)
   sed -n "s/^$1=//p" "$ENV_FILE" | tail -n1 | sed -e "s/^'\(.*\)'$/\1/" -e 's/^"\(.*\)"$/\1/'
 }
 
-# The app container runs as uid 1000 (the "node" user; also "ubuntu" on Oracle
-# images). Fix ownership when we can (root); harmless to skip otherwise.
+# The app container runs as uid 1000 (the "node" user; also "ubuntu" on the
+# EC2 Ubuntu image). Fix ownership when we can (root); harmless to skip otherwise.
 own_data() {
   if [ "$(id -u)" -eq 0 ]; then chown "$@" 1000:1000 "$ROOT/data" 2>/dev/null || true; fi
 }

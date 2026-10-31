@@ -98,5 +98,5 @@ export function sportFromGalleryEventId(eventId: unknown): Sport | null {
 
 /** Staff landing page for one sport's tournament tools. */
 export function adminPathForSport(sport: Sport): string {
-  return sport === 'tennis' ? '/admin/lawn-tennis' : '/admin/tournament';
+  return sport === 'tennis' ? '/admin/lawn-tennis' : '/admin/badminton';
 }

@@ -1,55 +1,55 @@
 import { useEffect, useMemo, useState } from 'react';
 import { onValue, ref } from '../../lib/realtime';
 import { db } from '../../db';
-import { resolveSport, type CompletedMatch, type MatchState } from '../../data/tournamentData';
-import type { PublishedTennisTournament, TennisTournament } from '../../data/tennisTournament';
+import { resolveSport, type CompletedMatch, type MatchState, type Sport } from '../../data/tournamentData';
+import type { PublishedTournament, Tournament } from '../../data/tournament';
 import { completedMatchesFromFirebase } from '../../utils/completedMatches';
-import { buildContext, subscribePublishedTennis, type TournamentContext } from '../../utils/tennisTournament';
+import { buildContext, subscribePublished, type TournamentContext } from '../../utils/tournament';
 import { useSportLiveMatch } from '../../hooks/useSportLiveMatch';
 
-/** Tennis rows from completedMatches, keyed by fixture id. */
-export function useTennisResults(): Record<string, CompletedMatch> {
+/** One sport's rows from completedMatches, keyed by fixture id. */
+export function useSportResults(sport: Sport): Record<string, CompletedMatch> {
   const [results, setResults] = useState<Record<string, CompletedMatch>>({});
   useEffect(() => {
     const unsub = onValue(ref(db, 'completedMatches'), (snap) => {
       const all = completedMatchesFromFirebase(snap.val());
       const out: Record<string, CompletedMatch> = {};
-      for (const [k, v] of Object.entries(all)) if (resolveSport(v.sport) === 'tennis') out[k] = v;
+      for (const [k, v] of Object.entries(all)) if (resolveSport(v.sport) === sport) out[k] = v;
       setResults(out);
     });
     return () => unsub();
-  }, []);
+  }, [sport]);
   return results;
 }
 
-export interface TennisTournamentData {
+export interface TournamentData {
   loaded: boolean;
-  tournament: PublishedTennisTournament | null;
+  tournament: PublishedTournament | null;
   ctx: TournamentContext | null;
   live: MatchState | null;
 }
 
-/** Published tournament + results + live match, for resident views. */
-export function usePublishedTennisTournament(): TennisTournamentData {
-  const [tournament, setTournament] = useState<PublishedTennisTournament | null>(null);
+/** A sport's published tournament + results + live match, for resident views. */
+export function usePublishedTournament(sport: Sport): TournamentData {
+  const [tournament, setTournament] = useState<PublishedTournament | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const results = useTennisResults();
-  const live = useSportLiveMatch('tennis');
+  const results = useSportResults(sport);
+  const live = useSportLiveMatch(sport);
 
   useEffect(() => {
-    const unsub = subscribePublishedTennis(db, (t) => {
+    const unsub = subscribePublished(db, sport, (t) => {
       setTournament(t);
       setLoaded(true);
     });
     return () => unsub();
-  }, []);
+  }, [sport]);
 
   const ctx = useMemo(() => (tournament ? buildContext(tournament, results) : null), [tournament, results]);
   return { loaded, tournament, ctx, live };
 }
 
 /** Same context over an arbitrary (e.g. draft) tournament. */
-export function useTournamentContext(t: TennisTournament | null): TournamentContext | null {
-  const results = useTennisResults();
+export function useTournamentContext(t: Tournament | null): TournamentContext | null {
+  const results = useSportResults(t?.sport ?? 'tennis');
   return useMemo(() => (t ? buildContext(t, results) : null), [t, results]);
 }

@@ -8,19 +8,19 @@ import AdminAccessPage from './pages/AdminAccessPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import HomePage from './pages/HomePage';
 import BadmintonHubPage from './pages/BadmintonHubPage';
-import LawnTennisHubPage from './pages/LawnTennisHubPage';
+import TournamentHubPage from './pages/TournamentHubPage';
+import TournamentRegisterPage from './pages/TournamentRegisterPage';
 import TableTennisPage from './pages/TableTennisPage';
 import AskPage from './pages/AskPage';
 import AboutPage from './pages/AboutPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import MatchPhotosPage from './pages/MatchPhotosPage';
-import AdminPanel from './pages/AdminPanel';
 import AdminScorePage from './pages/AdminScorePage';
 import AdminResultsPage from './pages/AdminResultsPage';
 import AdminPhotosPage from './pages/AdminPhotosPage';
 import AdminTeamsPage from './pages/AdminTeamsPage';
 import AdminSportsPage from './pages/AdminSportsPage';
-import AdminLawnTennisPage from './pages/AdminLawnTennisPage';
+import AdminTournamentPage from './pages/AdminTournamentPage';
 import LiveScoreboard from './pages/LiveScoreboard';
 import StreamOverlay from './pages/StreamOverlay';
 import ScoreControl from './pages/ScoreControl';
@@ -82,7 +82,8 @@ export default function App() {
             <Route element={<PublicLayout />}>
               <Route path="/sports" element={<HomePage />} />
               <Route path="/badminton" element={<BadmintonHubPage />} />
-              <Route path="/lawn-tennis" element={<LawnTennisHubPage />} />
+              <Route path="/lawn-tennis" element={<TournamentHubPage sport="tennis" />} />
+              <Route path="/lawn-tennis/register" element={<TournamentRegisterPage sport="tennis" />} />
               <Route path="/table-tennis" element={<TableTennisPage />} />
               <Route path="/photos" element={<MatchPhotosPage />} />
               <Route path="/ask" element={<AskPage />} />
@@ -102,8 +103,10 @@ export default function App() {
           <Route element={<RequireAdminAuth />}>
             <Route path="/admin" element={<Navigate to="/admin/sports" replace />} />
             <Route path="/admin/sports" element={<AdminSportsPage />} />
-            <Route path="/admin/lawn-tennis" element={<AdminLawnTennisPage />} />
-            <Route path="/admin/tournament" element={<AdminPanel />} />
+            {/* Tournament consoles — key forces a fresh console when switching sport. */}
+            <Route path="/admin/lawn-tennis" element={<AdminTournamentPage key="tennis" sport="tennis" />} />
+            <Route path="/admin/badminton" element={<AdminTournamentPage key="badminton" sport="badminton" />} />
+            <Route path="/admin/tournament" element={<Navigate to="/admin/badminton" replace />} />
             <Route path="/admin/score" element={<AdminScorePage />} />
             <Route path="/admin/results" element={<AdminResultsPage />} />
             <Route path="/admin/photos" element={<AdminPhotosPage />} />

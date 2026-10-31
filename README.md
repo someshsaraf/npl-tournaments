@@ -46,8 +46,7 @@ To try a production build locally: `npm run preview` → http://localhost:8787.
 
 ## Host it
 
-**Recommended: a small Ubuntu server (AWS EC2 or Oracle Cloud) + a free
-DuckDNS address** — step-by-step guide and one-command setup in
+**Recommended: an AWS EC2 instance + a free DuckDNS address** — step-by-step guide and one-command setup in
 [deploy/HOSTING.md](deploy/HOSTING.md) (`sudo ./deploy/setup.sh`, then
 `./deploy/npl` for updates, backups and restores).
 

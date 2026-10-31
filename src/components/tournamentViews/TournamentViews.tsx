@@ -6,7 +6,7 @@ import {
   categoryLabel,
   type FixtureStage,
   type TournamentCategory
-} from '../../data/tennisTournament';
+} from '../../data/tournament';
 import {
   compareFixtureTime,
   fixtureStatus,
@@ -17,7 +17,7 @@ import {
   resolveSide,
   type FixtureStatus,
   type TournamentContext
-} from '../../utils/tennisTournament';
+} from '../../utils/tournament';
 import { describeTennisRules } from '../../utils/tennisScoring';
 import { FixtureCard } from './FixtureCard';
 
@@ -62,7 +62,7 @@ function CategoryPicker({
 }
 
 /** Day-by-day schedule with upcoming / live / completed filtering. */
-export function TennisScheduleView({ ctx, live }: { ctx: TournamentContext; live: MatchState | null }) {
+export function TournamentScheduleView({ ctx, live }: { ctx: TournamentContext; live: MatchState | null }) {
   const [category, setCategory] = useState('all');
   const [status, setStatus] = useState<StatusFilter>('all');
 
@@ -145,12 +145,15 @@ export function TennisScheduleView({ ctx, live }: { ctx: TournamentContext; live
 }
 
 /** Pool tables + each pool's matches. */
-export function TennisPoolsView({ ctx, live }: { ctx: TournamentContext; live: MatchState | null }) {
-  const cats = ctx.tournament.categories.filter((c) => c.pools.length > 0);
+export function TournamentPoolsView({ ctx, live }: { ctx: TournamentContext; live: MatchState | null }) {
+  // Entry lists (e.g. "Finalists") aren't pools — no table for them.
+  const cats = ctx.tournament.categories
+    .map((c) => ({ ...c, pools: c.pools.filter((p) => !p.listOnly) }))
+    .filter((c) => c.pools.length > 0);
   const [category, setCategory] = useState(cats[0]?.id ?? '');
   const cat = cats.find((c) => c.id === category) ?? cats[0];
   if (!cat) {
-    return <Empty text="Pools haven't been drawn yet." />;
+    return <Empty text="No pool stage in this tournament." />;
   }
   return (
     <div className="space-y-4">
@@ -234,7 +237,7 @@ export function TennisPoolsView({ ctx, live }: { ctx: TournamentContext; live: M
 const KO_ORDER: FixtureStage[] = ['quarterfinal', 'semifinal', 'final'];
 
 /** Knockout bracket — one column per round. */
-export function TennisBracketView({ ctx, live }: { ctx: TournamentContext; live: MatchState | null }) {
+export function TournamentBracketView({ ctx, live }: { ctx: TournamentContext; live: MatchState | null }) {
   const cats = ctx.tournament.categories.filter((c) =>
     ctx.tournament.fixtures.some((f) => f.categoryId === c.id && f.stage !== 'pool')
   );
@@ -292,7 +295,7 @@ export function TennisBracketView({ ctx, live }: { ctx: TournamentContext; live:
 }
 
 /** Tournament rules generated from the admin's configuration. */
-export function TennisRulesView({ ctx }: { ctx: TournamentContext }) {
+export function TournamentRulesView({ ctx }: { ctx: TournamentContext }) {
   const t = ctx.tournament;
   const stages: Array<{ key: keyof typeof t.rules; label: string; hint: string }> = [
     { key: 'pool', label: 'Pool (qualifier) matches', hint: 'Everyone plays everyone in their pool.' },
@@ -313,28 +316,39 @@ export function TennisRulesView({ ctx }: { ctx: TournamentContext }) {
             .map((s) => (
               <li key={s.key} className="space-y-0.5">
                 <p className="text-sm font-bold text-ink">{s.label}</p>
-                <p className="text-sm text-ink-soft">{describeTennisRules(t.rules[s.key])}</p>
+                <p className="text-sm text-ink-soft">
+                  {t.sport === 'badminton'
+                    ? `Race to ${t.badmintonRules[s.key].maxPoints} points · ${t.badmintonRules[s.key].bestOf === 3 ? 'best of 3 games' : 'one game'}`
+                    : describeTennisRules(t.rules[s.key])}
+                </p>
                 {s.hint ? <p className="text-xs text-slate-500">{s.hint}</p> : null}
               </li>
             ))}
         </ul>
-        <p className="text-xs text-slate-500 border-t border-line pt-3">
-          "First to 4" means at 3-3 in games, whoever wins the next game wins the match. A golden point is
-          sudden death: whoever wins that point wins the game.
-        </p>
+        {t.sport === 'tennis' ? (
+          <p className="text-xs text-slate-500 border-t border-line pt-3">
+            "First to 4" means at 3-3 in games, whoever wins the next game wins the match. A golden point is
+            sudden death: whoever wins that point wins the game.
+          </p>
+        ) : null}
       </section>
       <section className="rounded-2xl border border-line bg-white p-5 space-y-3">
         <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-ink">
           <Users className="size-4 text-emerald-600" aria-hidden /> Categories &amp; qualifying
         </h3>
         <ul className="space-y-2 text-sm text-ink-soft">
-          {t.categories.map((c) => (
+          {t.categories.map((c) => {
+            const pools = c.pools.filter((p) => !p.listOnly).length;
+            return (
             <li key={c.id}>
-              <span className="font-bold text-ink">{categoryLabel(c)}</span> — {c.pools.length} pool
-              {c.pools.length === 1 ? '' : 's'}, top {c.qualifiersPerPool} per pool advance
+              <span className="font-bold text-ink">{categoryLabel(c)}</span> —{' '}
+              {pools === 0
+                ? 'knockout only'
+                : `${pools} pool${pools === 1 ? '' : 's'}, top ${c.qualifiersPerPool} per pool advance`}
               {c.format === 'team' ? '. Teams of 3–4 players.' : '.'}
             </li>
-          ))}
+            );
+          })}
         </ul>
         <p className="text-xs text-slate-500 border-t border-line pt-3">
           Each match won earns {t.pointsPerWin} points in the pool table.

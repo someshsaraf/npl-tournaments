@@ -1,26 +1,19 @@
-# Hosting the site
+# Hosting the site on AWS EC2
 
-The site runs on one small Ubuntu server with a free `something.duckdns.org`
-address and automatic HTTPS. Plan about an hour the first time.
+The site runs on one small AWS EC2 instance (Ubuntu) with a free
+`something.duckdns.org` address and automatic HTTPS. Plan about an hour the
+first time.
 
-**Pick a server provider (part A)** — everything after that (part B) is the
-same on any of them:
+You need: an AWS account (card for identity check), the code pushed to GitHub
+(all current changes committed), and a laptop with a terminal (macOS/Linux,
+or Windows PowerShell).
 
-| | Cost for a 3–4 month season | Notes |
-|---|---|---|
-| **AWS EC2** (recommended) | Usually covered by the new-account free credits | Quick signup, no capacity problems. Check the current free-tier terms. |
-| **Oracle Cloud Always Free** | Free, permanently | Free ARM servers are often "out of capacity" — may need retries. |
-| Any Ubuntu 22.04/24.04 VPS | Provider's price | Open ports 22, 80, 443, then go to part B. |
-
-You need a credit/debit card for either cloud (identity check), the code
-pushed to GitHub (all current changes committed), and a laptop with a
-terminal (macOS/Linux, or Windows PowerShell).
+For a 3–4 month season the new-account free credits usually cover it — check
+the current free-tier terms when you sign up, and set the budget alert below.
 
 ---
 
-## Part A — create the server
-
-### Option 1: AWS EC2
+## Part A — create the EC2 instance
 
 1. Sign up at **https://aws.amazon.com**. In the console, choose region
    **Asia Pacific (Mumbai)** (top-right).
@@ -34,7 +27,7 @@ terminal (macOS/Linux, or Windows PowerShell).
    | Name | `npl-sports` |
    | Image (AMI) | **Ubuntu Server 24.04 LTS** |
    | Instance type | **t4g.small** (ARM, 2 GB) — or **t3.micro** (1 GB; setup adds swap) |
-   | Key pair | **Create new key pair** → RSA/ED25519, `.pem` → it downloads; keep it safe |
+   | Key pair | **Create new key pair** → `.pem` → it downloads; keep it safe |
    | Network settings → Firewall | **Create security group**: tick **Allow SSH from My IP**, **Allow HTTPS from the internet**, **Allow HTTP from the internet** |
    | Storage | 20–30 GB gp3 |
 
@@ -49,28 +42,12 @@ chmod 600 ~/Downloads/npl-sports.pem
 ssh -i ~/Downloads/npl-sports.pem ubuntu@<public-ip>
 ```
 
-Then go to **part B**.
-
-### Option 2: Oracle Cloud Always Free
-
-1. Sign up at **https://signup.cloud.oracle.com**. **Home region: India West
-   (Mumbai) or India South (Hyderabad)** — it can't be changed later, and free
-   resources only exist in the home region.
-2. Recommended: *Billing → Upgrade to Pay As You Go* (still free while you
-   only use Always Free resources, and Oracle stops reclaiming servers that
-   look idle), plus a small budget alert.
-3. *Compute → Instances → Create instance*: image **Canonical Ubuntu 24.04**;
-   shape **Ampere VM.Standard.A1.Flex** with 2 OCPUs / 12 GB (fallback if "out
-   of capacity": **VM.Standard.E2.1.Micro**); new VCN with a **public subnet**
-   and a **public IPv4 address**; **Generate a key pair → Save private key**.
-4. Open the web ports: *instance → Subnet → Security List → Add Ingress Rules*:
-   source `0.0.0.0/0`, TCP, destination port `80`; and the same for `443`.
-5. Log in: `ssh -i ~/Downloads/ssh-key-*.key ubuntu@<public-ip>` (after
-   `chmod 600` on the key file). Then go to **part B**.
+The security group is the firewall: only SSH (from your IP), HTTP and HTTPS
+are open.
 
 ---
 
-## Part B — install the site (same on every provider)
+## Part B — install the site
 
 ### B1. Get a free address at DuckDNS
 
@@ -181,11 +158,9 @@ resident accounts are deliberately left behind.
 
 1. Download a final backup to your laptop (above) — keep it if you might want
    the results or photos later.
-2. Delete the server:
-   - **AWS:** *EC2 → Instances → Terminate*; then *Elastic IPs → Release* any
-     address (an unattached Elastic IP is charged) and check *Volumes* for
-     leftovers.
-   - **Oracle:** *Compute → Instances → Terminate* (tick *delete boot volume*).
+2. Delete the server: *EC2 → Instances → Terminate*; then *Elastic IPs →
+   Release* any address (an unattached Elastic IP is charged) and check
+   *Volumes* and *Snapshots* for leftovers.
 3. Delete the subdomain at duckdns.org, and remove the deploy key from the
    GitHub repo (*Settings → Deploy keys*).
 4. A few days later, check the billing page to confirm nothing is still
@@ -195,21 +170,21 @@ resident accounts are deliberately left behind.
 
 ## Troubleshooting
 
-- **Site doesn't load** — check the cloud firewall (AWS: security group allows
-  HTTP + HTTPS · Oracle: security list has ports 80 + 443), then
+- **Site doesn't load** — check the instance's security group allows HTTP
+  (80) and HTTPS (443) from anywhere, then
   `./deploy/npl status` and `./deploy/npl logs caddy`. Certificate errors in
   the Caddy log usually mean the DuckDNS address doesn't point at this server
   yet, or port 80 is blocked.
 - **"That code is not right" for the admin code** — run
   `./deploy/npl admin-code` to make a fresh one.
 - **Can't SSH in** — use the key file from part A and the user `ubuntu`.
-  Password login is turned off on purpose. On AWS, "My IP" in the security
-  group is your IP at creation time — update the rule if your IP changed.
+  Password login is turned off on purpose. "My IP" in the security group is
+  your IP at creation time — update the SSH rule if your IP changed.
 
 ## Security notes
 
 - `.env` holds the secrets (mode 600). Never commit or share it.
 - Change the community code each season (Admin → Access) — every device is
   signed out and needs the new one.
-- Only SSH (key login), 80 and 443 are open; fail2ban blocks repeated SSH
-  attempts; security updates install automatically.
+- The security group only opens SSH (from your IP), 80 and 443; fail2ban
+  blocks repeated SSH attempts; security updates install automatically.

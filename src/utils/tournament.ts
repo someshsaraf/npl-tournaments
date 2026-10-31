@@ -1,27 +1,32 @@
 import { onValue, ref, remove, set, type Database, type Unsubscribe } from '../lib/realtime';
-import { TENNIS_TOURNAMENT_PATH } from '../db';
-import type { CompletedMatch, MatchState, TennisRules } from '../data/tournamentData';
+import { tournamentPath } from '../db';
+import type { CompletedMatch, MatchState, Sport, TennisRules } from '../data/tournamentData';
+import { isBestOf, isMaxPoints, isSport } from '../data/tournamentData';
 import {
   ENTRY_SIZE,
   STAGE_SHORT,
-  TENNIS_DIVISIONS,
-  TENNIS_FORMATS,
+  TOURNAMENT_DIVISIONS,
+  TOURNAMENT_FORMATS,
   buildBlankTournament,
   categoryIdFor,
+  categoryLabel,
+  defaultBadmintonStageRules,
   defaultStageRules,
+  type BadmintonRules,
+  type BadmintonStageRules,
   type FixtureSide,
   type FixtureStage,
   type KnockoutStart,
-  type PublishedTennisTournament,
+  type PublishedTournament,
   type StageRules,
-  type TennisDivision,
-  type TennisFormat,
-  type TennisTournament,
+  type TournamentDivision,
+  type TournamentFormat,
+  type Tournament,
   type TournamentCategory,
   type TournamentEntry,
   type TournamentFixture,
   type TournamentPool
-} from '../data/tennisTournament';
+} from '../data/tournament';
 import { normalizeTennisRules } from './tennisScoring';
 import { completedMatchStorageKey, toFirebaseWritable } from './completedMatches';
 import { hasSeriesWinner } from './matchState';
@@ -73,7 +78,8 @@ function normalizePool(raw: unknown): TournamentPool | null {
   return {
     id,
     name: str(r.name, 40) || 'Pool',
-    entries: asArray(r.entries).map(normalizeEntry).filter((e): e is TournamentEntry => !!e)
+    entries: asArray(r.entries).map(normalizeEntry).filter((e): e is TournamentEntry => !!e),
+    ...(r.listOnly === true ? { listOnly: true } : {})
   };
 }
 
@@ -83,14 +89,16 @@ function normalizeCategory(raw: unknown): TournamentCategory | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   const id = safeId(r.id);
-  const format = TENNIS_FORMATS.find((f) => f === r.format);
+  const format = TOURNAMENT_FORMATS.find((f) => f === r.format);
   if (!id || !format) return null;
-  const division = TENNIS_DIVISIONS.find((d) => d === r.division);
+  const division = TOURNAMENT_DIVISIONS.find((d) => d === r.division);
   const qpp = Number(r.qualifiersPerPool);
   return {
     id,
     format,
     ...(format !== 'team' && division ? { division } : {}),
+    ...(str(r.name, 60) ? { name: str(r.name, 60) } : {}),
+    ...(r.custom === true ? { custom: true } : {}),
     pools: asArray(r.pools).map(normalizePool).filter((p): p is TournamentPool => !!p),
     qualifiersPerPool: Number.isFinite(qpp) && qpp >= 1 && qpp <= 4 ? Math.trunc(qpp) : 1,
     knockoutStart: KNOCKOUT_STARTS.find((k) => k === r.knockoutStart) ?? 'auto'
@@ -152,31 +160,54 @@ function normalizeStageRules(raw: unknown): StageRules {
   };
 }
 
-export function normalizeTournament(raw: unknown): TennisTournament | null {
+function normalizeBadmintonRules(raw: unknown, fallback: BadmintonRules): BadmintonRules {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    maxPoints: isMaxPoints(r.maxPoints) ? r.maxPoints : fallback.maxPoints,
+    bestOf: isBestOf(r.bestOf) ? r.bestOf : fallback.bestOf
+  };
+}
+
+function normalizeBadmintonStageRules(raw: unknown): BadmintonStageRules {
+  const d = defaultBadmintonStageRules();
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    pool: normalizeBadmintonRules(r.pool, d.pool),
+    quarterfinal: normalizeBadmintonRules(r.quarterfinal, d.quarterfinal),
+    semifinal: normalizeBadmintonRules(r.semifinal, d.semifinal),
+    final: normalizeBadmintonRules(r.final, d.final)
+  };
+}
+
+/** `sportHint` fills in rows saved before tournaments carried their sport. */
+export function normalizeTournament(raw: unknown, sportHint: Sport = 'tennis'): Tournament | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   const year = Number(r.year);
   const safeYear = Number.isFinite(year) && year >= 2020 && year <= 2100 ? Math.trunc(year) : new Date().getFullYear();
-  const blank = buildBlankTournament(safeYear);
+  const sport: Sport = isSport(r.sport) ? r.sport : sportHint;
+  const blank = buildBlankTournament(sport, safeYear);
   const ppw = Number(r.pointsPerWin);
   return {
+    sport,
     title: str(r.title, 80) || blank.title,
     year: safeYear,
     venue: str(r.venue, 80),
-    formats: asArray(r.formats).filter((f): f is TennisFormat => TENNIS_FORMATS.includes(f as TennisFormat)),
-    divisions: asArray(r.divisions).filter((d): d is TennisDivision =>
-      TENNIS_DIVISIONS.includes(d as TennisDivision)
+    formats: asArray(r.formats).filter((f): f is TournamentFormat => TOURNAMENT_FORMATS.includes(f as TournamentFormat)),
+    divisions: asArray(r.divisions).filter((d): d is TournamentDivision =>
+      TOURNAMENT_DIVISIONS.includes(d as TournamentDivision)
     ),
     categories: asArray(r.categories).map(normalizeCategory).filter((c): c is TournamentCategory => !!c),
     fixtures: asArray(r.fixtures).map(normalizeFixture).filter((f): f is TournamentFixture => !!f),
     rules: normalizeStageRules(r.rules),
+    badmintonRules: normalizeBadmintonStageRules(r.badmintonRules),
     pointsPerWin: Number.isFinite(ppw) && ppw >= 0 && ppw <= 10 ? ppw : 2,
     updatedAt: str(r.updatedAt, 40) || blank.updatedAt
   };
 }
 
-export function normalizePublishedTournament(raw: unknown): PublishedTennisTournament | null {
-  const t = normalizeTournament(raw);
+export function normalizePublishedTournament(raw: unknown, sportHint: Sport = 'tennis'): PublishedTournament | null {
+  const t = normalizeTournament(raw, sportHint);
   if (!t) return null;
   const publishedAt = str((raw as Record<string, unknown>).publishedAt, 40);
   return { ...t, publishedAt };
@@ -184,42 +215,44 @@ export function normalizePublishedTournament(raw: unknown): PublishedTennisTourn
 
 // ─── the data store ───────────────────────────────────────────────────────────────
 
-export function subscribeTennisDraft(
+export function subscribeDraft(
   database: Database,
-  callback: (t: TennisTournament | null) => void
+  sport: Sport,
+  callback: (t: Tournament | null) => void
 ): Unsubscribe {
-  return onValue(ref(database, `${TENNIS_TOURNAMENT_PATH}/draft`), (snap) =>
-    callback(normalizeTournament(snap.val()))
+  return onValue(ref(database, `${tournamentPath(sport)}/draft`), (snap) =>
+    callback(normalizeTournament(snap.val(), sport))
   );
 }
 
-export function subscribePublishedTennis(
+export function subscribePublished(
   database: Database,
-  callback: (t: PublishedTennisTournament | null) => void
+  sport: Sport,
+  callback: (t: PublishedTournament | null) => void
 ): Unsubscribe {
-  return onValue(ref(database, `${TENNIS_TOURNAMENT_PATH}/published`), (snap) =>
-    callback(normalizePublishedTournament(snap.val()))
+  return onValue(ref(database, `${tournamentPath(sport)}/published`), (snap) =>
+    callback(normalizePublishedTournament(snap.val(), sport))
   );
 }
 
 /** Whole-document write (single admin editing at a time — last write wins). */
-export function saveTennisDraft(database: Database, t: TennisTournament): Promise<void> {
+export function saveDraft(database: Database, t: Tournament): Promise<void> {
   return set(
-    ref(database, `${TENNIS_TOURNAMENT_PATH}/draft`),
+    ref(database, `${tournamentPath(t.sport)}/draft`),
     toFirebaseWritable({ ...t, updatedAt: new Date().toISOString() })
   );
 }
 
-export function publishTennisTournament(database: Database, t: TennisTournament): Promise<void> {
+export function publishTournament(database: Database, t: Tournament): Promise<void> {
   const now = new Date().toISOString();
   return set(
-    ref(database, `${TENNIS_TOURNAMENT_PATH}/published`),
+    ref(database, `${tournamentPath(t.sport)}/published`),
     toFirebaseWritable({ ...t, updatedAt: now, publishedAt: now })
   );
 }
 
 /** Content equality ignoring timestamps — drives the "unpublished changes" badge. */
-export function sameTournamentContent(a: TennisTournament, b: TennisTournament): boolean {
+export function sameTournamentContent(a: Tournament, b: Tournament): boolean {
   const stable = (v: unknown): unknown => {
     if (Array.isArray(v)) return v.map(stable);
     if (v && typeof v === 'object') {
@@ -237,23 +270,25 @@ export function sameTournamentContent(a: TennisTournament, b: TennisTournament):
   return JSON.stringify(stable(a)) === JSON.stringify(stable(b));
 }
 
-export function unpublishTennisTournament(database: Database): Promise<void> {
-  return remove(ref(database, `${TENNIS_TOURNAMENT_PATH}/published`));
+export function unpublishTournament(database: Database, sport: Sport): Promise<void> {
+  return remove(ref(database, `${tournamentPath(sport)}/published`));
 }
 
 // ─── categories / pools / entries ───────────────────────────────────────────
 
 /**
  * Categories implied by the selected formats × divisions, reusing any
- * existing category with the same id so its pools survive a toggle.
+ * existing category with the same id so its pools survive a toggle. Custom
+ * (hand-added) categories are always kept, after the generated ones.
  */
-export function syncCategories(t: TennisTournament): TournamentCategory[] {
+export function syncCategories(t: Tournament): TournamentCategory[] {
   const byId = new Map(t.categories.map((c) => [c.id, c]));
   const out: TournamentCategory[] = [];
-  for (const format of TENNIS_FORMATS) {
+  const custom = t.categories.filter((c) => c.custom);
+  for (const format of TOURNAMENT_FORMATS) {
     if (!t.formats.includes(format)) continue;
-    const divisions: Array<TennisDivision | undefined> =
-      format === 'team' ? [undefined] : TENNIS_DIVISIONS.filter((d) => t.divisions.includes(d));
+    const divisions: Array<TournamentDivision | undefined> =
+      format === 'team' ? [undefined] : TOURNAMENT_DIVISIONS.filter((d) => t.divisions.includes(d));
     for (const division of divisions) {
       const id = categoryIdFor(format, division);
       out.push(
@@ -268,7 +303,14 @@ export function syncCategories(t: TennisTournament): TournamentCategory[] {
       );
     }
   }
-  return out;
+  return [...out, ...custom];
+}
+
+/** A hand-named category (e.g. "Men's Singles <35"), kept regardless of the format/division picks. */
+export function buildCustomCategory(name: string, format: TournamentFormat): TournamentCategory {
+  const clean = name.trim().replace(/\s+/g, ' ').slice(0, 60);
+  if (!clean) throw new Error('Give the category a name.');
+  return { id: newId('cat'), format, name: clean, custom: true, pools: [], qualifiersPerPool: 1, knockoutStart: 'auto' };
 }
 
 export function poolName(index: number): string {
@@ -283,7 +325,7 @@ export function entryCount(cat: TournamentCategory): number {
  * Build an entry from player names. Validates against the format's size so
  * a doubles pair always has two names.
  */
-export function buildEntry(format: TennisFormat, players: string[], teamName?: string): TournamentEntry {
+export function buildEntry(format: TournamentFormat, players: string[], teamName?: string): TournamentEntry {
   const clean = players.map((p) => p.trim().replace(/\s+/g, ' ').slice(0, 60)).filter(Boolean);
   const { min, max } = ENTRY_SIZE[format];
   if (format === 'team') {
@@ -302,7 +344,7 @@ export function buildEntry(format: TennisFormat, players: string[], teamName?: s
  * Parse a pasted list (one entry per line). Doubles lines are split on
  * "&", "/", "+", "," or " and ". Team lines are "Team name: p1, p2, p3".
  */
-export function parseEntryLines(format: TennisFormat, text: string): { entries: TournamentEntry[]; errors: string[] } {
+export function parseEntryLines(format: TournamentFormat, text: string): { entries: TournamentEntry[]; errors: string[] } {
   const entries: TournamentEntry[] = [];
   const errors: string[] = [];
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -379,7 +421,7 @@ export function bracketSeedOrder(size: number): number[] {
 
 export function resolvedKnockoutStart(cat: TournamentCategory): Exclude<KnockoutStart, 'auto'> {
   if (cat.knockoutStart !== 'auto') return cat.knockoutStart;
-  const qualifiers = cat.pools.length * cat.qualifiersPerPool;
+  const qualifiers = cat.pools.filter((p) => !p.listOnly).length * cat.qualifiersPerPool;
   if (qualifiers <= 1) return 'none';
   if (qualifiers === 2) return 'final';
   if (qualifiers <= 4) return 'semifinal';
@@ -407,6 +449,7 @@ export function generateCategoryFixtures(cat: TournamentCategory): TournamentFix
   let order = 0;
 
   for (const pool of cat.pools) {
+    if (pool.listOnly) continue;
     for (const round of roundRobinPairs(pool.entries.length)) {
       for (const [a, b] of round) {
         fixtures.push({
@@ -426,12 +469,13 @@ export function generateCategoryFixtures(cat: TournamentCategory): TournamentFix
   }
 
   const start = resolvedKnockoutStart(cat);
-  if (start === 'none' || cat.pools.length === 0) return fixtures;
+  const seedPools = cat.pools.filter((p) => !p.listOnly);
+  if (start === 'none' || seedPools.length === 0) return fixtures;
 
   const size = BRACKET_SIZE[start];
   const seeds: FixtureSide[] = [];
   for (let rank = 1; rank <= cat.qualifiersPerPool; rank++) {
-    for (const pool of cat.pools) seeds.push({ kind: 'poolRank', poolId: pool.id, rank });
+    for (const pool of seedPools) seeds.push({ kind: 'poolRank', poolId: pool.id, rank });
   }
   if (seeds.length > size) {
     throw new Error(
@@ -571,7 +615,7 @@ export interface StandingRow {
 }
 
 export interface TournamentContext {
-  tournament: TennisTournament;
+  tournament: Tournament;
   /** completedMatches keyed by data store key (fixture id). */
   results: Record<string, CompletedMatch>;
   entriesById: Map<string, TournamentEntry>;
@@ -580,7 +624,7 @@ export interface TournamentContext {
 }
 
 export function buildContext(
-  tournament: TennisTournament,
+  tournament: Tournament,
   results: Record<string, CompletedMatch>
 ): TournamentContext {
   const entriesById = new Map<string, TournamentEntry>();
@@ -740,7 +784,7 @@ export function fixtureStageLabel(ctx: TournamentContext, f: TournamentFixture):
   return `${STAGE_SHORT[f.stage]}${f.slot ?? ''}`;
 }
 
-export function rulesForStage(t: TennisTournament, stage: FixtureStage): TennisRules {
+export function rulesForStage(t: Tournament, stage: FixtureStage): TennisRules {
   return t.rules[stage];
 }
 
@@ -764,18 +808,18 @@ export function formatFixtureDate(iso: string): string {
 }
 
 /** Problems that should block or warn before publishing. */
-export function validateTournament(t: TennisTournament): { errors: string[]; warnings: string[] } {
+export function validateTournament(t: Tournament): { errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
-  if (t.categories.length === 0) errors.push('Pick at least one format and division in Setup.');
+  if (t.categories.length === 0) errors.push('Add at least one category in Setup.');
   for (const c of t.categories) {
-    const label = c.format === 'team' ? 'Team Championship' : `${c.division} ${c.format}`;
+    const label = categoryLabel(c);
     if (c.pools.length === 0) {
       warnings.push(`${label}: no pools yet.`);
       continue;
     }
     for (const p of c.pools) {
-      if (p.entries.length < 2) warnings.push(`${label} · ${p.name}: needs at least 2 entries.`);
+      if (!p.listOnly && p.entries.length < 2) warnings.push(`${label} · ${p.name}: needs at least 2 entries.`);
       if (c.format === 'team') {
         for (const e of p.entries) {
           if (e.players.length < 3 || e.players.length > 4) {
