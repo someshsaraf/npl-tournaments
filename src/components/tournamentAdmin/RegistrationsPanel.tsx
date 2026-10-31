@@ -5,10 +5,12 @@ import { db } from '../../db';
 import {
   REGISTRATIONS,
   categoryFor,
+  closesLabel,
   describeSelection,
   formatsOf,
   groupsOf,
   registrationCategories,
+  registrationOpen,
   registrationsPath,
   type Registration,
   type RegistrationKey
@@ -97,7 +99,7 @@ export function RegistrationsPanel({ sport }: { sport: RegistrationKey }) {
     <div className="space-y-6">
       <Panel
         title={`Registrations — ${all.length}`}
-        subtitle={`${config.title} · ${config.dates}. Visible to admins only. Residents register from the Register button on the ${SPORT_CARDS.find((c) => c.slug === sport || c.sport === sport)?.label ?? ''} page.`}
+        subtitle={`${config.title} · ${config.dates}. ${registrationOpen(config) ? `Open until ${closesLabel(config)}` : `Closed on ${closesLabel(config)} — you can still add late entries from the form while signed in as staff`}. Visible to admins only. Residents register from the Register button on the ${SPORT_CARDS.find((c) => c.slug === sport || c.sport === sport)?.label ?? ''} page.`}
         actions={
           <>
             <Btn small onClick={downloadCsv} disabled={all.length === 0}>
