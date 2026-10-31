@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import type { Sport } from '../data/tournamentData';
 import { REGISTRATIONS } from '../data/registration';
 import { sportCardBySport, sportSlug } from '../data/sports';
 import { Reveal } from '../components/Reveal';
+import { TournamentDates } from '../components/TournamentDates';
 
 /**
  * Tournament registration (/lawn-tennis/register): full name + exactly one
@@ -88,13 +89,12 @@ export default function TournamentRegisterPage({ sport }: { sport: Sport }) {
             />
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/25" />
-          <div className="relative p-6 sm:p-8 space-y-2">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-lime-300 font-bold">Registration open</p>
-            <h1 className="portal-display text-4xl sm:text-5xl text-white tracking-wide leading-none">{config.title}</h1>
-            <p className="inline-flex items-center gap-2 text-sm text-lime-100/90 font-mono">
-              <CalendarDays className="size-4 shrink-0" aria-hidden />
-              {config.dates}
-            </p>
+          <div className="relative p-6 sm:p-8 space-y-4">
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-lime-300 font-bold">Registration open</p>
+              <h1 className="portal-display text-4xl sm:text-5xl text-white tracking-wide leading-none">{config.title}</h1>
+            </div>
+            <TournamentDates weekends={config.weekends} tone="dark" />
           </div>
         </section>
       </Reveal>

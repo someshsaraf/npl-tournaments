@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarClock, CalendarDays, Camera, ClipboardPen, Monitor } from 'lucide-react';
+import { ArrowRight, CalendarClock, Camera, ClipboardPen, Monitor } from 'lucide-react';
 import { Reveal } from '../components/Reveal';
 import { HubTabs, SportHero } from '../components/SportHero';
 import { LiveView } from '../components/tournament/LiveView';
@@ -16,6 +16,7 @@ import type { ReactNode } from 'react';
 import type { Sport } from '../data/tournamentData';
 import { sportCardBySport, sportSlug } from '../data/sports';
 import { REGISTRATIONS } from '../data/registration';
+import { TournamentDates } from '../components/TournamentDates';
 import { isMatchOnCourt } from '../hooks/useSportLiveMatch';
 import { formatFixtureDate } from '../utils/tournament';
 
@@ -76,7 +77,7 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
           card={card}
           eyebrow={tournament ? `Season ${tournament.year}` : card.label}
           title={tournament?.title ?? card.label}
-          meta={meta || registration?.dates || undefined}
+          meta={meta || registration?.shortDates || undefined}
           live={onCourt}
           actions={
             <>
@@ -112,15 +113,16 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
         <Reveal delayMs={60} className="relative z-10">
           <Link
             to={`/${slug}/register`}
-            className="group flex flex-wrap items-center gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-lime-50 px-5 py-4 hover:border-emerald-400"
+            className="group flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-lime-50 px-5 py-5 hover:border-emerald-400"
           >
-            <CalendarDays className="size-8 shrink-0 text-emerald-600" aria-hidden />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-black text-ink">Registration is open — {registration.title}</p>
+            <div className="min-w-0 flex-1 basis-60 space-y-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700">Registration is open</p>
+              <p className="portal-display text-3xl text-ink tracking-wide leading-none">{registration.title}</p>
               <p className="text-xs text-ink-soft">
-                {registration.dates} · {[...new Set(registration.categories.map((c) => c.group))].join(' and ')}, singles &amp; doubles
+                {[...new Set(registration.categories.map((c) => c.group))].join(' and ')} · Singles &amp; Doubles
               </p>
             </div>
+            <TournamentDates weekends={registration.weekends} />
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wide text-white transition-all group-hover:gap-2.5">
               Register now
               <ArrowRight className="size-3.5" aria-hidden />
