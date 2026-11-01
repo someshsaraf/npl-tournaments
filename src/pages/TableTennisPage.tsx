@@ -19,9 +19,8 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
 ];
 
 /**
- * Table Tennis hub (/table-tennis) — same layout as Lawn Tennis. Registration
- * is open; scoring, draw and rules aren't set up yet, so those tabs say what
- * is coming and when.
+ * Table Tennis hub (/table-tennis) — same layout as Lawn Tennis. Dates,
+ * registration, draw and rules aren't set yet, so the tabs say what is coming.
  */
 export default function TableTennisPage() {
   const card = SPORT_CARDS.find((c) => c.slug === 'table-tennis')!;
@@ -40,7 +39,7 @@ export default function TableTennisPage() {
           card={card}
           eyebrow={registration ? 'Season 2026' : card.label}
           title={registration?.title ?? card.label}
-          meta={registration?.shortDates}
+          meta={registration?.shortDates ?? 'Dates to be announced'}
           actions={registration ? <RegisterButton config={registration} slug={card.slug} /> : undefined}
         />
       </Reveal>

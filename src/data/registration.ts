@@ -31,6 +31,11 @@ export interface RegistrationConfig {
    */
   closesAt: string;
   categories: RegistrationCategory[];
+  /**
+   * Not shown to residents yet (no Register button, form or sign-ups) — only
+   * admins see it, so anything already stored stays reachable.
+   */
+  hidden?: boolean;
 }
 
 const cat = (id: string, group: string, format: string): RegistrationCategory => ({
@@ -50,7 +55,8 @@ export function isRegistrationKey(v: unknown): v is RegistrationKey {
   return v === 'badminton' || v === 'tennis' || v === 'table-tennis';
 }
 
-export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>> = {
+/** Every registration setup, including hidden ones (admin pages only). */
+export const ALL_REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>> = {
   tennis: {
     title: 'Lawn Tennis Tournament 2026',
     dates: 'Fri–Sun 20, 21, 22 Nov & Fri–Sun 27, 28, 29 Nov 2026',
@@ -68,13 +74,16 @@ export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>>
       cat('adults-doubles', 'Adults (21 and over)', 'Doubles')
     ]
   },
+  // Dates not decided yet — hidden from residents. To open it: set the dates,
+  // weekends, firstDay and closesAt, and delete `hidden: true`.
   'table-tennis': {
     title: 'Table Tennis Tournament 2026',
-    dates: 'Fri–Sun 4, 5, 6 Dec 2026',
-    shortDates: '4–6 Dec 2026',
-    weekends: [['2026-12-04', '2026-12-05', '2026-12-06']],
-    firstDay: '2026-12-04',
-    closesAt: '2026-11-13T23:59:59+05:30',
+    dates: 'Dates to be announced',
+    shortDates: 'Dates to be announced',
+    weekends: [],
+    firstDay: '',
+    closesAt: '',
+    hidden: true,
     categories: [
       cat('kids-singles', 'Kids (under 21)', 'Singles'),
       cat('kids-doubles', 'Kids (under 21)', 'Doubles'),
@@ -83,6 +92,11 @@ export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>>
     ]
   }
 };
+
+/** Registrations residents can see and use (Register buttons, form, server). */
+export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>> = Object.fromEntries(
+  Object.entries(ALL_REGISTRATIONS).filter(([, c]) => !c.hidden)
+);
 
 /** Still taking resident registrations? */
 export function registrationOpen(config: RegistrationConfig, now: number = Date.now()): boolean {
