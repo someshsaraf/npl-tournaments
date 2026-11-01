@@ -60,7 +60,7 @@ export function AdminNav({ subtitle = 'Tournament Control' }: { subtitle?: strin
           <button
             type="button"
             onClick={() => {
-              void logout().then(() => navigate('/admin/login'));
+              void logout().then(() => navigate('/', { replace: true }));
             }}
             className="inline-flex items-center gap-1.5 rounded-lg text-xs font-bold uppercase tracking-wide px-3 py-2 border border-red-900/60 bg-red-950/30 text-red-300 hover:bg-red-950/60 transition-colors"
           >
