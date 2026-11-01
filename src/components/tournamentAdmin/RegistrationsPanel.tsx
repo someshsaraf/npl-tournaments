@@ -3,7 +3,7 @@ import { Copy, Download } from 'lucide-react';
 import { onValue, ref, remove, update } from '../../lib/realtime';
 import { db } from '../../db';
 import {
-  REGISTRATIONS,
+  ALL_REGISTRATIONS,
   categoryFor,
   closesLabel,
   describeSelection,
@@ -30,7 +30,7 @@ function csvCell(v: string): string {
  * the Draw tab's Quick draw, or download everything as CSV.
  */
 export function RegistrationsPanel({ sport }: { sport: RegistrationKey }) {
-  const config = REGISTRATIONS[sport];
+  const config = ALL_REGISTRATIONS[sport];
   const [rows, setRows] = useState<Row[] | null>(null);
   const [filter, setFilter] = useState('all');
   const [msg, setMsg] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
@@ -99,7 +99,7 @@ export function RegistrationsPanel({ sport }: { sport: RegistrationKey }) {
     <div className="space-y-6">
       <Panel
         title={`Registrations — ${all.length}`}
-        subtitle={`${config.title} · ${config.dates}. ${registrationOpen(config) ? `Open until ${closesLabel(config)}` : `Closed on ${closesLabel(config)} — you can still add late entries from the form while signed in as staff`}. Visible to admins only. Residents register from the Register button on the ${SPORT_CARDS.find((c) => c.slug === sport || c.sport === sport)?.label ?? ''} page.`}
+        subtitle={config.hidden ? `${config.title} · ${config.dates}. Hidden from residents until the dates are set — no new sign-ups. Visible to admins only.` : `${config.title} · ${config.dates}. ${registrationOpen(config) ? `Open until ${closesLabel(config)}` : `Closed on ${closesLabel(config)} — you can still add late entries from the form while signed in as staff`}. Visible to admins only. Residents register from the Register button on the ${SPORT_CARDS.find((c) => c.slug === sport || c.sport === sport)?.label ?? ''} page.`}
         actions={
           <>
             <Btn small onClick={downloadCsv} disabled={all.length === 0}>
@@ -191,7 +191,7 @@ function RowChoice({
   row,
   onSave
 }: {
-  config: NonNullable<(typeof REGISTRATIONS)['tennis']>;
+  config: NonNullable<(typeof ALL_REGISTRATIONS)['tennis']>;
   row: Row;
   onSave: (group: string, formats: string[]) => void;
 }) {
