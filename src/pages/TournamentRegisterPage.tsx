@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, CalendarX2, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  REGISTRATIONS,
   categoryFor,
   closesLabel,
   formatsOf,
@@ -15,6 +14,7 @@ import { SPORT_CARDS } from '../data/sports';
 import { Reveal } from '../components/Reveal';
 import { TournamentDates } from '../components/TournamentDates';
 import { DeadlineTile } from '../components/RegistrationBanner';
+import { useRegistrations } from '../hooks/useRegistrations';
 
 /**
  * Tournament registration (/lawn-tennis/register): full name + exactly one
@@ -22,7 +22,8 @@ import { DeadlineTile } from '../components/RegistrationBanner';
  * server where only admins can see it.
  */
 export default function TournamentRegisterPage({ sport }: { sport: RegistrationKey }) {
-  const config = REGISTRATIONS[sport];
+  const { shown, loading } = useRegistrations();
+  const config = shown[sport];
   const card = SPORT_CARDS.find((c) => c.sport === sport || c.slug === sport)!;
   const slug = card.slug;
   const [name, setName] = useState('');
@@ -33,6 +34,7 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
   const [done, setDone] = useState<{ name: string; category: string } | null>(null);
   const { admin } = useAuth();
 
+  if (loading && !config) return null;
   if (!config) {
     return (
       <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-line bg-paper-soft">
@@ -204,7 +206,6 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
                 }}
                 autoComplete="name"
                 maxLength={60}
-                placeholder="e.g. Priya Nair"
                 disabled={busy}
                 className="w-full rounded-xl border border-line bg-paper-soft px-4 py-3 text-base text-ink focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50"
               />

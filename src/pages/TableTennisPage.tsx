@@ -4,7 +4,8 @@ import { Reveal } from '../components/Reveal';
 import { HubTabs, SportHero } from '../components/SportHero';
 import { RegisterButton, RegistrationBanner } from '../components/RegistrationBanner';
 import { RecordingsView } from '../components/tournament/RecordingsView';
-import { REGISTRATIONS, closesLabel, registrationOpen } from '../data/registration';
+import { closesLabel, registrationOpen } from '../data/registration';
+import { useRegistrations } from '../hooks/useRegistrations';
 import { SPORT_CARDS } from '../data/sports';
 
 type TabKey = 'schedule' | 'live' | 'pools' | 'knockouts' | 'recordings' | 'rules';
@@ -24,7 +25,7 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
  */
 export default function TableTennisPage() {
   const card = SPORT_CARDS.find((c) => c.slug === 'table-tennis')!;
-  const registration = REGISTRATIONS['table-tennis'];
+  const registration = useRegistrations().shown['table-tennis'];
   const [tab, setTab] = useState<TabKey>('schedule');
   const afterClose = registration
     ? registrationOpen(registration)

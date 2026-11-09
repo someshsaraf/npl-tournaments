@@ -10,7 +10,7 @@ import { SchedulePanel } from '../components/tournamentAdmin/SchedulePanel';
 import { LivePanel } from '../components/tournamentAdmin/LivePanel';
 import { ResultsPanel } from '../components/tournamentAdmin/ResultsPanel';
 import { RegistrationsPanel } from '../components/tournamentAdmin/RegistrationsPanel';
-import { REGISTRATIONS } from '../data/registration';
+import { DEFAULT_REGISTRATIONS } from '../data/registration';
 import { Btn, ConfirmBtn, Notice, Panel } from '../components/tournamentAdmin/ui';
 import { useSportResults, useTournamentContext } from '../components/tournamentViews/useTournament';
 import { buildBlankTournament, type PublishedTournament, type Tournament } from '../data/tournament';
@@ -49,7 +49,7 @@ export default function AdminTournamentPage({ sport }: { sport: Sport }) {
   const [draft, setDraft] = useState<Tournament | null>(null);
   const [published, setPublished] = useState<PublishedTournament | null>(null);
   const [loaded, setLoaded] = useState({ draft: false, published: false });
-  const [tab, setTab] = useState<TabKey>(REGISTRATIONS[sport] ? 'registrations' : 'setup');
+  const [tab, setTab] = useState<TabKey>(DEFAULT_REGISTRATIONS[sport] ? 'registrations' : 'setup');
   const [saveError, setSaveError] = useState<string | null>(null);
   const live = useSportLiveMatch(sport);
   const results = useSportResults(sport);
@@ -87,7 +87,7 @@ export default function AdminTournamentPage({ sport }: { sport: Sport }) {
 
   const dirty = !!draft && (!published || !sameTournamentContent(draft, published));
   const tabs: ReadonlyArray<{ key: TabKey; label: string; badge?: string }> = [
-    ...(REGISTRATIONS[sport] ? [{ key: 'registrations' as const, label: 'Registrations' }] : []),
+    ...(DEFAULT_REGISTRATIONS[sport] ? [{ key: 'registrations' as const, label: 'Registrations' }] : []),
     { key: 'setup', label: 'Setup' },
     { key: 'draw', label: 'Teams & Draw' },
     { key: 'schedule', label: 'Schedule' },

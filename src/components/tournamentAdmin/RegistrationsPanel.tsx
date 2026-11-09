@@ -3,7 +3,6 @@ import { Copy, Download } from 'lucide-react';
 import { onValue, ref, remove, update } from '../../lib/realtime';
 import { db } from '../../db';
 import {
-  ALL_REGISTRATIONS,
   categoryFor,
   closesLabel,
   describeSelection,
@@ -13,8 +12,11 @@ import {
   registrationOpen,
   registrationsPath,
   type Registration,
+  type RegistrationConfig,
   type RegistrationKey
 } from '../../data/registration';
+import { useRegistrations } from '../../hooks/useRegistrations';
+import { RegistrationDatesPanel } from './RegistrationDatesPanel';
 import { Btn, Chip, ConfirmBtn, Notice, Panel, inputBaseCls } from './ui';
 import { SPORT_CARDS } from '../../data/sports';
 
@@ -30,7 +32,8 @@ function csvCell(v: string): string {
  * the Draw tab's Quick draw, or download everything as CSV.
  */
 export function RegistrationsPanel({ sport }: { sport: RegistrationKey }) {
-  const config = ALL_REGISTRATIONS[sport];
+  const regs = useRegistrations();
+  const config = regs.all[sport];
   const [rows, setRows] = useState<Row[] | null>(null);
   const [filter, setFilter] = useState('all');
   const [msg, setMsg] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
@@ -97,9 +100,10 @@ export function RegistrationsPanel({ sport }: { sport: RegistrationKey }) {
 
   return (
     <div className="space-y-6">
+      {regs.loading ? null : <RegistrationDatesPanel sport={sport} config={config} customised={!!regs.custom[sport]} />}
       <Panel
         title={`Registrations — ${all.length}`}
-        subtitle={config.hidden ? `${config.title} · ${config.dates}. Hidden from residents until the dates are set — no new sign-ups. Visible to admins only.` : `${config.title} · ${config.dates}. ${registrationOpen(config) ? `Open until ${closesLabel(config)}` : `Closed on ${closesLabel(config)} — you can still add late entries from the form while signed in as staff`}. Visible to admins only. Residents register from the Register button on the ${SPORT_CARDS.find((c) => c.slug === sport || c.sport === sport)?.label ?? ''} page.`}
+        subtitle={config.hidden ? `${config.title} · ${config.dates}. Hidden from residents — no new sign-ups. Visible to admins only.` : `${config.title} · ${config.dates}. ${registrationOpen(config) ? `Open until ${closesLabel(config)}` : `Closed on ${closesLabel(config)} — you can still add late entries from the form while signed in as staff`}. Visible to admins only. Residents register from the Register button on the ${SPORT_CARDS.find((c) => c.slug === sport || c.sport === sport)?.label ?? ''} page.`}
         actions={
           <>
             <Btn small onClick={downloadCsv} disabled={all.length === 0}>
@@ -191,7 +195,7 @@ function RowChoice({
   row,
   onSave
 }: {
-  config: NonNullable<(typeof ALL_REGISTRATIONS)['tennis']>;
+  config: RegistrationConfig;
   row: Row;
   onSave: (group: string, formats: string[]) => void;
 }) {

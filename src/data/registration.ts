@@ -1,7 +1,9 @@
 /**
  * Tournament registration settings, shared by the resident form and the
- * server's validation (api/registrations.ts). Edit here to change the dates
- * or categories. Only sports listed in REGISTRATIONS show a Register button.
+ * server's validation (api/registrations.ts). The dates here are defaults:
+ * admins can change the match days, closing date and whether residents see
+ * registration at all from the admin Registrations tab (stored under
+ * registrationSettings/{sport} — see resolveRegistration).
  */
 
 export interface RegistrationCategory {
@@ -55,8 +57,8 @@ export function isRegistrationKey(v: unknown): v is RegistrationKey {
   return v === 'badminton' || v === 'tennis' || v === 'table-tennis';
 }
 
-/** Every registration setup, including hidden ones (admin pages only). */
-export const ALL_REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>> = {
+/** Built-in registration setups (dates are defaults admins can override). */
+export const DEFAULT_REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>> = {
   tennis: {
     title: 'Lawn Tennis Tournament 2026',
     dates: 'Fri–Sun 20, 21, 22 Nov & Fri–Sun 27, 28, 29 Nov 2026',
@@ -74,8 +76,8 @@ export const ALL_REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConf
       cat('adults-doubles', 'Adults (21 and over)', 'Doubles')
     ]
   },
-  // Dates not decided yet — hidden from residents. To open it: set the dates,
-  // weekends, firstDay and closesAt, and delete `hidden: true`.
+  // Dates not decided yet — hidden from residents until an admin sets the
+  // dates and turns on "Show registration to residents".
   'table-tennis': {
     title: 'Table Tennis Tournament 2026',
     dates: 'Dates to be announced',
@@ -93,14 +95,160 @@ export const ALL_REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConf
   }
 };
 
-/** Registrations residents can see and use (Register buttons, form, server). */
-export const REGISTRATIONS: Partial<Record<RegistrationKey, RegistrationConfig>> = Object.fromEntries(
-  Object.entries(ALL_REGISTRATIONS).filter(([, c]) => !c.hidden)
-);
+export type RegistrationMap = Partial<Record<RegistrationKey, RegistrationConfig>>;
+
+/**
+ * Admin-chosen dates for one sport, stored at registrationSettings/{sport}
+ * (readable with the community code, writable by admins only).
+ */
+export interface RegistrationSettings {
+  /** Match days, YYYY-MM-DD. Back-to-back days are shown as one weekend. */
+  days: string[];
+  /** Last day to register, YYYY-MM-DD — closes 11:59 PM India time. */
+  closesOn: string;
+  /** Show the Register button, form and dates to residents. */
+  visible: boolean;
+}
+
+export const REGISTRATION_SETTINGS_TOP = 'registrationSettings';
+
+export function registrationSettingsPath(key: RegistrationKey): string {
+  return `${REGISTRATION_SETTINGS_TOP}/${key}`;
+}
+
+const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_DAYS = 21;
+
+/** A real calendar day as YYYY-MM-DD? */
+export function isIsoDay(v: unknown): v is string {
+  if (typeof v !== 'string' || !ISO_DAY_RE.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+}
+
+const dayMs = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+
+/** Stored settings, or null if missing/garbled (then the defaults apply). */
+export function parseRegistrationSettings(raw: unknown): RegistrationSettings | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const days = Array.isArray(r.days) ? [...new Set(r.days.filter(isIsoDay))].sort().slice(0, MAX_DAYS) : [];
+  if (!isIsoDay(r.closesOn)) return null;
+  return { days, closesOn: r.closesOn, visible: r.visible === true };
+}
+
+/** Match days → runs of back-to-back days ("weekends"). */
+export function groupDays(days: string[]): string[][] {
+  const sorted = [...new Set(days)].sort();
+  const runs: string[][] = [];
+  for (const d of sorted) {
+    const run = runs[runs.length - 1];
+    if (run && dayMs(d) - dayMs(run[run.length - 1]) === 86_400_000) run.push(d);
+    else runs.push([d]);
+  }
+  return runs;
+}
+
+const fmt = (iso: string, o: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('en-GB', { ...o, timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
+
+/** "Fri–Sun 20, 21, 22 Nov & Fri–Sun 27, 28, 29 Nov 2026". */
+export function longDatesLabel(weekends: string[][]): string {
+  if (weekends.length === 0) return 'Dates to be announced';
+  const parts = weekends.map((run) => {
+    const first = run[0];
+    const last = run[run.length - 1];
+    const wd = run.length > 1 ? `${fmt(first, { weekday: 'short' })}–${fmt(last, { weekday: 'short' })}` : fmt(first, { weekday: 'short' });
+    const byMonth: string[] = [];
+    let nums: string[] = [];
+    run.forEach((d, i) => {
+      nums.push(fmt(d, { day: 'numeric' }));
+      const next = run[i + 1];
+      if (!next || fmt(next, { month: 'short' }) !== fmt(d, { month: 'short' })) {
+        byMonth.push(`${nums.join(', ')} ${fmt(d, { month: 'short' })}`);
+        nums = [];
+      }
+    });
+    return `${wd} ${byMonth.join(', ')}`;
+  });
+  return `${parts.join(' & ')} ${fmt(weekends[weekends.length - 1].slice(-1)[0], { year: 'numeric' })}`;
+}
+
+/** "20–22 & 27–29 Nov 2026" / "4–6 Dec 2026" / "30 Nov–1 Dec 2026". */
+export function shortDatesLabel(weekends: string[][]): string {
+  if (weekends.length === 0) return 'Dates to be announced';
+  const mon = (d: string) => fmt(d, { month: 'short' });
+  const day = (d: string) => fmt(d, { day: 'numeric' });
+  const all = weekends.flat();
+  const oneMonth = all.every((d) => mon(d) === mon(all[0]));
+  const parts = weekends.map((run) => {
+    const a = run[0];
+    const b = run[run.length - 1];
+    if (oneMonth) return a === b ? day(a) : `${day(a)}–${day(b)}`;
+    if (a === b) return `${day(a)} ${mon(a)}`;
+    return mon(a) === mon(b) ? `${day(a)}–${day(b)} ${mon(a)}` : `${day(a)} ${mon(a)}–${day(b)} ${mon(b)}`;
+  });
+  return `${parts.join(' & ')}${oneMonth ? ` ${mon(all[0])}` : ''} ${fmt(all[all.length - 1], { year: 'numeric' })}`;
+}
+
+/** The settings a config currently stands for (to prefill the admin editor). */
+export function settingsOf(config: RegistrationConfig): RegistrationSettings {
+  return {
+    days: config.weekends.flat(),
+    closesOn: config.closesAt ? config.closesAt.slice(0, 10) : '',
+    visible: !config.hidden
+  };
+}
+
+/**
+ * One sport's registration with any admin settings applied, or undefined if
+ * the sport has no registration. `hidden` is set when residents mustn't see
+ * it (switched off, or no match days / closing date yet).
+ */
+export function resolveRegistration(key: RegistrationKey, rawSettings: unknown): RegistrationConfig | undefined {
+  const base = DEFAULT_REGISTRATIONS[key];
+  if (!base) return undefined;
+  const s = parseRegistrationSettings(rawSettings);
+  if (!s) return base;
+  const weekends = groupDays(s.days);
+  return {
+    ...base,
+    dates: longDatesLabel(weekends),
+    shortDates: shortDatesLabel(weekends),
+    weekends,
+    firstDay: weekends[0]?.[0] ?? '',
+    closesAt: `${s.closesOn}T23:59:59+05:30`,
+    hidden: !s.visible || weekends.length === 0
+  };
+}
+
+/**
+ * Every sport's registration with settings applied (`all`, for admin pages)
+ * and the ones residents see (`shown`).
+ */
+export function resolveRegistrations(rawAll: unknown): {
+  all: RegistrationMap;
+  shown: RegistrationMap;
+  /** Sports whose dates come from admin settings rather than the defaults. */
+  custom: Partial<Record<RegistrationKey, boolean>>;
+} {
+  const raw = (rawAll && typeof rawAll === 'object' ? rawAll : {}) as Record<string, unknown>;
+  const all: RegistrationMap = {};
+  const shown: RegistrationMap = {};
+  const custom: Partial<Record<RegistrationKey, boolean>> = {};
+  for (const key of Object.keys(DEFAULT_REGISTRATIONS) as RegistrationKey[]) {
+    const c = resolveRegistration(key, raw[key]);
+    if (!c) continue;
+    all[key] = c;
+    if (!c.hidden) shown[key] = c;
+    if (parseRegistrationSettings(raw[key])) custom[key] = true;
+  }
+  return { all, shown, custom };
+}
 
 /** Still taking resident registrations? */
 export function registrationOpen(config: RegistrationConfig, now: number = Date.now()): boolean {
-  return now <= Date.parse(config.closesAt);
+  return !!config.closesAt && now <= Date.parse(config.closesAt);
 }
 
 /** "Fri 13 Nov" — the closing day, in India time whatever the viewer's clock zone. */

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { AdminNav } from '../components/AdminNav';
 import { SPORT_CARDS, adminPathForSport } from '../data/sports';
-import { ALL_REGISTRATIONS, type RegistrationKey } from '../data/registration';
+import { DEFAULT_REGISTRATIONS, type RegistrationKey } from '../data/registration';
 
 /** Admin landing: one panel per sport, each opening its tournament console. */
 export default function AdminSportsPage() {
@@ -29,7 +29,7 @@ export default function AdminSportsPage() {
                   Tournament console
                   <ArrowRight className="size-3.5" aria-hidden />
                 </Link>
-              ) : ALL_REGISTRATIONS[card.slug as RegistrationKey] ? (
+              ) : DEFAULT_REGISTRATIONS[card.slug as RegistrationKey] ? (
                 <Link
                   to={`/admin/${card.slug}`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-lime-300 text-slate-950 font-black text-xs uppercase tracking-wide px-4 py-2.5 hover:bg-lime-200"

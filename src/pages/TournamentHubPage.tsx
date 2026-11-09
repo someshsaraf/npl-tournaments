@@ -15,7 +15,7 @@ import { usePublishedTournament } from '../components/tournamentViews/useTournam
 import type { ReactNode } from 'react';
 import type { Sport } from '../data/tournamentData';
 import { sportCardBySport, sportSlug } from '../data/sports';
-import { REGISTRATIONS } from '../data/registration';
+import { useRegistrations } from '../hooks/useRegistrations';
 import { RegisterButton, RegistrationBanner } from '../components/RegistrationBanner';
 import { isMatchOnCourt } from '../hooks/useSportLiveMatch';
 import { formatFixtureDate } from '../utils/tournament';
@@ -39,7 +39,7 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
   const card = sportCardBySport(sport);
   const slug = sportSlug(sport);
   const { loaded, tournament, ctx, live } = usePublishedTournament(sport);
-  const registration = REGISTRATIONS[sport];
+  const registration = useRegistrations().shown[sport];
   const onCourt = isMatchOnCourt(live);
   const [tab, setTab] = useState<TabKey>('schedule');
 

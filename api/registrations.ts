@@ -2,14 +2,15 @@ import type { ApiRequest, ApiResponse } from './_lib/http.js';
 import { getAccessSession, getAdminSession } from './_lib/session.js';
 import { getAdminDb } from './_lib/db.js';
 import {
-  REGISTRATIONS,
   closesLabel,
   describeSelection,
   registrationOpen,
   isRegistrationKey,
   normalizeName,
   registrationCategories,
+  registrationSettingsPath,
   registrationsPath,
+  resolveRegistration,
   selectionError
 } from '../src/data/registration.js';
 
@@ -39,8 +40,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
   const sport = isRegistrationKey(body.sport) ? body.sport : null;
-  const config = sport ? REGISTRATIONS[sport] : undefined;
-  if (!sport || !config) {
+  const db = getAdminDb();
+  const config = sport ? resolveRegistration(sport, (await db.ref(registrationSettingsPath(sport)).get()).val()) : undefined;
+  if (!sport || !config || config.hidden) {
     res.status(400).json({ error: 'Registration is not open for this sport.' });
     return;
   }
@@ -63,7 +65,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  const db = getAdminDb();
   const existing = ((await db.ref(registrationsPath(sport)).get()).val() ?? {}) as Record<
     string,
     { name?: string; category?: string; categories?: string[] }

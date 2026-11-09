@@ -3,9 +3,10 @@ import { ArrowRight, Camera } from 'lucide-react';
 import { HomeEventAdBanner, useHomeEventAds } from '../components/HomeEventAdBanner';
 import { Reveal } from '../components/Reveal';
 import { SPORT_CARDS, type SportCard } from '../data/sports';
-import { REGISTRATIONS, closesLabel, countdownLabel, registrationOpen, type RegistrationKey } from '../data/registration';
+import { closesLabel, countdownLabel, registrationOpen, type RegistrationKey } from '../data/registration';
 import { isMatchOnCourt, useSportLiveMatch } from '../hooks/useSportLiveMatch';
 import type { Sport } from '../data/tournamentData';
+import { useRegistrations } from '../hooks/useRegistrations';
 
 /**
  * Landing = sport picker. Each card leads to that sport's hub (schedule,
@@ -57,7 +58,7 @@ export default function HomePage() {
 
 function SportTile({ card, sport }: { card: SportCard; sport: Sport }) {
   const live = isMatchOnCourt(useSportLiveMatch(sport));
-  const registration = REGISTRATIONS[sport];
+  const registration = useRegistrations().shown[sport];
   const regOpen = registration ? registrationOpen(registration) : false;
   return (
     <Link
@@ -103,7 +104,7 @@ function SportTile({ card, sport }: { card: SportCard; sport: Sport }) {
  * registration status, and Enter — same shape as the other sport tiles.
  */
 function ComingSoonTile({ card }: { card: SportCard }) {
-  const registration = REGISTRATIONS[card.slug as RegistrationKey];
+  const registration = useRegistrations().shown[card.slug as RegistrationKey];
   const open = registration ? registrationOpen(registration) : false;
   return (
     <Link
