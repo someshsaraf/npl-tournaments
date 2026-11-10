@@ -1,0 +1,31 @@
+server/registrationStats.ts
+  s_cd483d3188506b::t_14cc28d8f05730 1-29
+src/data/registration.ts
+  s_cd483d3188506b::t_14cc28d8f05730 311-343
+src/hooks/useRegisteredCount.ts
+  s_cd483d3188506b::t_14cc28d8f05730 1-4,6-15,18-23,26-33
+api/registrations.ts
+  s_cd483d3188506b::t_14cc28d8f05730 12,108,110
+server/index.ts
+  s_cd483d3188506b::t_14cc28d8f05730 16,130
+src/pages/TournamentRegisterPage.tsx
+  s_cd483d3188506b::t_14cc28d8f05730 37
+src/components/RegistrationBanner.tsx
+  s_cd483d3188506b::t_14cc28d8f05730 113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a0e1ccd06640c8234253a9ff3e3edce98841e09",
+  "prompts": {},
+  "sessions": {
+    "s_cd483d3188506b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6459fae-10c1-4de4-9af6-70d00db19da2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
