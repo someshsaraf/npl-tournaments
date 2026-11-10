@@ -22,19 +22,28 @@ import {
  * Stores { name, categories, createdAt } under registrations/{sport} —
  * readable only by admins (server/rules.ts). One registration per person:
  * a name that's already registered (case/spacing-insensitive) is refused.
+ *
+ * GET /api/registrations?sport=tennis  → { count }
+ *
+ * How many people have registered — just the number, never names, so the
+ * resident form can show it. Counted live, so admin edits show straight away.
  */
 
 const NAME_RE = /^[\p{L}][\p{L}\p{M}.' -]{1,59}$/u;
 const MAX_PER_SPORT = 1000;
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
   const [access, admin] = await Promise.all([getAccessSession(req), getAdminSession(req)]);
   if (!access && !admin) {
     res.status(401).json({ error: 'Enter the community access code first.' });
+    return;
+  }
+  if (req.method === 'GET') {
+    await handleCount(req, res);
     return;
   }
 
@@ -86,4 +95,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const ref = db.ref(registrationsPath(sport)).push();
   await ref.set({ name, categories, createdAt: new Date().toISOString() });
   res.status(200).json({ ok: true, name, category: describeSelection(config, categories) });
+}
+
+async function handleCount(req: ApiRequest, res: ApiResponse) {
+  const sport = isRegistrationKey(req.query.sport) ? req.query.sport : null;
+  if (!sport) {
+    res.status(400).json({ error: 'Unknown sport.' });
+    return;
+  }
+  const rows = ((await getAdminDb().ref(registrationsPath(sport)).get()).val() ?? {}) as Record<string, { name?: unknown }>;
+  const count = Object.values(rows).filter((r) => r && typeof r.name === 'string').length;
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).json({ count });
 }
