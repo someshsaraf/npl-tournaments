@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ClipboardPen } from 'lucide-react';
+import { ArrowRight, ClipboardPen, Users } from 'lucide-react';
 import {
   closeDayParts,
   closesLabel,
@@ -7,8 +7,10 @@ import {
   daysUntilClose,
   groupsOf,
   registrationOpen,
-  type RegistrationConfig
+  type RegistrationConfig,
+  type RegistrationKey
 } from '../data/registration';
+import { useRegisteredCount } from '../hooks/useRegisteredCount';
 import { TournamentDates } from './TournamentDates';
 
 /**
@@ -49,6 +51,30 @@ export function DeadlineTile({ config, tone = 'light' }: { config: RegistrationC
   );
 }
 
+/**
+ * Big "32 players registered" tile — just the number (names stay admin-only).
+ * Hidden until the count is known.
+ */
+export function RegisteredCount({ count, open }: { count: number | null; open: boolean }) {
+  if (count === null) return null;
+  return (
+    <div
+      className="inline-flex items-center gap-4 rounded-2xl bg-lime-300 px-5 py-3 text-slate-950 shadow-lg shadow-lime-900/20"
+      role="status"
+      aria-live="polite"
+    >
+      <Users className="size-8 shrink-0" aria-hidden />
+      <p className="portal-display text-6xl sm:text-7xl leading-none tabular-nums">{count}</p>
+      <div className="leading-tight">
+        <p className="text-sm font-black uppercase tracking-wide">{count === 1 ? 'Player' : 'Players'} registered</p>
+        <p className="text-xs font-semibold text-slate-800">
+          {count === 0 ? (open ? 'Be the first to sign up!' : 'No sign-ups') : open ? 'so far — join them!' : 'in total'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /** Lime "Register" pill for a sport hero — only while registration is open. */
 export function RegisterButton({ config, slug }: { config: RegistrationConfig; slug: string }) {
   if (!registrationOpen(config)) return null;
@@ -66,11 +92,12 @@ export function RegisterButton({ config, slug }: { config: RegistrationConfig; s
 
 /**
  * The tournament's dates + registration status under a sport hero: a
- * "Register now" card while open (with the closing day), a quiet
- * "Registration closed" card afterwards.
+ * "Register now" card while open (with the closing day and how many have
+ * registered), a quiet "Registration closed" card afterwards.
  */
-export function RegistrationBanner({ config, slug }: { config: RegistrationConfig; slug: string }) {
+export function RegistrationBanner({ config, slug, sport }: { config: RegistrationConfig; slug: string; sport: RegistrationKey }) {
   const open = registrationOpen(config);
+  const [count] = useRegisteredCount(sport);
   const who = `${groupsOf(config).join(' and ')} · Singles & Doubles`;
   const closes = closesLabel(config);
 
@@ -82,6 +109,7 @@ export function RegistrationBanner({ config, slug }: { config: RegistrationConfi
           <p className="portal-display text-3xl text-ink tracking-wide leading-none">{config.title}</p>
           <p className="text-xs text-ink-soft">{who} — the draw and match times will be published here.</p>
         </div>
+        <RegisteredCount count={count} open={false} />
         <TournamentDates weekends={config.weekends} />
       </div>
     );
@@ -97,6 +125,7 @@ export function RegistrationBanner({ config, slug }: { config: RegistrationConfi
         <p className="portal-display text-3xl text-ink tracking-wide leading-none">{config.title}</p>
         <p className="text-xs text-ink-soft">{who}</p>
       </div>
+      <RegisteredCount count={count} open />
       <TournamentDates weekends={config.weekends} />
       <DeadlineTile config={config} />
       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wide text-white transition-all group-hover:gap-2.5">

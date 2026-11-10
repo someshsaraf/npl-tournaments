@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CalendarX2, CheckCircle2, Loader2, Users } from 'lucide-react';
+import { ArrowLeft, CalendarX2, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   categoryFor,
@@ -13,7 +13,8 @@ import {
 import { SPORT_CARDS } from '../data/sports';
 import { Reveal } from '../components/Reveal';
 import { TournamentDates } from '../components/TournamentDates';
-import { DeadlineTile } from '../components/RegistrationBanner';
+import { DeadlineTile, RegisteredCount } from '../components/RegistrationBanner';
+import { useRegisteredCount } from '../hooks/useRegisteredCount';
 import { useRegistrations } from '../hooks/useRegistrations';
 
 /**
@@ -294,44 +295,4 @@ function choiceCls(selected: boolean): string {
   return `flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
     selected ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-line bg-white hover:border-slate-300'
   }`;
-}
-
-/** How many have registered so far (just the number, from the server); null until known. */
-function useRegisteredCount(sport: RegistrationKey): [number | null, () => void] {
-  const [count, setCount] = useState<number | null>(null);
-  const refresh = useCallback(() => {
-    fetch(`/api/registrations?sport=${encodeURIComponent(sport)}`, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count?: unknown } | null) => {
-        if (d && typeof d.count === 'number') setCount(d.count);
-      })
-      .catch(() => {});
-  }, [sport]);
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 30_000);
-    return () => clearInterval(t);
-  }, [refresh]);
-  return [count, refresh];
-}
-
-/** Big "32 registered so far" tile in the hero. */
-function RegisteredCount({ count, open }: { count: number | null; open: boolean }) {
-  if (count === null) return null;
-  return (
-    <div
-      className="inline-flex items-center gap-4 rounded-2xl bg-lime-300 px-5 py-3 text-slate-950 shadow-lg shadow-lime-900/30"
-      role="status"
-      aria-live="polite"
-    >
-      <Users className="size-8 shrink-0" aria-hidden />
-      <p className="portal-display text-6xl sm:text-7xl leading-none tabular-nums">{count}</p>
-      <div className="leading-tight">
-        <p className="text-sm font-black uppercase tracking-wide">{count === 1 ? 'Player' : 'Players'} registered</p>
-        <p className="text-xs font-semibold text-slate-800">
-          {count === 0 ? (open ? 'Be the first to sign up!' : 'No sign-ups') : open ? 'so far — join them!' : 'in total'}
-        </p>
-      </div>
-    </div>
-  );
 }

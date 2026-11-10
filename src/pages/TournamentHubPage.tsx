@@ -103,7 +103,7 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
 
       {registration ? (
         <Reveal delayMs={60} className="relative z-10">
-          <RegistrationBanner config={registration} slug={slug} />
+          <RegistrationBanner config={registration} slug={slug} sport={sport} />
         </Reveal>
       ) : null}
 

@@ -47,7 +47,7 @@ export default function TableTennisPage() {
 
       {registration ? (
         <Reveal delayMs={60} className="relative z-10">
-          <RegistrationBanner config={registration} slug={card.slug} />
+          <RegistrationBanner config={registration} slug={card.slug} sport="table-tennis" />
         </Reveal>
       ) : null}
 
