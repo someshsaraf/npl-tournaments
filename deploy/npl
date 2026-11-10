@@ -58,7 +58,14 @@ case "$cmd" in
 
   update)
     "$ROOT/deploy/backup.sh"
-    git -C "$ROOT" pull --ff-only
+    # Pull as the repo's owner, not root — root-owned files in .git would
+    # break a later plain `git pull`.
+    owner="$(stat -c %U "$ROOT")"
+    if [ "$(id -u)" -eq 0 ] && [ "$owner" != root ]; then
+      sudo -u "$owner" git -C "$ROOT" pull --ff-only
+    else
+      git -C "$ROOT" pull --ff-only
+    fi
     ensure_data_dir
     compose pull caddy
     compose up -d --build --remove-orphans
