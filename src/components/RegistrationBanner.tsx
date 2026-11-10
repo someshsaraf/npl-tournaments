@@ -110,7 +110,7 @@ export function RegisterButton({ config, slug }: { config: RegistrationConfig; s
  */
 export function RegistrationBanner({ config, slug, sport }: { config: RegistrationConfig; slug: string; sport: RegistrationKey }) {
   const open = registrationOpen(config);
-  const [stats] = useRegisteredCount(sport);
+  const stats = useRegisteredCount(sport);
   const who = `${groupsOf(config).join(' and ')} · Singles & Doubles`;
   const closes = closesLabel(config);
 

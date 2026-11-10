@@ -34,7 +34,7 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ name: string; category: string } | null>(null);
   const { admin } = useAuth();
-  const [stats, refreshCount] = useRegisteredCount(sport);
+  const stats = useRegisteredCount(sport);
 
   if (loading && !config) return null;
   if (!config) {
@@ -85,7 +85,6 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
       const data = (await res.json().catch(() => ({}))) as { error?: string; name?: string; category?: string };
       if (!res.ok) throw new Error(data.error || `Registration failed (${res.status}).`);
       setDone({ name: data.name ?? name.trim(), category: data.category ?? '' });
-      refreshCount();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed — please try again.');
     } finally {

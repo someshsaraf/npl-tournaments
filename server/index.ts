@@ -13,6 +13,7 @@ import { getAccessSession, getAdminSession } from '../api/_lib/session.js';
 import { getAccessCodeVersion } from '../api/_lib/accessCode.js';
 import { getStore } from './store.js';
 import { attachRealtime } from './realtime.js';
+import { keepRegistrationStats } from './registrationStats.js';
 import { mediaDir, receiveLocalUpload } from './media.js';
 import { runImport } from './importFirebase.js';
 
@@ -126,6 +127,7 @@ if (existsSync(STATIC_DIR)) {
 }
 
 const server = createServer(app);
+keepRegistrationStats(getStore());
 const realtime = attachRealtime(server, getStore(), async (req) => {
   const [access, admin] = await Promise.all([getAccessSession(req), getAdminSession(req)]);
   return { uid: access?.sid ?? null, admin: !!admin, version: access?.v };

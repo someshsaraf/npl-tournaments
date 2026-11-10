@@ -1,31 +1,34 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { RegistrationKey } from '../data/registration';
+import { useEffect, useState } from 'react';
+import { onValue, ref } from '../lib/realtime';
+import { db } from '../db';
+import { registrationStatsPath, type RegistrationKey, type RegistrationStats } from '../data/registration';
 
-export interface RegisteredStats {
-  count: number;
-  /** Per age group, in form order, e.g. [{ group: 'Kids (under 21)', count: 4 }, …]. */
-  groups: { group: string; count: number }[];
+export type RegisteredStats = RegistrationStats;
+
+function parse(v: unknown): RegisteredStats | null {
+  if (!v || typeof v !== 'object') return null;
+  const d = v as { count?: unknown; groups?: unknown };
+  if (typeof d.count !== 'number') return null;
+  const groups = Array.isArray(d.groups)
+    ? d.groups.filter((g): g is RegisteredStats['groups'][number] => typeof g?.group === 'string' && typeof g?.count === 'number')
+    : [];
+  return { count: d.count, groups };
 }
 
-/** How many have registered so far, overall and per age group (numbers only, from the server); null until known. */
-export function useRegisteredCount(sport: RegistrationKey): [RegisteredStats | null, () => void] {
+/**
+ * How many have registered, overall and per age group (numbers only) — live:
+ * updates the moment anyone registers or an admin changes the list. Null
+ * until known.
+ */
+export function useRegisteredCount(sport: RegistrationKey): RegisteredStats | null {
   const [stats, setStats] = useState<RegisteredStats | null>(null);
-  const refresh = useCallback(() => {
-    fetch(`/api/registrations?sport=${encodeURIComponent(sport)}`, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count?: unknown; groups?: unknown } | null) => {
-        if (!d || typeof d.count !== 'number') return;
-        const groups = Array.isArray(d.groups)
-          ? d.groups.filter((g): g is RegisteredStats['groups'][number] => typeof g?.group === 'string' && typeof g?.count === 'number')
-          : [];
-        setStats({ count: d.count, groups });
-      })
-      .catch(() => {});
-  }, [sport]);
   useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 30_000);
-    return () => clearInterval(t);
-  }, [refresh]);
-  return [stats, refresh];
+    const unsub = onValue(
+      ref(db, registrationStatsPath(sport)),
+      (snap) => setStats(parse(snap.val()) ?? { count: 0, groups: [] }),
+      () => {}
+    );
+    return () => unsub();
+  }, [sport]);
+  return stats;
 }

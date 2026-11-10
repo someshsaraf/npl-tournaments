@@ -308,6 +308,39 @@ export function registrationCategories(row: { categories?: unknown; category?: u
   return typeof row.category === 'string' && row.category ? [row.category] : [];
 }
 
+/**
+ * Public registration numbers — overall and per age group, never names.
+ * The server keeps a copy at registrationStats/{sport} (community-readable)
+ * so pages update the moment someone registers.
+ */
+export interface RegistrationStats {
+  count: number;
+  /** Per age group, in form order, e.g. [{ group: 'Kids (under 21)', count: 4 }, …]. */
+  groups: { group: string; count: number }[];
+}
+
+export const REGISTRATION_STATS_TOP = 'registrationStats';
+
+export function registrationStatsPath(sport: RegistrationKey): string {
+  return `${REGISTRATION_STATS_TOP}/${sport}`;
+}
+
+/** Count the stored registrations (as read from registrations/{sport}). */
+export function registrationStats(sport: RegistrationKey, rawRows: unknown): RegistrationStats {
+  const raw = (rawRows && typeof rawRows === 'object' ? rawRows : {}) as Record<string, unknown>;
+  const rows = Object.values(raw).filter(
+    (r): r is { name: string; categories?: unknown; category?: unknown } =>
+      !!r && typeof r === 'object' && typeof (r as { name?: unknown }).name === 'string'
+  );
+  const config = DEFAULT_REGISTRATIONS[sport];
+  const groupOf = new Map(config?.categories.map((c) => [c.id, c.group]) ?? []);
+  const groups = (config ? groupsOf(config) : []).map((group) => ({
+    group,
+    count: rows.filter((r) => groupOf.get(registrationCategories(r)[0] ?? '') === group).length
+  }));
+  return { count: rows.length, groups };
+}
+
 export function groupsOf(config: RegistrationConfig): string[] {
   return [...new Set(config.categories.map((c) => c.group))];
 }
