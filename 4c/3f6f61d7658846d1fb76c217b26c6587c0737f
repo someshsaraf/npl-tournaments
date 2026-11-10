@@ -1,0 +1,19 @@
+public/Gallery/manifest.json
+  s_cd483d3188506b::t_b9b60512bbb329 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4c3f6f61d7658846d1fb76c217b26c6587c0737f",
+  "prompts": {},
+  "sessions": {
+    "s_cd483d3188506b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6459fae-10c1-4de4-9af6-70d00db19da2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
