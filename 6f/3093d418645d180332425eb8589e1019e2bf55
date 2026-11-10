@@ -1,0 +1,27 @@
+src/pages/TableTennisPage.tsx
+  s_cd483d3188506b::t_42a5771839ee88 50
+src/pages/TournamentHubPage.tsx
+  s_cd483d3188506b::t_42a5771839ee88 106
+src/hooks/useRegisteredCount.ts
+  s_cd483d3188506b::t_42a5771839ee88 1-21
+src/pages/TournamentRegisterPage.tsx
+  s_cd483d3188506b::t_42a5771839ee88 1,3,16-17
+src/components/RegistrationBanner.tsx
+  s_cd483d3188506b::t_42a5771839ee88 2,10-11,13,54-77,95-96,98,100,112,128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6f3093d418645d180332425eb8589e1019e2bf55",
+  "prompts": {},
+  "sessions": {
+    "s_cd483d3188506b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6459fae-10c1-4de4-9af6-70d00db19da2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
