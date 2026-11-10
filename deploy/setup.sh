@@ -139,7 +139,7 @@ set_env COMMUNITY_ACCESS_CODE "'$community'"
 # ─── 5. DuckDNS ─────────────────────────────────────────────────────────────
 case "$domain" in
   *.duckdns.org)
-    say "Keeping $domain pointed at this server (DuckDNS, every 5 minutes)"
+    say "Keeping $domain pointed at this server (DuckDNS, at boot and every 5 minutes)"
     install -d -m 700 /etc/npl
     token="${DUCKDNS_TOKEN:-$(sed -n 's/^DUCKDNS_TOKEN=//p' /etc/npl/duckdns 2>/dev/null || true)}"
     while [ -z "$token" ]; do
@@ -154,7 +154,9 @@ case "$domain" in
 curl -fsS --max-time 20 "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=" -o /var/log/npl-duckdns.last
 EOF
     chmod 700 /usr/local/bin/npl-duckdns-update
-    echo "*/5 * * * * root /usr/local/bin/npl-duckdns-update >/dev/null 2>&1" > /etc/cron.d/npl-duckdns
+    printf '%s\n' \
+      "*/5 * * * * root /usr/local/bin/npl-duckdns-update >/dev/null 2>&1" \
+      "@reboot root sleep 20 && /usr/local/bin/npl-duckdns-update >/dev/null 2>&1" > /etc/cron.d/npl-duckdns
     if /usr/local/bin/npl-duckdns-update && grep -q OK /var/log/npl-duckdns.last; then
       echo "DuckDNS updated."
     else
