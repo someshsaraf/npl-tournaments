@@ -18,7 +18,6 @@ import {
 import { useRegistrations } from '../../hooks/useRegistrations';
 import { RegistrationDatesPanel } from './RegistrationDatesPanel';
 import { Btn, Chip, ConfirmBtn, Notice, Panel, inputBaseCls } from './ui';
-import { SPORT_CARDS } from '../../data/sports';
 
 type Row = Registration & { id: string };
 
@@ -103,7 +102,7 @@ export function RegistrationsPanel({ sport }: { sport: RegistrationKey }) {
       {regs.loading ? null : <RegistrationDatesPanel sport={sport} config={config} customised={!!regs.custom[sport]} />}
       <Panel
         title={`Registrations — ${all.length}`}
-        subtitle={config.hidden ? `${config.title} · ${config.dates}. Hidden from residents — no new sign-ups. Visible to admins only.` : `${config.title} · ${config.dates}. ${registrationOpen(config) ? `Open until ${closesLabel(config)}` : `Closed on ${closesLabel(config)} — you can still add late entries from the form while signed in as staff`}. Visible to admins only. Residents register from the Register button on the ${SPORT_CARDS.find((c) => c.slug === sport || c.sport === sport)?.label ?? ''} page.`}
+        subtitle={config.hidden ? `${config.title} · ${config.dates}. Hidden from residents — no new sign-ups.` : `${config.title} · ${config.dates}. ${registrationOpen(config) ? `Open until ${closesLabel(config)}` : `Closed on ${closesLabel(config)} — you can still add late entries from the form while signed in as staff`}.`}
         actions={
           <>
             <Btn small onClick={downloadCsv} disabled={all.length === 0}>
