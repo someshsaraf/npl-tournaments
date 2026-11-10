@@ -1,0 +1,22 @@
+src/pages/TournamentRegisterPage.tsx
+  s_cd483d3188506b::t_08f5150fa79261 1,3,36,87,131,298-337
+api/registrations.ts
+  s_cd483d3188506b::t_57e3282b8998f2 25-29,36,45-48,99-109
+  s_cd483d3188506b::t_64b97736df262b 110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fd8e54515df30eea2ec309ddeb94ff8832c72265",
+  "prompts": {},
+  "sessions": {
+    "s_cd483d3188506b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6459fae-10c1-4de4-9af6-70d00db19da2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@telekom-digital.com>"
+    }
+  }
+}
