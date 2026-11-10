@@ -2,7 +2,9 @@ import type { ApiRequest, ApiResponse } from './_lib/http.js';
 import { getAccessSession, getAdminSession } from './_lib/session.js';
 import { getAdminDb } from './_lib/db.js';
 import {
+  DEFAULT_REGISTRATIONS,
   closesLabel,
+  groupsOf,
   describeSelection,
   registrationOpen,
   isRegistrationKey,
@@ -23,9 +25,10 @@ import {
  * readable only by admins (server/rules.ts). One registration per person:
  * a name that's already registered (case/spacing-insensitive) is refused.
  *
- * GET /api/registrations?sport=tennis  → { count }
+ * GET /api/registrations?sport=tennis  → { count, groups: [{ group, count }] }
  *
- * How many people have registered — just the number, never names, so the
+ * How many people have registered, overall and per age group — numbers only,
+ * never names, so the
  * resident form can show it. Counted live, so admin edits show straight away.
  */
 
@@ -103,8 +106,17 @@ async function handleCount(req: ApiRequest, res: ApiResponse) {
     res.status(400).json({ error: 'Unknown sport.' });
     return;
   }
-  const rows = ((await getAdminDb().ref(registrationsPath(sport)).get()).val() ?? {}) as Record<string, { name?: unknown }>;
-  const count = Object.values(rows).filter((r) => r && typeof r.name === 'string').length;
+  const raw = ((await getAdminDb().ref(registrationsPath(sport)).get()).val() ?? {}) as Record<
+    string,
+    { name?: unknown; categories?: unknown; category?: unknown }
+  >;
+  const rows = Object.values(raw).filter((r) => r && typeof r.name === 'string');
+  const config = DEFAULT_REGISTRATIONS[sport];
+  const groupOf = new Map(config?.categories.map((c) => [c.id, c.group]) ?? []);
+  const groups = (config ? groupsOf(config) : []).map((group) => ({
+    group,
+    count: rows.filter((r) => groupOf.get(registrationCategories(r)[0] ?? '') === group).length
+  }));
   res.setHeader('Cache-Control', 'no-store');
-  res.status(200).json({ count });
+  res.status(200).json({ count: rows.length, groups });
 }

@@ -34,7 +34,7 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ name: string; category: string } | null>(null);
   const { admin } = useAuth();
-  const [count, refreshCount] = useRegisteredCount(sport);
+  const [stats, refreshCount] = useRegisteredCount(sport);
 
   if (loading && !config) return null;
   if (!config) {
@@ -129,7 +129,7 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
               </p>
               <h1 className="portal-display text-4xl sm:text-5xl text-white tracking-wide leading-none">{config.title}</h1>
             </div>
-            <RegisteredCount count={count} open={open} />
+            <RegisteredCount stats={stats} open={open} />
             <TournamentDates weekends={config.weekends} tone="dark" />
             <DeadlineTile config={config} tone="dark" />
           </div>

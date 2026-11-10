@@ -10,7 +10,7 @@ import {
   type RegistrationConfig,
   type RegistrationKey
 } from '../data/registration';
-import { useRegisteredCount } from '../hooks/useRegisteredCount';
+import { useRegisteredCount, type RegisteredStats } from '../hooks/useRegisteredCount';
 import { TournamentDates } from './TournamentDates';
 
 /**
@@ -52,25 +52,38 @@ export function DeadlineTile({ config, tone = 'light' }: { config: RegistrationC
 }
 
 /**
- * Big "32 players registered" tile — just the number (names stay admin-only).
- * Hidden until the count is known.
+ * Big "32 players registered" tile with the split by age group (Kids under
+ * 21 / Adults 21+) — numbers only, names stay admin-only. Hidden until known.
  */
-export function RegisteredCount({ count, open }: { count: number | null; open: boolean }) {
-  if (count === null) return null;
+export function RegisteredCount({ stats, open }: { stats: RegisteredStats | null; open: boolean }) {
+  if (stats === null) return null;
+  const { count, groups } = stats;
   return (
     <div
-      className="inline-flex items-center gap-4 rounded-2xl bg-lime-300 px-5 py-3 text-slate-950 shadow-lg shadow-lime-900/20"
+      className="inline-flex flex-col gap-2.5 rounded-2xl bg-lime-300 px-5 py-3 text-slate-950 shadow-lg shadow-lime-900/20"
       role="status"
       aria-live="polite"
     >
-      <Users className="size-8 shrink-0" aria-hidden />
-      <p className="portal-display text-6xl sm:text-7xl leading-none tabular-nums">{count}</p>
-      <div className="leading-tight">
-        <p className="text-sm font-black uppercase tracking-wide">{count === 1 ? 'Player' : 'Players'} registered</p>
-        <p className="text-xs font-semibold text-slate-800">
-          {count === 0 ? (open ? 'Be the first to sign up!' : 'No sign-ups') : open ? 'so far — join them!' : 'in total'}
-        </p>
+      <div className="flex items-center gap-4">
+        <Users className="size-8 shrink-0" aria-hidden />
+        <p className="portal-display text-6xl sm:text-7xl leading-none tabular-nums">{count}</p>
+        <div className="leading-tight">
+          <p className="text-sm font-black uppercase tracking-wide">{count === 1 ? 'Player' : 'Players'} registered</p>
+          <p className="text-xs font-semibold text-slate-800">
+            {count === 0 ? (open ? 'Be the first to sign up!' : 'No sign-ups') : open ? 'so far — join them!' : 'in total'}
+          </p>
+        </div>
       </div>
+      {groups.length > 1 ? (
+        <div className="flex flex-wrap gap-2">
+          {groups.map((g) => (
+            <span key={g.group} className="inline-flex items-baseline gap-1.5 rounded-xl bg-slate-950/10 px-3 py-1.5">
+              <span className="portal-display text-2xl leading-none tabular-nums">{g.count}</span>
+              <span className="text-xs font-bold">{g.group}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -97,7 +110,7 @@ export function RegisterButton({ config, slug }: { config: RegistrationConfig; s
  */
 export function RegistrationBanner({ config, slug, sport }: { config: RegistrationConfig; slug: string; sport: RegistrationKey }) {
   const open = registrationOpen(config);
-  const [count] = useRegisteredCount(sport);
+  const [stats] = useRegisteredCount(sport);
   const who = `${groupsOf(config).join(' and ')} · Singles & Doubles`;
   const closes = closesLabel(config);
 
@@ -109,7 +122,7 @@ export function RegistrationBanner({ config, slug, sport }: { config: Registrati
           <p className="portal-display text-3xl text-ink tracking-wide leading-none">{config.title}</p>
           <p className="text-xs text-ink-soft">{who} — the draw and match times will be published here.</p>
         </div>
-        <RegisteredCount count={count} open={false} />
+        <RegisteredCount stats={stats} open={false} />
         <TournamentDates weekends={config.weekends} />
       </div>
     );
@@ -125,7 +138,7 @@ export function RegistrationBanner({ config, slug, sport }: { config: Registrati
         <p className="portal-display text-3xl text-ink tracking-wide leading-none">{config.title}</p>
         <p className="text-xs text-ink-soft">{who}</p>
       </div>
-      <RegisteredCount count={count} open />
+      <RegisteredCount stats={stats} open />
       <TournamentDates weekends={config.weekends} />
       <DeadlineTile config={config} />
       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wide text-white transition-all group-hover:gap-2.5">
