@@ -10,7 +10,8 @@ import { usePastWinners } from '../hooks/usePastWinners';
  * admin enters past winners (Admin → sport → Past winners).
  */
 export function PastChampions({ sport }: { sport: Sport }) {
-  const { winners } = usePastWinners(sport);
+  // Category rows still waiting for names stay hidden.
+  const winners = usePastWinners(sport).winners.filter((w) => w.winner);
   const [showOlder, setShowOlder] = useState(false);
   if (winners.length === 0) return null;
   const [latest, ...older] = groupByYear(winners);
@@ -58,6 +59,7 @@ export function PastChampions({ sport }: { sport: Sport }) {
                           <Trophy className="inline size-3.5 mr-1 -mt-0.5 text-amber-500" aria-hidden />
                           {w.winner}
                           {w.runnerUp ? <span className="font-normal text-slate-500"> · runner-up {w.runnerUp}</span> : null}
+                          {w.score ? <span className="font-normal text-slate-400 tabular-nums"> · {w.score}</span> : null}
                         </span>
                       </li>
                     ))}
@@ -78,8 +80,13 @@ function ChampionCard({ w }: { w: PastWinner }) {
       <span className="grid place-items-center size-10 shrink-0 rounded-full bg-gradient-to-br from-amber-300 to-yellow-500 text-white shadow-inner">
         <Trophy className="size-5" aria-hidden />
       </span>
-      <div className="min-w-0 space-y-0.5">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-700">{w.category || 'Champion'}</p>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-700">{w.category || 'Champion'}</p>
+          {w.score ? (
+            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-900">{w.score}</span>
+          ) : null}
+        </div>
         <p className="text-lg font-black leading-tight text-ink break-words">{w.winner}</p>
         {w.runnerUp ? (
           <p className="text-xs text-slate-500 inline-flex items-center gap-1">
