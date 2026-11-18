@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarClock, Camera, Monitor } from 'lucide-react';
 import { Reveal } from '../components/Reveal';
+import { PastChampions } from '../components/PastChampions';
 import { HubTabs, SportHero } from '../components/SportHero';
 import { LiveView } from '../components/tournament/LiveView';
 import { RecordingsView } from '../components/tournament/RecordingsView';
@@ -106,6 +107,10 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
           <RegistrationBanner config={registration} slug={slug} sport={sport} />
         </Reveal>
       ) : null}
+
+      <Reveal delayMs={70} className="relative z-10">
+        <PastChampions sport={sport} />
+      </Reveal>
 
       <Reveal delayMs={80} className="relative z-10">
         <PhotoStrip images={card.galleryImages} slug={slug} />

@@ -10,6 +10,7 @@ import { SchedulePanel } from '../components/tournamentAdmin/SchedulePanel';
 import { LivePanel } from '../components/tournamentAdmin/LivePanel';
 import { ResultsPanel } from '../components/tournamentAdmin/ResultsPanel';
 import { RegistrationsPanel } from '../components/tournamentAdmin/RegistrationsPanel';
+import { PastWinnersPanel } from '../components/tournamentAdmin/PastWinnersPanel';
 import { DEFAULT_REGISTRATIONS } from '../data/registration';
 import { Btn, ConfirmBtn, Notice, Panel } from '../components/tournamentAdmin/ui';
 import { useSportResults, useTournamentContext } from '../components/tournamentViews/useTournament';
@@ -30,7 +31,7 @@ import {
   validateTournament
 } from '../utils/tournament';
 
-type TabKey = 'registrations' | 'setup' | 'draw' | 'schedule' | 'results' | 'publish' | 'live';
+type TabKey = 'registrations' | 'setup' | 'draw' | 'schedule' | 'results' | 'publish' | 'live' | 'winners';
 
 function blankFor(sport: Sport): Tournament {
   const blank = buildBlankTournament(sport, new Date().getFullYear());
@@ -93,7 +94,8 @@ export default function AdminTournamentPage({ sport }: { sport: Sport }) {
     { key: 'schedule', label: 'Schedule' },
     { key: 'results', label: 'Results' },
     { key: 'publish', label: 'Publish', ...(dirty ? { badge: '!' } : {}) },
-    { key: 'live', label: 'Live' }
+    { key: 'live', label: 'Live' },
+    { key: 'winners', label: 'Past winners' }
   ];
   const label = SPORT_LABEL[sport];
 
@@ -138,6 +140,7 @@ export default function AdminTournamentPage({ sport }: { sport: Sport }) {
           {tab === 'publish' ? (
             <PublishPanel draft={working} published={published} dirty={dirty || !draft} onReset={update} />
           ) : null}
+          {tab === 'winners' ? <PastWinnersPanel t={working} /> : null}
           {tab === 'live' ? <LivePanel sport={sport} published={published} ctx={publishedCtx} live={live} /> : null}
         </>
       )}
