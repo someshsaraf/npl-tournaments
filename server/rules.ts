@@ -6,6 +6,8 @@ import type { Json } from './store.js';
  *
  * - Private (access-code hashes, legacy accounts): server code only.
  * - Tournament registrations (names): admins only; residents add via the API.
+ * - Prediction votes (villa → pick): admins only; residents vote via the API
+ *   and see counts at predictionTallies.
  * - Reading anything else needs the community code (or the admin code).
  * - Writes need the admin code, except, for community-code devices:
  *     presence/live/{id}             live viewer count
@@ -28,7 +30,7 @@ export function hasAccess(who: Principal): boolean {
 
 const PRIVATE_TOP = new Set(['access', 'users', 'usernames', 'emails', 'loginAttempts', 'otps']);
 /** Readable (and writable) by admins only — residents add to it via the server API. */
-const ADMIN_ONLY_TOP = new Set(['registrations']);
+const ADMIN_ONLY_TOP = new Set(['registrations', 'predictions']);
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 const MAX_GALLERY_BYTES = 5 * 1024 * 1024 * 1024;
 

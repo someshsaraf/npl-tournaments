@@ -9,11 +9,13 @@ import galleryDeleteHandler from '../api/gallery-delete.js';
 import snapshotUploadUrlHandler from '../api/snapshot-upload-url.js';
 import youtubeRecordingsHandler from '../api/youtube-recordings.js';
 import registrationsHandler from '../api/registrations.js';
+import predictionsHandler from '../api/predictions.js';
 import { getAccessSession, getAdminSession } from '../api/_lib/session.js';
 import { getAccessCodeVersion } from '../api/_lib/accessCode.js';
 import { getStore } from './store.js';
 import { attachRealtime } from './realtime.js';
 import { keepRegistrationStats } from './registrationStats.js';
+import { keepPredictionTallies } from './predictionTallies.js';
 import { mediaDir, receiveLocalUpload } from './media.js';
 import { runImport } from './importFirebase.js';
 
@@ -99,6 +101,7 @@ app.all('/api/gallery-delete', api(galleryDeleteHandler));
 app.all('/api/snapshot-upload-url', api(snapshotUploadUrlHandler));
 app.all('/api/youtube-recordings', requireAccess, api(youtubeRecordingsHandler));
 app.all('/api/registrations', api(registrationsHandler));
+app.all('/api/predictions', api(predictionsHandler));
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
@@ -128,6 +131,7 @@ if (existsSync(STATIC_DIR)) {
 
 const server = createServer(app);
 keepRegistrationStats(getStore());
+keepPredictionTallies(getStore());
 const realtime = attachRealtime(server, getStore(), async (req) => {
   const [access, admin] = await Promise.all([getAccessSession(req), getAdminSession(req)]);
   return { uid: access?.sid ?? null, admin: !!admin, version: access?.v };

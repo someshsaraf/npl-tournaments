@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarClock, Camera, Monitor } from 'lucide-react';
+import { CalendarClock, Camera, Monitor, Vote } from 'lucide-react';
 import { Reveal } from '../components/Reveal';
 import { PastChampions } from '../components/PastChampions';
 import { HubTabs, SportHero } from '../components/SportHero';
 import { LiveView } from '../components/tournament/LiveView';
 import { RecordingsView } from '../components/tournament/RecordingsView';
+import { PredictionsView } from '../components/tournament/PredictionsView';
+import { usePredictions } from '../hooks/usePredictions';
+import { predictionCategories } from '../data/predictions';
 import {
   TournamentBracketView,
   TournamentPoolsView,
@@ -21,7 +24,7 @@ import { RegisterButton, RegistrationBanner } from '../components/RegistrationBa
 import { isMatchOnCourt } from '../hooks/useSportLiveMatch';
 import { formatFixtureDate } from '../utils/tournament';
 
-type TabKey = 'schedule' | 'live' | 'pools' | 'knockouts' | 'recordings' | 'rules' | string;
+type TabKey = 'schedule' | 'live' | 'pools' | 'knockouts' | 'predict' | 'recordings' | 'rules' | string;
 
 /** Extra sport-specific tabs (e.g. Badminton's Results and Stats). */
 export interface ExtraTab {
@@ -43,6 +46,11 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
   const registration = useRegistrations().shown[sport];
   const onCourt = isMatchOnCourt(live);
   const [tab, setTab] = useState<TabKey>('schedule');
+  const predictions = usePredictions(sport);
+  const votingOpen = useMemo(
+    () => predictionCategories(tournament).some((c) => predictions.open.has(c.id)),
+    [tournament, predictions.open]
+  );
 
   const dateRange = useMemo(() => {
     const dates = (tournament?.fixtures ?? []).map((f) => f.date).filter(Boolean).sort();
@@ -59,6 +67,7 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
         { key: 'live', label: 'Live', ...(onCourt ? { badge: '●' } : {}) },
         { key: 'pools', label: 'Pools' },
         { key: 'knockouts', label: 'Knockouts' },
+        { key: 'predict', label: 'Predict', ...(votingOpen ? { badge: 'Vote' } : {}) },
         ...extraTabs.map((t) => ({ key: t.key, label: t.label })),
         { key: 'recordings', label: 'Recordings' },
         { key: 'rules', label: 'Rules' }
@@ -117,6 +126,19 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
       </Reveal>
 
       <Reveal delayMs={120} className="relative z-10 space-y-4">
+        {published && votingOpen && tab !== 'predict' ? (
+          <button
+            type="button"
+            onClick={() => setTab('predict')}
+            className="w-full flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-left hover:bg-emerald-100"
+          >
+            <span className="inline-flex items-center gap-2 text-sm font-black text-ink">
+              <Vote className="size-4 text-emerald-600" aria-hidden />
+              Predict the champions — voting is open for your villa
+            </span>
+            <span className="text-xs font-bold uppercase tracking-wide text-emerald-700">Vote now →</span>
+          </button>
+        ) : null}
         <HubTabs tabs={tabs} active={tab} onChange={setTab} />
         <div>
           {tab === 'schedule' ? (
@@ -129,6 +151,7 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
           {tab === 'live' ? <LiveView sport={sport} /> : null}
           {tab === 'pools' && ctx ? <TournamentPoolsView ctx={ctx} live={live} /> : null}
           {tab === 'knockouts' && ctx ? <TournamentBracketView ctx={ctx} live={live} /> : null}
+          {tab === 'predict' && tournament ? <PredictionsView sport={sport} published={tournament} /> : null}
           {tab === 'recordings' ? <RecordingsView sport={sport} /> : null}
           {extraTabs.find((t) => t.key === tab)?.render() ?? null}
           {tab === 'rules' && ctx ? <TournamentRulesView ctx={ctx} /> : null}
