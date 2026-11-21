@@ -1,6 +1,6 @@
 import type { BestOf, MaxPoints, Sport, TennisMatchType, TennisRules, TennisStage } from './tournamentData';
 import { SPORT_LABEL } from './tournamentData';
-import { defaultTennisRulesForStage } from '../utils/tennisScoring';
+import { defaultShortTennisRulesForStage, defaultTennisRulesForStage } from '../utils/tennisScoring';
 import { SITE } from '../lib/site';
 
 /**
@@ -66,6 +66,13 @@ export interface TournamentCategory {
   /** Added by hand (kept regardless of the format/division picks). */
   custom?: boolean;
   pools: TournamentPool[];
+  /**
+   * Tennis: this category plays its own scoring rules (`rules`) instead of
+   * the tournament's. On by default for Women's and Kids' singles/doubles.
+   */
+  customRules?: boolean;
+  /** Tennis: per-stage rules used when `customRules` is on. */
+  rules?: StageRules;
   /** Pool finishers that advance from each pool (1 = pool winner only). */
   qualifiersPerPool: number;
   knockoutStart: KnockoutStart;
@@ -164,6 +171,21 @@ export function defaultStageRules(): StageRules {
     semifinal: defaultTennisRulesForStage('semifinal'),
     final: defaultTennisRulesForStage('final')
   };
+}
+
+/** Women's and Kids' singles/doubles rules (first to 4 in every stage). */
+export function defaultShortStageRules(): StageRules {
+  return {
+    pool: defaultShortTennisRulesForStage('qualifier'),
+    quarterfinal: defaultShortTennisRulesForStage('quarterfinal'),
+    semifinal: defaultShortTennisRulesForStage('semifinal'),
+    final: defaultShortTennisRulesForStage('final')
+  };
+}
+
+/** Categories that use the short format by default: Women's and Kids' singles/doubles. */
+export function usesShortRulesByDefault(cat: Pick<TournamentCategory, 'format' | 'division'>): boolean {
+  return cat.format !== 'team' && (cat.division === 'women' || cat.division === 'kids');
 }
 
 export function buildBlankTournament(sport: Sport, year: number): Tournament {

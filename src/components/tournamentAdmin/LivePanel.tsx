@@ -32,6 +32,7 @@ import { formatTennisStageLabel } from '../../utils/tennisMatchState';
 import {
   compareFixtureTime,
   fixtureStageLabel,
+  rulesForCategory,
   fixtureStatus,
   formatFixtureDate,
   resolveSide,
@@ -105,7 +106,7 @@ export function LivePanel({
             matchType: matchTypeForFormat(cat.format),
             category: categoryLabel(cat),
             stage,
-            rules: published.rules[f.stage],
+            rules: rulesForCategory(published, cat, f.stage),
             matchId: f.id
           })
         );

@@ -6,6 +6,8 @@ import {
   TOURNAMENT_DIVISIONS,
   TOURNAMENT_FORMATS,
   categoryLabel,
+  defaultShortStageRules,
+  usesShortRulesByDefault,
   type BadmintonRules,
   type BadmintonStageRules,
   type StageRules,
@@ -57,9 +59,6 @@ export function SetupPanel({
     setBlocked(null);
     onChange({ ...next, categories });
   };
-
-  const setRules = (stage: keyof StageRules, patch: Partial<TennisRules>) =>
-    onChange({ ...t, rules: { ...t.rules, [stage]: { ...t.rules[stage], ...patch } } });
 
   return (
     <div className="space-y-6">
@@ -134,91 +133,15 @@ export function SetupPanel({
       {t.sport === 'badminton' ? (
         <BadmintonRulesPanel rules={t.badmintonRules} onChange={(badmintonRules) => onChange({ ...t, badmintonRules })} />
       ) : (
-      <Panel
-        title="Scoring rules"
-        subtitle="Applied when a match is started from the schedule. Golden point = at that deuce, the next point wins the game."
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="text-[10px] uppercase tracking-wider text-slate-500 text-left">
-                <th className="py-2 pr-3">Stage</th>
-                <th className="py-2 pr-3">Win condition</th>
-                <th className="py-2 pr-3">Games</th>
-                <th className="py-2 pr-3">Golden point</th>
-                <th className="py-2 pr-3">Tiebreak</th>
-              </tr>
-            </thead>
-            <tbody className="align-top">
-              {STAGE_ROWS.map(({ key, label }) => {
-                const r = t.rules[key];
-                return (
-                  <tr key={key} className="border-t border-slate-800">
-                    <td className="py-3 pr-3">
-                      <p className="font-bold text-slate-100">{label}</p>
-                      <p className="text-[11px] text-slate-500 max-w-[14rem]">{describeTennisRules(r)}</p>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <select
-                        value={r.format}
-                        onChange={(e) => setRules(key, { format: e.target.value === 'set' ? 'set' : 'race' })}
-                        className={inputCls}
-                        aria-label={`${label} win condition`}
-                      >
-                        <option value="race">First to N games</option>
-                        <option value="set">Full set (win by 2)</option>
-                      </select>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <select
-                        value={r.gamesTarget}
-                        onChange={(e) => setRules(key, { gamesTarget: Number(e.target.value) })}
-                        className={inputCls}
-                        aria-label={`${label} games`}
-                      >
-                        {[3, 4, 5, 6, 8].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <select
-                        value={r.goldenDeuce ?? 'off'}
-                        onChange={(e) =>
-                          setRules(key, { goldenDeuce: e.target.value === 'off' ? null : Number(e.target.value) })
-                        }
-                        className={inputCls}
-                        aria-label={`${label} golden point`}
-                      >
-                        <option value="off">Off (advantage)</option>
-                        {[1, 2, 3, 4, 5, 6].map((n) => (
-                          <option key={n} value={n}>
-                            On deuce #{n}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <label className="inline-flex items-center gap-2 text-xs text-slate-300 mt-2">
-                        <input
-                          type="checkbox"
-                          checked={r.tiebreak}
-                          disabled={r.format !== 'set'}
-                          onChange={(e) => setRules(key, { tiebreak: e.target.checked })}
-                          className="accent-lime-400"
-                        />
-                        at {r.gamesTarget}-{r.gamesTarget}
-                      </label>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+        <>
+          <Panel
+            title="Scoring rules"
+            subtitle="Used by every category without its own rules (see Category rules below). Applied when a match is started from the schedule. Golden point = at that deuce, the next point wins the game."
+          >
+            <TennisRulesTable rules={t.rules} onChange={(rules) => onChange({ ...t, rules })} />
+          </Panel>
+          <CategoryRulesPanel t={t} onChange={onChange} />
+        </>
       )}
     </div>
   );
@@ -337,6 +260,149 @@ function CategoryList({ t, onChange }: { t: Tournament; onChange: (next: Tournam
       </div>
       {error ? <Notice tone="error">{error}</Notice> : null}
     </div>
+  );
+}
+
+/** Per-stage tennis rules editor (win condition, games, golden point, tiebreak). */
+function TennisRulesTable({ rules, onChange }: { rules: StageRules; onChange: (next: StageRules) => void }) {
+  const set = (stage: keyof StageRules, patch: Partial<TennisRules>) =>
+    onChange({ ...rules, [stage]: { ...rules[stage], ...patch } });
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm min-w-[640px]">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-wider text-slate-500 text-left">
+            <th className="py-2 pr-3">Stage</th>
+            <th className="py-2 pr-3">Win condition</th>
+            <th className="py-2 pr-3">Games</th>
+            <th className="py-2 pr-3">Golden point</th>
+            <th className="py-2 pr-3">Tiebreak</th>
+          </tr>
+        </thead>
+        <tbody className="align-top">
+          {STAGE_ROWS.map(({ key, label }) => {
+            const r = rules[key];
+            const tieAt = r.format === 'race' ? r.gamesTarget - 1 : r.gamesTarget;
+            return (
+              <tr key={key} className="border-t border-slate-800">
+                <td className="py-3 pr-3">
+                  <p className="font-bold text-slate-100">{label}</p>
+                  <p className="text-[11px] text-slate-500 max-w-[14rem]">{describeTennisRules(r)}</p>
+                </td>
+                <td className="py-3 pr-3">
+                  <select
+                    value={r.format}
+                    onChange={(e) =>
+                      set(key, e.target.value === 'set' ? { format: 'set', tiebreak: true } : { format: 'race', raceTiebreak: false })
+                    }
+                    className={inputCls}
+                    aria-label={`${label} win condition`}
+                  >
+                    <option value="race">First to N games</option>
+                    <option value="set">Full set (win by 2)</option>
+                  </select>
+                </td>
+                <td className="py-3 pr-3">
+                  <select
+                    value={r.gamesTarget}
+                    onChange={(e) => set(key, { gamesTarget: Number(e.target.value) })}
+                    className={inputCls}
+                    aria-label={`${label} games`}
+                  >
+                    {[3, 4, 5, 6, 8].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="py-3 pr-3">
+                  <select
+                    value={r.goldenDeuce}
+                    onChange={(e) => set(key, { goldenDeuce: Number(e.target.value) })}
+                    className={inputCls}
+                    aria-label={`${label} golden point`}
+                  >
+                    <option value={0}>Off (advantage)</option>
+                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                      <option key={n} value={n}>
+                        On deuce #{n}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="py-3 pr-3">
+                  <label className="inline-flex items-center gap-2 text-xs text-slate-300 mt-2">
+                    <input
+                      type="checkbox"
+                      checked={r.format === 'race' ? r.raceTiebreak : r.tiebreak}
+                      onChange={(e) => set(key, r.format === 'race' ? { raceTiebreak: e.target.checked } : { tiebreak: e.target.checked })}
+                      className="accent-lime-400"
+                    />
+                    at {tieAt}-{tieAt}
+                  </label>
+                  {r.format === 'race' && !r.raceTiebreak ? (
+                    <p className="text-[10px] text-slate-500 mt-1">Off: the next game decides</p>
+                  ) : null}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * Categories that play their own rules — Women's and Kids' singles/doubles
+ * by default (first to 4 in every stage). Any category can switch.
+ */
+function CategoryRulesPanel({ t, onChange }: { t: Tournament; onChange: (next: Tournament) => void }) {
+  if (t.categories.length === 0) return null;
+  const update = (id: string, patch: Partial<TournamentCategory>) =>
+    onChange({ ...t, categories: t.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+  return (
+    <Panel
+      title="Category rules"
+      subtitle="Categories with their own rules ignore the table above. Women's and Kids' singles and doubles start as first to 4 games in every stage, finals included — change any stage here (e.g. a 6-game final)."
+    >
+      <div className="space-y-4">
+        {t.categories.map((c) => (
+          <div key={c.id} className="rounded-xl border border-slate-800 p-3 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-bold text-slate-100">{categoryLabel(c)}</p>
+              <div className="flex gap-1.5">
+                <Chip active={!c.customRules} onClick={() => update(c.id, { customRules: false })}>
+                  Main rules
+                </Chip>
+                <Chip
+                  active={!!c.customRules}
+                  onClick={() =>
+                    update(c.id, {
+                      customRules: true,
+                      rules: c.rules ?? (usesShortRulesByDefault(c) ? defaultShortStageRules() : { ...t.rules })
+                    })
+                  }
+                >
+                  Own rules
+                </Chip>
+              </div>
+            </div>
+            {c.customRules && c.rules ? (
+              <>
+                <TennisRulesTable rules={c.rules} onChange={(rules) => update(c.id, { rules })} />
+                {usesShortRulesByDefault(c) ? (
+                  <Btn small onClick={() => update(c.id, { rules: defaultShortStageRules() })}>
+                    Reset to first to 4 in every stage
+                  </Btn>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </Panel>
   );
 }
 

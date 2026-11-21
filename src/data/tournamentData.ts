@@ -48,18 +48,22 @@ export function isTennisMatchType(value: unknown): value is TennisMatchType {
 
 /**
  * How a tennis match is won.
- * - `race`: first to `gamesTarget` games wins, no margin (qualifier "best of 4":
- *   at 3-3 the next game decides).
+ * - `race`: first to `gamesTarget` games wins, no margin ("best of 4": at
+ *   3-3 the next game decides — or, with `raceTiebreak`, a tiebreak does).
  * - `set`: a regular set — `gamesTarget` games with a 2-game margin, and a
  *   tiebreak at gamesTarget-all when `tiebreak` is on.
  * `goldenDeuce` = which deuce makes the next point sudden death (3 = third
- * deuce); null keeps classic advantage play forever.
+ * deuce); 0 keeps classic advantage play forever. (0, not null: the data
+ * store drops nulls, which would bring the default back on reload.)
  */
 export interface TennisRules {
   format: 'race' | 'set';
   gamesTarget: number;
-  goldenDeuce: number | null;
+  goldenDeuce: number;
+  /** Set format only: tiebreak at gamesTarget-all. */
   tiebreak: boolean;
+  /** Race format only: tiebreak at (gamesTarget-1)-all, e.g. 3-3 in first to 4. */
+  raceTiebreak: boolean;
 }
 
 /** One finished game (or tiebreak) within a tennis match. */

@@ -18,14 +18,26 @@ const TIEBREAK_TARGET = 7;
  */
 export function defaultTennisRulesForStage(tennisStage: TennisStage): TennisRules {
   if (tennisStage === 'final') {
-    return { format: 'set', gamesTarget: 6, goldenDeuce: 4, tiebreak: true };
+    return { format: 'set', gamesTarget: 6, goldenDeuce: 4, tiebreak: true, raceTiebreak: false };
   }
-  return { format: 'race', gamesTarget: 4, goldenDeuce: 3, tiebreak: false };
+  return { format: 'race', gamesTarget: 4, goldenDeuce: 3, tiebreak: false, raceTiebreak: false };
+}
+
+/**
+ * House rules for Women's and Kids' singles/doubles: first to 4 games in
+ * every stage, finals included (at 3-3 the next game decides); golden point
+ * on the 3rd deuce, 4th in the final. Admins can change any of it.
+ */
+export function defaultShortTennisRulesForStage(tennisStage: TennisStage): TennisRules {
+  return { format: 'race', gamesTarget: 4, goldenDeuce: tennisStage === 'final' ? 4 : 3, tiebreak: false, raceTiebreak: false };
 }
 
 /** Defensive copy/heal of a rules payload (the data store or admin input). */
-export function normalizeTennisRules(raw: unknown, tennisStage: TennisStage): TennisRules {
-  const fallback = defaultTennisRulesForStage(tennisStage);
+export function normalizeTennisRules(
+  raw: unknown,
+  tennisStage: TennisStage,
+  fallback: TennisRules = defaultTennisRulesForStage(tennisStage)
+): TennisRules {
   if (!raw || typeof raw !== 'object') return fallback;
   const r = raw as Record<string, unknown>;
   const format = r.format === 'set' || r.format === 'race' ? r.format : fallback.format;
@@ -36,14 +48,16 @@ export function normalizeTennisRules(raw: unknown, tennisStage: TennisStage): Te
       : fallback.gamesTarget;
   const goldenRaw = r.goldenDeuce;
   const goldenNum = Number(goldenRaw);
+  // null = "off" in older data (only survives in memory — stores drop it).
   const goldenDeuce =
     goldenRaw === null
-      ? null
-      : Number.isFinite(goldenNum) && goldenNum >= 1 && goldenNum <= 10
+      ? 0
+      : Number.isFinite(goldenNum) && goldenNum >= 0 && goldenNum <= 10
         ? Math.trunc(goldenNum)
         : fallback.goldenDeuce;
   const tiebreak = typeof r.tiebreak === 'boolean' ? r.tiebreak : fallback.tiebreak;
-  return { format, gamesTarget, goldenDeuce, tiebreak };
+  const raceTiebreak = typeof r.raceTiebreak === 'boolean' ? r.raceTiebreak : fallback.raceTiebreak;
+  return { format, gamesTarget, goldenDeuce, tiebreak, raceTiebreak };
 }
 
 export function buildInitialTennisState(
@@ -73,7 +87,7 @@ function resolveTennis(match: MatchState): TennisMatchState {
 
 /** At deuce right now, and this deuce is the golden one → the next point decides the game. */
 function isGoldenNow(t: TennisMatchState): boolean {
-  if (t.isTiebreak || t.rules.goldenDeuce === null) return false;
+  if (t.isTiebreak || !t.rules.goldenDeuce) return false;
   const atDeuce = t.points1 >= 3 && t.points1 === t.points2;
   return atDeuce && t.deuceCount >= t.rules.goldenDeuce;
 }
@@ -176,12 +190,13 @@ function finishTennisGame(
   let matchWinner: 1 | 2 | null = null;
   let isTiebreak = false;
 
-  const { format, gamesTarget, tiebreak } = t.rules;
-  if (format === 'race') {
+  const { format, gamesTarget, tiebreak, raceTiebreak } = t.rules;
+  if (wasTiebreak) {
+    matchWinner = winner;
+  } else if (format === 'race') {
     if (gamesWon1 >= gamesTarget) matchWinner = 1;
     else if (gamesWon2 >= gamesTarget) matchWinner = 2;
-  } else if (wasTiebreak) {
-    matchWinner = winner;
+    else if (raceTiebreak && gamesWon1 === gamesTarget - 1 && gamesWon2 === gamesTarget - 1) isTiebreak = true;
   } else if (gamesWon1 >= gamesTarget && gamesWon1 - gamesWon2 >= 2) {
     matchWinner = 1;
   } else if (gamesWon2 >= gamesTarget && gamesWon2 - gamesWon1 >= 2) {
@@ -366,9 +381,9 @@ export function describeTennisRules(rules: TennisRules): string {
   };
   const base =
     rules.format === 'race'
-      ? `First to ${rules.gamesTarget} games`
+      ? `First to ${rules.gamesTarget} games${rules.raceTiebreak ? `, tiebreak at ${rules.gamesTarget - 1}-${rules.gamesTarget - 1}` : ''}`
       : `${rules.gamesTarget}-game set${rules.tiebreak ? `, tiebreak at ${rules.gamesTarget}-${rules.gamesTarget}` : ', win by 2'}`;
   const golden =
-    rules.goldenDeuce === null ? 'advantage play' : `golden point on ${ord(rules.goldenDeuce)} deuce`;
+    !rules.goldenDeuce ? 'advantage play' : `golden point on ${ord(rules.goldenDeuce)} deuce`;
   return `${base} · ${golden}`;
 }

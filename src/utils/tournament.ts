@@ -11,7 +11,9 @@ import {
   categoryIdFor,
   categoryLabel,
   defaultBadmintonStageRules,
+  defaultShortStageRules,
   defaultStageRules,
+  usesShortRulesByDefault,
   type BadmintonRules,
   type BadmintonStageRules,
   type FixtureSide,
@@ -93,12 +95,17 @@ function normalizeCategory(raw: unknown): TournamentCategory | null {
   if (!id || !format) return null;
   const division = TOURNAMENT_DIVISIONS.find((d) => d === r.division);
   const qpp = Number(r.qualifiersPerPool);
+  const kind = { format, ...(format !== 'team' && division ? { division } : {}) };
+  // Women's/Kids' categories from before per-category rules: give them their house rules.
+  const customRules = typeof r.customRules === 'boolean' ? r.customRules : usesShortRulesByDefault(kind);
+  const rules = r.rules || customRules ? normalizeStageRules(r.rules, defaultShortStageRules()) : undefined;
   return {
     id,
-    format,
-    ...(format !== 'team' && division ? { division } : {}),
+    ...kind,
     ...(str(r.name, 60) ? { name: str(r.name, 60) } : {}),
     ...(r.custom === true ? { custom: true } : {}),
+    customRules,
+    ...(rules ? { rules } : {}),
     pools: asArray(r.pools).map(normalizePool).filter((p): p is TournamentPool => !!p),
     qualifiersPerPool: Number.isFinite(qpp) && qpp >= 1 && qpp <= 4 ? Math.trunc(qpp) : 1,
     knockoutStart: KNOCKOUT_STARTS.find((k) => k === r.knockoutStart) ?? 'auto'
@@ -148,15 +155,14 @@ function normalizeFixture(raw: unknown): TournamentFixture | null {
   };
 }
 
-function normalizeStageRules(raw: unknown): StageRules {
-  const d = defaultStageRules();
+function normalizeStageRules(raw: unknown, d: StageRules = defaultStageRules()): StageRules {
   if (!raw || typeof raw !== 'object') return d;
   const r = raw as Record<string, unknown>;
   return {
-    pool: normalizeTennisRules(r.pool, 'qualifier'),
-    quarterfinal: normalizeTennisRules(r.quarterfinal, 'quarterfinal'),
-    semifinal: normalizeTennisRules(r.semifinal, 'semifinal'),
-    final: normalizeTennisRules(r.final, 'final')
+    pool: normalizeTennisRules(r.pool, 'qualifier', d.pool),
+    quarterfinal: normalizeTennisRules(r.quarterfinal, 'quarterfinal', d.quarterfinal),
+    semifinal: normalizeTennisRules(r.semifinal, 'semifinal', d.semifinal),
+    final: normalizeTennisRules(r.final, 'final', d.final)
   };
 }
 
@@ -296,6 +302,9 @@ export function syncCategories(t: Tournament): TournamentCategory[] {
           id,
           format,
           ...(division ? { division } : {}),
+          ...(usesShortRulesByDefault({ format, division })
+            ? { customRules: true, rules: defaultShortStageRules() }
+            : { customRules: false }),
           pools: [],
           qualifiersPerPool: 1,
           knockoutStart: 'auto'
@@ -784,8 +793,13 @@ export function fixtureStageLabel(ctx: TournamentContext, f: TournamentFixture):
   return `${STAGE_SHORT[f.stage]}${f.slot ?? ''}`;
 }
 
-export function rulesForStage(t: Tournament, stage: FixtureStage): TennisRules {
-  return t.rules[stage];
+/** Tennis rules a category plays in a stage: its own when set, else the tournament's. */
+export function rulesForCategory(
+  t: Pick<Tournament, 'rules'>,
+  cat: Pick<TournamentCategory, 'customRules' | 'rules'> | null | undefined,
+  stage: FixtureStage
+): TennisRules {
+  return cat?.customRules && cat.rules ? cat.rules[stage] : t.rules[stage];
 }
 
 /** Sort key for timetable views: date, time, court, order (unscheduled last). */

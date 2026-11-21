@@ -325,6 +325,34 @@ export function TournamentRulesView({ ctx }: { ctx: TournamentContext }) {
               </li>
             ))}
         </ul>
+        {t.sport === 'tennis'
+          ? t.categories
+              .filter((c) => c.customRules && c.rules)
+              .map((c) => {
+                const shown = stages.filter(
+                  (s) => s.key === 'pool' || usedStages.has(s.key as FixtureStage) || usedStages.size === 0
+                );
+                // Collapse stages with identical rules into one line.
+                const groups: Array<{ labels: string[]; text: string }> = [];
+                for (const s of shown) {
+                  const text = describeTennisRules(c.rules![s.key]);
+                  const g = groups.find((x) => x.text === text);
+                  if (g) g.labels.push(s.label);
+                  else groups.push({ labels: [s.label], text });
+                }
+                return (
+                  <div key={c.id} className="space-y-0.5 border-t border-line pt-3">
+                    <p className="text-sm font-bold text-ink">{categoryLabel(c)}</p>
+                    {groups.map((g) => (
+                      <p key={g.text} className="text-sm text-ink-soft">
+                        {groups.length > 1 ? <span className="text-slate-500">{g.labels.join(', ')}: </span> : null}
+                        {g.text}
+                      </p>
+                    ))}
+                  </div>
+                );
+              })
+          : null}
         {t.sport === 'tennis' ? (
           <p className="text-xs text-slate-500 border-t border-line pt-3">
             "First to 4" means at 3-3 in games, whoever wins the next game wins the match. A golden point is
