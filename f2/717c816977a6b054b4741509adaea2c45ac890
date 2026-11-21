@@ -1,0 +1,34 @@
+src/utils/tournament.ts
+  s_1a4339a31975c9::t_c79c71e8384d86 14,16,98-101,104,107-108,158,162-165,305-307,796-802
+src/components/tournamentAdmin/LivePanel.tsx
+  s_1a4339a31975c9::t_e32860e0507ddc 35
+  s_1a4339a31975c9::t_37e1322040a8d2 109
+src/utils/tennisScoring.ts
+  s_1a4339a31975c9::t_4771b5a0aa5b97 21,23-32,36-40,51,54-55,59-60,90,193-196,199,384,387
+src/data/tournamentData.ts
+  s_1a4339a31975c9::t_4771b5a0aa5b97 51-52,56-57,62-63,65-66
+src/data/tournament.ts
+  s_1a4339a31975c9::t_e19aeec1d7e65f 3,69-75,176-189
+  s_1a4339a31975c9::t_e6712712a166e5 190
+src/components/tournamentAdmin/SetupPanel.tsx
+  s_1a4339a31975c9::t_e549986bb759fb 9-10,136-144,266-407
+  s_1a4339a31975c9::t_7a30f7f4dc5332 408
+src/components/tournamentViews/TournamentViews.tsx
+  s_1a4339a31975c9::t_4ac2550a18467b 328-355
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f2717c816977a6b054b4741509adaea2c45ac890",
+  "prompts": {},
+  "sessions": {
+    "s_1a4339a31975c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "07de0f9e-34c8-4a8d-9f9c-9754438a6e98",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@gmail.com>"
+    }
+  }
+}
