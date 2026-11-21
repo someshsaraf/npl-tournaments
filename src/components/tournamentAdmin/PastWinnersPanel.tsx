@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { db } from '../../db';
 import { push, ref, remove, set, update } from '../../lib/realtime';
-import { TENNIS_2025_CATEGORIES, groupByYear, pastWinnersPath, type PastWinner } from '../../data/pastWinners';
+import { groupByYear, pastWinnersPath, type PastWinner } from '../../data/pastWinners';
 import { categoryLabel, type Tournament } from '../../data/tournament';
 import { SPORT_LABEL } from '../../data/tournamentData';
 import { usePastWinners } from '../../hooks/usePastWinners';
@@ -51,14 +51,26 @@ export function PastWinnersPanel({ t }: { t: Tournament }) {
     setScore('');
   };
 
-  // One-click 2025 category rows (tennis), until 2025 has entries; names are typed in below.
-  const preset = sport === 'tennis' && !winners.some((w) => w.year === 2025) ? TENNIS_2025_CATEGORIES : null;
-  const addPreset = () => {
-    if (!preset) return;
+  // One click: a blank row per category of this tournament for the chosen
+  // year (skipping ones already there), then fill in the names below.
+  const existing = new Set(winners.filter((w) => w.year === yearNum).map((w) => w.category.toLowerCase()));
+  const missing = Number.isInteger(yearNum) && yearNum >= 1990 && yearNum <= 2100
+    ? suggestions.filter((c) => t.categories.some((tc) => categoryLabel(tc) === c) && !existing.has(c.toLowerCase()))
+    : [];
+  const addCategories = () => {
+    if (missing.length === 0) return;
     setError(null);
+    const start = Math.max(0, ...winners.filter((w) => w.year === yearNum).map((w) => w.order));
     const values: Record<string, Omit<PastWinner, 'id'>> = {};
-    preset.forEach((category, i) => {
-      values[`2025-${String(i + 1).padStart(2, '0')}`] = { year: 2025, category, winner: '', runnerUp: '', score: '', order: i + 1 };
+    missing.forEach((category, i) => {
+      values[push(ref(db, pastWinnersPath(sport))).key!] = {
+        year: yearNum,
+        category,
+        winner: '',
+        runnerUp: '',
+        score: '',
+        order: start + i + 1
+      };
     });
     update(ref(db, pastWinnersPath(sport)), values).catch(fail);
   };
@@ -137,8 +149,10 @@ export function PastWinnersPanel({ t }: { t: Tournament }) {
           <Btn tone="primary" onClick={add} disabled={!canAdd}>
             <Trophy className="size-3.5" aria-hidden /> Add winner
           </Btn>
-          {loaded && preset ? (
-            <Btn onClick={addPreset}>Add 2025 categories ({preset.length})</Btn>
+          {loaded && missing.length > 0 ? (
+            <Btn onClick={addCategories}>
+              Add this tournament's categories for {yearNum} ({missing.length})
+            </Btn>
           ) : null}
         </div>
         {error ? <Notice tone="error">{error}</Notice> : null}

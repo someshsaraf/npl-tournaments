@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { GameScore } from '../data/tournamentData';
 import { formatWinnerFirstScore } from '../utils/matchState';
 import { FireworksCanvas } from './FireworksCanvas';
+import { leagueTitle } from '../lib/site';
 
 type WinnerCelebrationProps = {
   winnerName: string;
@@ -147,7 +148,7 @@ export function WinnerCelebration({
             className="shrink-0 font-black uppercase tracking-[0.4em] text-amber-200/90"
             style={{ fontSize: 'clamp(0.7rem, 1.8vw, 1.1rem)' }}
           >
-            NPL 2026 · Final
+            {leagueTitle()} · Final
           </p>
         ) : null}
         <p

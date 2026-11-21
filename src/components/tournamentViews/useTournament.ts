@@ -27,6 +27,8 @@ export interface TournamentData {
   tournament: PublishedTournament | null;
   ctx: TournamentContext | null;
   live: MatchState | null;
+  /** This sport's results, keyed by fixture id (also before a draw is published). */
+  results: Record<string, CompletedMatch>;
 }
 
 /** A sport's published tournament + results + live match, for resident views. */
@@ -45,7 +47,7 @@ export function usePublishedTournament(sport: Sport): TournamentData {
   }, [sport]);
 
   const ctx = useMemo(() => (tournament ? buildContext(tournament, results) : null), [tournament, results]);
-  return { loaded, tournament, ctx, live };
+  return { loaded, tournament, ctx, live, results };
 }
 
 /** Same context over an arbitrary (e.g. draft) tournament. */

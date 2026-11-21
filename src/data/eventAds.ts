@@ -7,11 +7,7 @@
  * Security: poster paths are fixed same-origin constants only.
  */
 
-export type EventAdId =
-  | 'friends-kitchen'
-  | 'gol-gappe'
-  | 'drawing-competition'
-  | 'hindustan-carpet';
+export type EventAdId = string;
 
 export type EventAdAccent = 'amber' | 'saffron' | 'gold' | 'tangy';
 
@@ -46,87 +42,13 @@ export type EventAd = {
   shortTag: string;
 };
 
-/** Friends' Kitchen — stall night only (8 Aug 2026). */
-const FRIENDS_KITCHEN: EventAd = {
-  id: 'friends-kitchen',
-  title: "Friends' Kitchen",
-  eyebrow: 'Tonight at Clubhouse',
-  blurb:
-    "We're back — Amritsari Chole with Kulcha or Ghee Jeera Rice, plus Gulab Jamun. From 6:30 PM onwards. Pre-order to skip the rush.",
-  ctaLabel: 'View menu poster',
-  posterSrc: '/Friends-Kitchen.jpeg',
-  alt: "Friends' Kitchen — We're back! Amritsari Chole, Kulcha, Gulab Jamun. Pre-order at Clubhouse from 6:30 PM.",
-  activeFrom: '2026-08-08',
-  activeTo: '2026-08-08',
-  accent: 'amber',
-  template: 'kitchen-marquee',
-  shortTag: 'Tonight only'
-};
-
-/** Flirting Flavors Gol Gappe — NPL court food on 9 Aug 2026 (promo from 8 Aug). */
-const GOL_GAPPE: EventAd = {
-  id: 'gol-gappe',
-  title: 'Flirting Flavors · Gol Gappe',
-  eyebrow: 'NPL court · 9 Aug',
-  blurb:
-    'Keeping Gol Gappe for NPL Badminton on 9th Aug — crispy, spicy, tangy. See you at the court for great shots & greater bites!',
-  ctaLabel: 'View Gol Gappe poster',
-  posterSrc: '/Gol-Gappe.jpeg',
-  alt: 'Flirting Flavors Gol Gappe at NPL Badminton Nature Walk Premier League on 9th August. Crispy, spicy, tangy.',
-  activeFrom: '2026-08-08',
-  activeTo: '2026-08-09',
-  accent: 'tangy',
-  template: 'street-food',
-  shortTag: '9th Aug'
-};
-
-/** Independence Day drawing competition — ends at 2:00 PM local on 8 Aug 2026. */
-const DRAWING_COMPETITION: EventAd = {
-  id: 'drawing-competition',
-  title: 'Independence Day Drawing Competition',
-  eyebrow: 'Nature Walk · Clubhouse',
-  blurb:
-    'Today 2:00–3:30 PM at the Clubhouse. Ages 3–5, 6–8, and 9+. Bring crayons/pencils — sheets provided. Prizes on 15 Aug.',
-  ctaLabel: 'View competition poster',
-  posterSrc: '/Drawing-Competition.jpeg',
-  alt: 'Independence Day 2026 Drawing Competition at Society Clubhouse — Saturday 8 August, 2:00 to 3:30 PM.',
-  activeFrom: '2026-08-08',
-  activeTo: '2026-08-08',
-  activeUntilTime: '14:00',
-  accent: 'saffron',
-  template: 'festival-spotlight',
-  shortTag: 'Today 2:00 PM'
-};
-
-/** Hindustan Carpet exhibition & exchange — 8 & 9 Aug 2026. */
-const HINDUSTAN_CARPET: EventAd = {
-  id: 'hindustan-carpet',
-  title: 'Hindustan Carpet',
-  eyebrow: 'Marketing Office · RNW',
-  blurb:
-    'Exclusive carpet exhibition & exchange on 8 & 9 Aug, 8 am–9 pm. Exchange old carpets and avail up to 35% off. Contact 8050902880.',
-  ctaLabel: 'View exhibition poster',
-  posterSrc: '/Hindustan-Carpet.jpeg',
-  alt: 'Hindustan Carpet exclusive carpet exhibition and exchange event on 8 and 9 August at Marketing Office, RNW. Up to 35% off. Contact 8050902880.',
-  activeFrom: '2026-08-08',
-  activeTo: '2026-08-09',
-  accent: 'gold',
-  template: 'exhibition-spot',
-  shortTag: '8 & 9 Aug'
-};
-
-/** Display order: Friends' Kitchen, Gol Gappe (2nd), Drawing, Carpet. */
-const EVENT_ADS: readonly EventAd[] = Object.freeze([
-  FRIENDS_KITCHEN,
-  GOL_GAPPE,
-  DRAWING_COMPETITION,
-  HINDUSTAN_CARPET
-]);
-
 /**
- * Full catalog (no date/time filter). Used for path allowlisting.
- * Returns a shallow copy so callers cannot mutate the frozen catalog.
+ * The ad catalogue. Empty by default — add your community's own event or
+ * sponsor ads here (poster images go in public/). With no ads, the home
+ * banner, between-match overlay and /live rail simply don't show.
  */
+const EVENT_ADS: readonly EventAd[] = Object.freeze([]);
+
 export function getAllEventAds(): EventAd[] {
   return [...EVENT_ADS];
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EventAd } from '../data/eventAds';
 import { getActiveEventAds, isSafeAdPosterPath } from '../data/eventAds';
+import { SITE } from '../lib/site';
 
 const ROTATE_MS = 8000;
 
@@ -111,7 +112,7 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
   const eyebrowLabel = isKitchen
     ? 'Clubhouse kitchen'
     : isExhibition
-      ? 'RNW exhibition'
+      ? `${SITE.shortName} exhibition`
       : isStreet
         ? 'Court snacks'
         : 'Kids · Clubhouse';
@@ -377,7 +378,7 @@ export function HomeEventAdBanner({ ads }: { ads: EventAd[] }) {
 
 /**
  * Date/time-active ads for the home page.
- * Refreshes every minute so mid-day cutoffs (e.g. Drawing at 14:00) apply without reload.
+ * Refreshes every minute so mid-day cutoffs (activeUntilTime) apply without reload.
  */
 export function useHomeEventAds(): EventAd[] {
   const [ads, setAds] = useState<EventAd[]>(() => getActiveEventAds());

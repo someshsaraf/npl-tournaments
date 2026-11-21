@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Camera, MessageCircleQuestion, PartyPopper } from 'lucide-react';
 import { Reveal } from '../components/Reveal';
+import { SITE } from '../lib/site';
 
 const QUICK_LINKS = [
   {
@@ -37,10 +38,10 @@ export default function AboutPage() {
           About
         </p>
         <h1 className="npl-flame-text portal-display text-4xl sm:text-6xl tracking-wide leading-[0.95]">
-          Renaissance Nature Walk
+          {SITE.name}
         </h1>
         <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-          Renaissance Nature Walk is our residential community, and this site is where we bring the
+          {SITE.name} is our residential community, and this site is where we bring the
           community together for sports tournaments — Badminton, Lawn Tennis and Table Tennis — all
           through the year.
         </p>

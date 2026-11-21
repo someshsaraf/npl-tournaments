@@ -126,7 +126,7 @@ export function RecordingsView({ sport }: { sport?: RecordingSport }) {
 
       {!loading && !error && items.length === 0 ? (
         <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-line bg-paper-soft">
-          No recordings found for @NatureWalkCSC since 31 Jul 2026.
+          No recordings found yet.
         </p>
       ) : null}
 

@@ -385,8 +385,7 @@ export default function MatchPhotosPage() {
 
       {!loading && items.length === 0 && !error ? (
         <p className="text-sm text-slate-500 text-center py-12 rounded-2xl border border-line bg-paper-soft">
-          No photos for npl-{selectedYear} yet — pick that tag and upload, or add files under{' '}
-          <code className="text-ink-soft">public/Gallery/{selectedYear}</code>.
+          No photos for npl-{selectedYear} yet — pick that tag and upload one.
         </p>
       ) : null}
 

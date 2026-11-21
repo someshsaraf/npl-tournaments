@@ -53,16 +53,3 @@ export function groupByYear(list: PastWinner[]): Array<{ year: number; winners: 
   }
   return groups;
 }
-
-/** Lawn Tennis 2025 categories, for the one-click "Add 2025 categories" button (names are filled in by admins). */
-export const TENNIS_2025_CATEGORIES: readonly string[] = [
-  "Kid's Singles",
-  "Kid's Doubles",
-  "Women's Singles",
-  "Women's Doubles",
-  'NW Team (B) Singles',
-  'NW Team (B) Doubles',
-  'NW Team (A) Singles',
-  'NW Team (A) Doubles',
-  'Combination Doubles'
-];

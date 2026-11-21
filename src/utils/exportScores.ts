@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { CompletedMatch } from '../data/tournamentData';
 import { sortCompletedMatches } from './completedMatches';
+import { SITE, leagueTitle } from '../lib/site';
 
 export type ScoreExportFormat = 'csv' | 'json' | 'excel' | 'pdf';
 
@@ -29,8 +30,6 @@ const EXPORT_COLUMNS = [
 ] as const;
 
 type ExportColumn = (typeof EXPORT_COLUMNS)[number];
-
-const LOGO_PATH = '/nature-walk-logo-1.png';
 
 function assertRows(rows: CompletedMatch[]): CompletedMatch[] {
   if (!Array.isArray(rows)) {
@@ -152,26 +151,6 @@ export function toScoresExcelXml(rows: CompletedMatch[]): string {
 </Workbook>`;
 }
 
-async function loadLogoDataUrl(): Promise<string | null> {
-  if (typeof fetch === 'undefined') return null;
-  try {
-    const res = await fetch(LOGO_PATH);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise<string | null>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        resolve(typeof reader.result === 'string' ? reader.result : null);
-      };
-      reader.onerror = () => reject(reader.error ?? new Error('Failed to read logo'));
-      reader.readAsDataURL(blob);
-    });
-  } catch (err) {
-    console.error('Failed to load PDF logo:', err);
-    return null;
-  }
-}
-
 /**
  * Build and download a landscape A4 PDF of completed matches.
  * Pure aside from browser fetch/save; no shared mutable state.
@@ -181,7 +160,6 @@ export async function downloadScoresPdf(rows: CompletedMatch[]): Promise<void> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const logo = await loadLogoDataUrl();
   const exportedAt = new Date().toLocaleString();
 
   // Header band
@@ -190,21 +168,19 @@ export async function downloadScoresPdf(rows: CompletedMatch[]): Promise<void> {
   doc.setFillColor(245, 158, 11);
   doc.rect(0, 26, pageW, 1.2, 'F');
 
-  if (logo) {
-    try {
-      doc.setFillColor(255, 255, 255);
-      doc.roundedRect(9, 3, 20, 20, 1.5, 1.5, 'F');
-      doc.addImage(logo, 'PNG', 10, 4, 18, 18);
-    } catch (err) {
-      console.error('Failed to embed logo in PDF:', err);
-    }
-  }
+  // Community badge: its short name on a green tile.
+  doc.setFillColor(6, 95, 70);
+  doc.roundedRect(9, 3, 20, 20, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(252, 211, 77);
+  doc.setFontSize(SITE.shortName.length > 3 ? 9 : 12);
+  doc.text(SITE.shortName.slice(0, 5), 19, 15, { align: 'center' });
 
-  const textX = logo ? 32 : 12;
+  const textX = 32;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(251, 191, 36);
-  doc.text('NPL 2026', textX, 12);
+  doc.text(leagueTitle(), textX, 12);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
@@ -267,7 +243,7 @@ export async function downloadScoresPdf(rows: CompletedMatch[]): Promise<void> {
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
       doc.text(
-        `NPL 2026 · Renaissance  ·  Page ${hookData.pageNumber} of ${pageCount}`,
+        `${leagueTitle()} · ${SITE.name}  ·  Page ${hookData.pageNumber} of ${pageCount}`,
         pageW / 2,
         pageH - 6,
         { align: 'center' }

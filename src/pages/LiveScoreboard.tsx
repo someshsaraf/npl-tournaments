@@ -46,6 +46,7 @@ import {
   formatTennisStageLabel
 } from '../utils/tennisMatchState';
 import { TennisScoreDisplay } from '../components/TennisScoreDisplay';
+import { leagueTitle } from '../lib/site';
 
 /**
  * Full-viewport audience scoreboard (/score).
@@ -342,7 +343,7 @@ export const LiveScoreboard: React.FC = () => {
               textShadow: '0 0 18px rgba(245,158,11,0.45)'
             }}
           >
-            NPL 2026 · Final
+            {leagueTitle()} · Final
           </p>
         ) : null}
       </div>

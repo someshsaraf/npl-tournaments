@@ -1,5 +1,3 @@
-/** Inclusive start of recordings window (UTC) — display copy; API uses the same date. */
-export const RECORDINGS_PUBLISHED_AFTER = '2026-07-31T00:00:00Z';
 
 export type YouTubeRecording = {
   videoId: string;

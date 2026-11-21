@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Camera, Loader2, Play, Trash2 } from 'lucide-react';
 import { AdminNav } from '../components/AdminNav';
+import { SiteImagesPanel } from '../components/SiteImagesPanel';
+import { releaseSiteImage } from '../utils/siteImages';
+import { useSiteImages } from '../hooks/useSiteImages';
 import {
   deleteGalleryUpload,
   formatGalleryStorageLabel,
@@ -12,7 +15,7 @@ import {
 
 /**
  * Admin gallery manager — list and delete community uploads (R2 + data store).
- * Static files under public/Gallery are not deletable here (repo-managed).
+ * Also where admins pick the site's photos (Site images) — none live in the repo.
  *
  * Concurrency: data store listeners; delete is last-write-wins per upload id.
  * Security: staff UI by URL only (same as other admin pages); path validated before delete.
@@ -27,6 +30,7 @@ export default function AdminPhotosPage() {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const siteImages = useSiteImages();
 
   useEffect(() => {
     const unsub = subscribeGalleryUploads(
@@ -67,6 +71,7 @@ export default function AdminPhotosPage() {
     setActionError(null);
     setActionMessage(null);
     try {
+      await releaseSiteImage(siteImages, record.url);
       await deleteGalleryUpload(record);
       setActionMessage(`Deleted “${label}”.`);
       setSelectedIds((prev) => {
@@ -115,6 +120,7 @@ export default function AdminPhotosPage() {
     const failures: string[] = [];
     for (const record of targets) {
       try {
+        await releaseSiteImage(siteImages, record.url);
         await deleteGalleryUpload(record);
         successCount++;
         setSelectedIds((prev) => {
@@ -146,6 +152,8 @@ export default function AdminPhotosPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-7xl mx-auto">
       <AdminNav subtitle="Photos" />
 
+      <SiteImagesPanel uploads={uploads} images={siteImages} />
+
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-3">
@@ -167,8 +175,8 @@ export default function AdminPhotosPage() {
         </div>
 
         <p className="text-xs text-slate-500">
-          Delete removes the upload from the public gallery and R2 storage. Curated files in{' '}
-          <code className="text-slate-400">public/Gallery</code> are managed in the repo, not here.
+          Delete removes the upload from the public gallery and storage. If it was chosen under Site images, it's
+          un-picked there too.
         </p>
 
         {loadError ? (

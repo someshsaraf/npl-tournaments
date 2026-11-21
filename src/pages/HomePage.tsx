@@ -7,6 +7,8 @@ import { closesLabel, countdownLabel, registrationOpen, type RegistrationKey } f
 import { isMatchOnCourt, useSportLiveMatch } from '../hooks/useSportLiveMatch';
 import type { Sport } from '../data/tournamentData';
 import { useRegistrations } from '../hooks/useRegistrations';
+import { useSiteImages } from '../hooks/useSiteImages';
+import { SITE } from '../lib/site';
 
 /**
  * Landing = sport picker. Each card leads to that sport's hub (schedule,
@@ -21,7 +23,7 @@ export default function HomePage() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div className="space-y-2 max-w-2xl">
             <p className="text-[11px] uppercase tracking-[0.18em] text-ink-soft font-semibold">
-              Renaissance Nature Walk · Sports
+              {SITE.name} · Sports
             </p>
             <h1 className="portal-display text-5xl sm:text-6xl text-ink leading-[0.95] tracking-wide">
               Pick the sport
@@ -60,17 +62,22 @@ function SportTile({ card, sport }: { card: SportCard; sport: Sport }) {
   const live = isMatchOnCourt(useSportLiveMatch(sport));
   const registration = useRegistrations().shown[sport];
   const regOpen = registration ? registrationOpen(registration) : false;
+  const photo = useSiteImages().sports[card.slug].card;
   return (
     <Link
       to={`/${card.slug}`}
-      className="group relative block h-[340px] sm:h-[420px] rounded-3xl overflow-hidden border border-line shadow-lg shadow-slate-900/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400/60"
+      className="group relative block h-[340px] sm:h-[420px] rounded-3xl overflow-hidden border border-line shadow-lg shadow-slate-900/10 bg-[radial-gradient(circle_at_30%_20%,_#065f46_0%,_#0f172a_55%,_#020617_100%)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400/60"
     >
-      <img
-        src={card.cardImage}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-        loading="eager"
-      />
+      {photo ? (
+        <img
+          src={photo}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          loading="eager"
+        />
+      ) : (
+        <CourtMotif />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/5" />
       <div className="absolute top-4 left-4 right-4 flex flex-wrap gap-1.5">
         {live ? (
@@ -106,16 +113,24 @@ function SportTile({ card, sport }: { card: SportCard; sport: Sport }) {
 function ComingSoonTile({ card }: { card: SportCard }) {
   const registration = useRegistrations().shown[card.slug as RegistrationKey];
   const open = registration ? registrationOpen(registration) : false;
+  const photo = useSiteImages().sports[card.slug].card;
   return (
     <Link
       to={`/${card.slug}`}
       className="group relative block h-[340px] sm:h-[420px] rounded-3xl overflow-hidden border border-line shadow-lg shadow-slate-900/10 bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400/60"
     >
-      {/* Table-tennis table motif: net line + centre line + ball */}
-      <div className="absolute inset-8 rounded-2xl border-2 border-white/15 transition-transform duration-700 group-hover:scale-105" aria-hidden />
-      <div className="absolute inset-y-8 left-1/2 w-px bg-white/15" aria-hidden />
-      <div className="absolute inset-x-8 top-1/2 h-0.5 bg-white/25" aria-hidden />
-      <span className="absolute top-[38%] left-[62%] size-5 rounded-full bg-orange-300 shadow-[0_0_24px_rgba(253,186,116,0.7)]" aria-hidden />
+      {photo ? (
+        <>
+          <img
+            src={photo}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/5" />
+        </>
+      ) : (
+        <CourtMotif />
+      )}
       <span
         className={`absolute top-4 left-4 rounded-full text-[10px] font-black uppercase tracking-wider px-2.5 py-1 border ${
           open ? 'bg-rose-600 text-white border-rose-400 shadow-lg shadow-rose-900/40' : 'bg-white/10 text-white/80 border-white/20'
@@ -136,5 +151,17 @@ function ComingSoonTile({ card }: { card: SportCard }) {
         </span>
       </div>
     </Link>
+  );
+}
+
+/** Shown on a tile until an admin picks a photo: court lines and a ball. */
+function CourtMotif() {
+  return (
+    <>
+      <div className="absolute inset-8 rounded-2xl border-2 border-white/15 transition-transform duration-700 group-hover:scale-105" aria-hidden />
+      <div className="absolute inset-y-8 left-1/2 w-px bg-white/15" aria-hidden />
+      <div className="absolute inset-x-8 top-1/2 h-0.5 bg-white/25" aria-hidden />
+      <span className="absolute top-[38%] left-[62%] size-5 rounded-full bg-lime-300 shadow-[0_0_24px_rgba(190,242,100,0.6)]" aria-hidden />
+    </>
   );
 }

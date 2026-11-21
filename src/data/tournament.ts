@@ -1,6 +1,7 @@
 import type { BestOf, MaxPoints, Sport, TennisMatchType, TennisRules, TennisStage } from './tournamentData';
 import { SPORT_LABEL } from './tournamentData';
 import { defaultTennisRulesForStage } from '../utils/tennisScoring';
+import { SITE } from '../lib/site';
 
 /**
  * A sport's tournament, built by admins in the tournament console
@@ -168,9 +169,9 @@ export function defaultStageRules(): StageRules {
 export function buildBlankTournament(sport: Sport, year: number): Tournament {
   return {
     sport,
-    title: `NPL ${SPORT_LABEL[sport]} ${year}`,
+    title: `${SITE.league} ${SPORT_LABEL[sport]} ${year}`,
     year,
-    venue: 'Nature Walk Courts',
+    venue: `${SITE.name} courts`,
     formats: ['singles', 'doubles'],
     divisions: ['adults'],
     categories: [],

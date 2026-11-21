@@ -2,6 +2,7 @@ import type { CompletedMatch, Fixture, MatchState, Team } from '../data/tourname
 import { FIXTURES, TEAMS } from '../data/tournamentData';
 import { hasSeriesWinner } from './matchState';
 import { computeTournamentStats } from './resultStats';
+import { leagueTitle } from '../lib/site';
 
 export type ChatKnowledge = {
   fixtures: Fixture[];
@@ -546,7 +547,7 @@ export function answerTournamentQuestion(
     if (tokens.length === 0 || includesAny(lower, ['help', 'hi', 'hello', 'what can you'])) {
       return {
         text:
-          'I can answer from NPL 2026 data — try asking:\n' +
+          `I can answer from ${leagueTitle()} data — try asking:\n` +
           '• When does Team A play?\n' +
           '• What are the trump rules?\n' +
           '• Boys Singles schedule on 9-Aug\n' +

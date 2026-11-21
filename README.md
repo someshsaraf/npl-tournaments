@@ -1,9 +1,15 @@
-# Renaissance Nature Walk · Sports
+# Community Sports
 
-Tournament portal for the Renaissance Nature Walk community: Badminton, Lawn
-Tennis (Table Tennis coming soon). Residents follow schedules, live scores,
-streams, recordings and photos; staff build schedules and score matches;
-court screens show big live scores.
+A tournament portal for a residential community: Badminton and Lawn Tennis
+(Table Tennis coming soon). Residents follow schedules, live scores, streams,
+recordings, photos, past champions and winner predictions; staff build
+schedules and score matches; court screens show big live scores.
+
+Nothing in the code is tied to one community. Your community's name comes
+from `.env` (`SOCIETY_NAME`, optional `SOCIETY_SHORT_NAME` and `LEAGUE_NAME`),
+and every photo — the main background, each sport's banner and home tile —
+is uploaded and picked by an admin on the **Photos** page. No photos or
+resident data live in this repository.
 
 It's one self-contained Node app — no Firebase, no Vercel, no external
 database. Host it anywhere that runs **Node 22.13+** or **Docker**.
@@ -135,6 +141,8 @@ Enforced by the server (`server/rules.ts`):
 | Scores, schedules, results, teams, settings | community or admin code | admin code |
 | Gallery photos | community or admin code | community code (add; delete own device's) — admin code: any |
 | Live viewer count | community or admin code | own entry |
+| Registrations (names), prediction votes (villa → pick) | admin code | admin code (residents add via the API) |
+| Registration counts, prediction tallies | community or admin code | server only |
 
 ## Project layout
 
@@ -147,3 +155,13 @@ Enforced by the server (`server/rules.ts`):
 
 Scripts: `npm run dev`, `npm run build`, `npm start`, `npm run lint`,
 `npm run import -- <export.json>`.
+
+## Contributing
+
+Residents and anyone else are welcome to contribute — see
+[CONTRIBUTING.md](CONTRIBUTING.md). Changes come in as pull requests from a
+fork; only the maintainer merges.
+
+## License
+
+[MIT](LICENSE)

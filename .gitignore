@@ -36,3 +36,24 @@ npl/
 # Self-hosted server data (SQLite DB + uploaded media) and server build
 /data/
 /dist-server/
+
+# Photos are not kept in the repo — admins upload them on the Photos page
+# and pick the site's images there. (Site graphics are SVG.)
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+*.heic
+*.mp4
+*.mov
+*.webm
+/photos-to-upload/
+# Generated at build from public/Gallery (now empty).
+/public/Gallery/
+
+# Registration exports contain residents' names.
+*registrations*.csv
+
+# Private event-planning notes (may name residents).
+/docs/

@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { KeyRound, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { enterAccessCode } from '../utils/authClient';
+import { SITE } from '../lib/site';
+import { SiteLogo } from '../components/SiteLogo';
 
 /** Staff-only screens (admin console, scorer tablet). */
 function isStaffPath(path: string): boolean {
@@ -33,6 +35,7 @@ export default function AccessPage() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bgFailed, setBgFailed] = useState(false);
 
   const submit = async () => {
     setError(null);
@@ -55,25 +58,24 @@ export default function AccessPage() {
 
   return (
     <div className="fixed inset-0 overflow-y-auto bg-slate-950 text-white">
-      <img
-        src="/sports/lawn-tennis/lt-2025-3.jpg"
-        alt=""
-        className="fixed inset-0 h-full w-full object-cover opacity-35"
-      />
+      {SITE.background && !bgFailed ? (
+        <img
+          src={SITE.background}
+          alt=""
+          onError={() => setBgFailed(true)}
+          className="fixed inset-0 h-full w-full object-cover opacity-35"
+        />
+      ) : null}
       <div className="fixed inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
       <main className="relative min-h-full flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md space-y-6 text-center">
-          <img
-            src="/nature-walk-logo-1.png"
-            alt="Renaissance Nature Walk"
-            className="mx-auto size-16 rounded-2xl bg-white p-1 shadow-lg"
-          />
+          <SiteLogo className="mx-auto size-16 rounded-2xl shadow-lg" />
           <div className="space-y-2">
             <h1
               className="text-5xl tracking-wide leading-none"
               style={{ fontFamily: '"Bebas Neue", "Arial Narrow", Impact, sans-serif' }}
             >
-              Renaissance Nature Walk
+              {SITE.name}
             </h1>
             <p className="text-slate-300">Sports schedules, live scores and photos for our community.</p>
           </div>
