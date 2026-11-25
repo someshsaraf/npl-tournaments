@@ -4,14 +4,20 @@ import type { Sport } from './tournamentData';
  * The sports shown on the landing page. `sport` is the scoring/data id
  * (`tennis` is kept for the data store back-compat); `slug` is the URL segment.
  * Table Tennis is listed but not built yet (`sport: null`).
- * Photos aren't kept in the repo: admins pick each sport's banner and tile
- * photos from their uploads (see useSportImages).
  */
 export interface SportCard {
   slug: 'badminton' | 'lawn-tennis' | 'table-tennis';
   sport: Sport | null;
   label: string;
   tagline: string;
+  /** Wide hero photo for the sport hub (path under /public). */
+  heroImage: string;
+  /** CSS object-position for heroImage. */
+  heroFocus?: string;
+  /** Card photo on the landing page. */
+  cardImage: string;
+  /** Extra photos for the hub's photo strip. */
+  galleryImages: string[];
   /** Legacy community-event ids whose photos belong to this sport. */
   legacyEventIds: string[];
 }
@@ -21,7 +27,10 @@ export const SPORT_CARDS: readonly SportCard[] = [
     slug: 'badminton',
     sport: 'badminton',
     label: 'Badminton',
-    tagline: 'Badminton — singles, doubles and the Team Championship.',
+    tagline: 'NPL Badminton — singles, doubles and the Team Championship.',
+    heroImage: '/events/badminton-tournament.jpg',
+    cardImage: '/events/badminton-tournament.jpg',
+    galleryImages: ['/events/badminton-tournament-2.jpg', '/events/badminton-tournament-3.jpg'],
     legacyEventIds: ['badminton-tournament']
   },
   {
@@ -29,6 +38,16 @@ export const SPORT_CARDS: readonly SportCard[] = [
     sport: 'tennis',
     label: 'Lawn Tennis',
     tagline: 'Pools, knockouts and finals under the lights — singles, doubles and teams.',
+    heroImage: '/sports/lawn-tennis/lt-2025-3.jpg',
+    heroFocus: '50% 65%',
+    cardImage: '/sports/lawn-tennis/lt-2025-2.jpg',
+    galleryImages: [
+      '/sports/lawn-tennis/lt-2025-5.jpg',
+      '/sports/lawn-tennis/lt-2025-2.jpg',
+      '/sports/lawn-tennis/lt-2025-4.jpg',
+      '/sports/lawn-tennis/lt-2025-1.jpg',
+      '/sports/lawn-tennis/lt-2025-7.jpg'
+    ],
     legacyEventIds: ['tennis-tournament']
   },
   {
@@ -36,6 +55,9 @@ export const SPORT_CARDS: readonly SportCard[] = [
     sport: null,
     label: 'Table Tennis',
     tagline: 'Fast rallies, spin and smashes — singles and doubles for kids and adults.',
+    heroImage: '',
+    cardImage: '',
+    galleryImages: [],
     legacyEventIds: []
   }
 ] as const;

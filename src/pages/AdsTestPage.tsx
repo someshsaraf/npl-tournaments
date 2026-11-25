@@ -31,7 +31,8 @@ export default function AdsTestPage() {
           <div className="max-w-md space-y-3">
             <h1 className="portal-display text-4xl text-white tracking-wide">No active ads</h1>
             <p className="text-sm text-slate-400">
-              Nothing in the catalog is active for this local date/time.
+              Nothing in the catalog is active for this local date/time (e.g. Drawing after 2 PM,
+              Kitchen only on 8 Aug).
             </p>
           </div>
         </div>

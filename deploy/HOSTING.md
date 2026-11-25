@@ -52,8 +52,8 @@ are open.
 ### B1. Get a free address at DuckDNS
 
 1. Sign in at **https://www.duckdns.org** (Google/GitHub login).
-2. Add a sub domain, e.g. `mycommunity-sports` → your site will be
-   **`mycommunity-sports.duckdns.org`**. Put the server's public IP in *current ip*.
+2. Add a sub domain, e.g. `rnw-sports` → your site will be
+   **`rnw-sports.duckdns.org`**. Put the server's public IP in *current ip*.
 3. Copy the **token** shown at the top of the page.
 
 ### B2. Put the code on the server
@@ -87,7 +87,7 @@ sudo ./deploy/setup.sh
 
 It asks for:
 
-- **Site address** — `mycommunity-sports.duckdns.org`
+- **Site address** — `rnw-sports.duckdns.org`
 - **DuckDNS token** — from B1 (typing is hidden)
 - **First community access code** — e.g. `volley-maple-48` (no quotes or `#`)
 
@@ -96,7 +96,7 @@ save it in a password manager.** The first run takes ~5–10 minutes.
 
 ### B4. Open the site
 
-Go to **https://mycommunity-sports.duckdns.org** — the first visit can take a minute
+Go to **https://rnw-sports.duckdns.org** — the first visit can take a minute
 while the HTTPS certificate is issued. Enter the community code (residents)
 or the admin code (staff).
 

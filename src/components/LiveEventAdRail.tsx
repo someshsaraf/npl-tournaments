@@ -13,7 +13,7 @@ function loadActiveAds(): EventAd[] {
 
 /**
  * Slim left-edge lobby rail for /live — date/time-active posters only
- * (ads with activeUntilTime drop at that local time). Peek without covering score.
+ * (Drawing Competition drops at/after 14:00 local). Peek without covering score.
  *
  * Concurrency: local timers/state only; cleaned up on unmount.
  * Security: allowlisted poster paths only.

@@ -10,7 +10,7 @@ import type {
 const TIEBREAK_TARGET = 7;
 
 /**
- * House defaults per stage (Lawn Tennis):
+ * House defaults per stage (NPL Lawn Tennis):
  * - Qualifier / QF / SF: race to 4 games (at 3-3 the next game decides),
  *   golden point on the 3rd deuce.
  * - Final: a full 6-game set, tiebreak at 6-6, golden point on the 4th deuce.

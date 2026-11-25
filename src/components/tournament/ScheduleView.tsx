@@ -1,0 +1,240 @@
+import { useEffect, useMemo, useState } from 'react';
+import { ref, onValue } from '../../lib/realtime';
+import { db } from '../../db';
+import {
+  FIXTURES,
+  FIXTURE_DATES,
+  resolveSport,
+  type CompletedMatch,
+  type Fixture,
+  type Sport
+} from '../../data/tournamentData';
+import {
+  completedMatchesFromFirebase,
+  mergeFixturesWithResults,
+  sortCompletedMatches
+} from '../../utils/completedMatches';
+
+/**
+ * Schedule for one sport, embedded inside that sport's event detail page.
+ * Badminton has a pre-set fixture list; Tennis matches are started ad hoc by
+ * admins, so its view shows matches played so far instead of a future schedule.
+ */
+export function ScheduleView({ sport }: { sport: Sport }) {
+  const [selectedDate, setSelectedDate] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [completedById, setCompletedById] = useState<Record<string, CompletedMatch>>({});
+
+  useEffect(() => {
+    const completedRef = ref(db, 'completedMatches');
+    const unsub = onValue(completedRef, (snap) => {
+      setCompletedById(completedMatchesFromFirebase(snap.val()));
+    });
+    return () => unsub();
+  }, []);
+
+  const fixtures = useMemo(
+    () => mergeFixturesWithResults(FIXTURES, completedById),
+    [completedById]
+  );
+
+  const categories = useMemo(
+    () => ['All', ...Array.from(new Set(FIXTURES.map((f) => f.category)))],
+    []
+  );
+  const dates = useMemo(() => ['All', ...FIXTURE_DATES], []);
+
+  const filtered = useMemo(() => {
+    return fixtures.filter((f) => {
+      const dateOk = selectedDate === 'All' || f.date === selectedDate;
+      const catOk = selectedCategory === 'All' || f.category === selectedCategory;
+      return dateOk && catOk;
+    });
+  }, [fixtures, selectedDate, selectedCategory]);
+
+  const byDate = useMemo(() => {
+    return filtered.reduce<Record<string, Fixture[]>>((acc, fixture) => {
+      if (!acc[fixture.date]) acc[fixture.date] = [];
+      acc[fixture.date].push(fixture);
+      return acc;
+    }, {});
+  }, [filtered]);
+
+  const completedCount = fixtures.filter((f) => f.status === 'completed').length;
+
+  const tennisCompleted = useMemo(
+    () =>
+      sortCompletedMatches(
+        Object.values(completedById).filter((r) => resolveSport(r.sport) === 'tennis')
+      ),
+    [completedById]
+  );
+
+  if (sport === 'tennis') {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500 rounded-xl border border-line bg-paper-soft px-4 py-3">
+          Tennis matches are started ad hoc by admins rather than a pre-set fixture list, so
+          there's no schedule to show ahead of time. Check the Live tab when a match is on
+          court, or browse matches played below.
+        </p>
+        {tennisCompleted.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-10">No tennis matches played yet.</p>
+        ) : (
+          <ul className="rounded-xl border border-line overflow-hidden divide-y divide-line bg-white">
+            {tennisCompleted.map((row) => (
+              <li
+                key={row.fixtureId || row.id}
+                className="grid grid-cols-1 sm:grid-cols-[7.5rem_1fr_auto] gap-1 sm:gap-3 px-3 sm:px-4 py-3 text-sm"
+              >
+                <span className="font-mono text-xs text-amber-700 sm:pt-0.5">
+                  {[row.completedDate, row.completedTime].filter(Boolean).join(' ')}
+                </span>
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-[11px] uppercase tracking-wide text-indigo-700 truncate">
+                    {row.category}
+                    {row.stage ? (
+                      <>
+                        <span className="text-slate-400"> · </span>
+                        <span className="text-slate-500 normal-case tracking-normal">{row.stage}</span>
+                      </>
+                    ) : null}
+                  </p>
+                  <p className="font-semibold text-ink truncate">
+                    {row.details || `${row.player1 || row.teamA} vs ${row.player2 || row.teamB}`}
+                  </p>
+                  <p className="text-xs text-emerald-700">
+                    Winner: {row.winnerName || '—'}
+                    {row.result ? ` · ${row.result}` : ''}
+                  </p>
+                </div>
+                <div className="sm:justify-self-end sm:self-center">
+                  <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+                    Completed
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-slate-500">
+        {filtered.length} matches shown
+        {completedCount > 0 ? ` · ${completedCount} completed overall` : ''}
+      </p>
+
+      <div className="space-y-3">
+        <FilterRow
+          label="Date"
+          options={dates}
+          value={selectedDate}
+          onChange={setSelectedDate}
+          activeClass="bg-amber-400 text-slate-950"
+        />
+        <FilterRow
+          label="Category"
+          options={categories}
+          value={selectedCategory}
+          onChange={setSelectedCategory}
+          activeClass="bg-emerald-500 text-slate-950"
+        />
+      </div>
+
+      <div className="space-y-6">
+        {Object.keys(byDate).length === 0 && (
+          <p className="text-sm text-slate-500 text-center py-10">No fixtures for this filter.</p>
+        )}
+        {Object.entries(byDate).map(([date, dayFixtures]) => (
+          <section key={date} className="space-y-2">
+            <div className="flex items-center justify-between border-b border-line pb-2">
+              <h3 className="text-sm font-bold text-amber-700">{date}</h3>
+              <span className="text-[11px] text-slate-500">{dayFixtures.length} matches</span>
+            </div>
+            <ul className="rounded-xl border border-line overflow-hidden divide-y divide-line bg-white">
+              {dayFixtures.map((f) => {
+                const done = f.status === 'completed';
+                return (
+                  <li
+                    key={f.id}
+                    className="grid grid-cols-1 sm:grid-cols-[4.5rem_1fr_auto] gap-1 sm:gap-3 px-3 sm:px-4 py-3 text-sm"
+                  >
+                    <span className="font-mono text-xs text-slate-500 sm:pt-0.5">{f.time}</span>
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-[11px] uppercase tracking-wide text-indigo-700 truncate">
+                        {f.category}
+                        <span className="text-slate-400"> · </span>
+                        <span className="text-slate-500 normal-case tracking-normal">{f.stage}</span>
+                      </p>
+                      <p className="font-semibold text-ink truncate">{f.details}</p>
+                      {done && f.winnerName ? (
+                        <p className="text-xs text-emerald-700">
+                          Winner: {f.winnerName}
+                          {f.result ? ` · ${f.result}` : ''}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="sm:justify-self-end sm:self-center">
+                      <span
+                        className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border ${
+                          done
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-paper-soft text-slate-500 border-line'
+                        }`}
+                      >
+                        {done ? 'Completed' : 'Scheduled'}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type FilterRowProps = {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (next: string) => void;
+  activeClass: string;
+};
+
+function FilterRow({ label, options, value, onChange, activeClass }: FilterRowProps) {
+  if (!Array.isArray(options) || options.length === 0) return null;
+  const safeValue = typeof value === 'string' ? value : 'All';
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        {options.map((opt) => {
+          if (typeof opt !== 'string' || !opt.trim()) return null;
+          const active = opt === safeValue;
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onChange(opt)}
+              className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
+                active
+                  ? `${activeClass} font-bold shadow-md`
+                  : 'bg-paper-soft text-slate-600 hover:text-ink border border-line'
+              }`}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

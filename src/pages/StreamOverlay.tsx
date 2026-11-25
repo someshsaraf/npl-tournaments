@@ -1406,7 +1406,7 @@ export const StreamOverlay: React.FC = () => {
             <div className="pointer-events-auto max-w-md rounded-xl bg-amber-400 text-slate-950 px-4 py-3 shadow-xl space-y-2">
               <p className="text-[11px] font-bold leading-snug">
                 iOS cannot hide the address bar in a normal Safari/Chrome tab. For true fullscreen:
-                Share → Add to Home Screen, then open <span className="underline">Live Scores</span>{' '}
+                Share → Add to Home Screen, then open <span className="underline">NPL Live</span>{' '}
                 from your home screen.
               </p>
               <button

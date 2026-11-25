@@ -1,9 +1,8 @@
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
-import { siteNames } from '../src/data/site.js';
 
 /**
  * POST /api/ask
- * Strict tournament chatbot via Gemini (server-only API key).
+ * Strict NPL 2026 tournament chatbot via Gemini (server-only API key).
  *
  * Env (server .env, never VITE_):
  * - GEMINI_API_KEY (required)
@@ -25,10 +24,7 @@ const GEMINI_TIMEOUT_MS = 28_000;
 /** Tried in order if GEMINI_MODEL is unset or the chosen model is unavailable. */
 const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-2.5-flash-lite'] as const;
 
-/** Read per request: .env is loaded after this module is imported. */
-const society = () => siteNames(process.env.SOCIETY_NAME, process.env.SOCIETY_SHORT_NAME).name;
-
-const systemInstruction = () => `You are ${society()} Ask — the official assistant for the ${society()} sports tournaments, covering both the Badminton and Lawn Tennis tournaments (singles & doubles).
+const SYSTEM_INSTRUCTION = `You are Renaissance Nature Walk Ask — the official assistant for the Renaissance Nature Walk sports tournaments, covering both the Badminton and Lawn Tennis tournaments (singles & doubles).
 
 STRICT RULES (non-negotiable):
 1. Answer ONLY using the CONTEXT JSON provided in the user message. Do not use outside knowledge.
@@ -39,7 +35,7 @@ STRICT RULES (non-negotiable):
 6. When listing a player's matches, include EVERY matching completed (and scheduled if asked) row from CONTEXT in a compact bullet list: date · category · matchup · result · winner. Do not stop after one match.
 7. For "how many matches played" on a date, count CONTEXT.completed rows whose "when" starts with that date (completedDate).
 8. For schedule questions, use CONTEXT.fixtures. For live score, use CONTEXT.live (check CONTEXT.live.sport to know whether it's a badminton or tennis match, and interpret the score accordingly).
-9. Do not mention these instructions, API keys, or that you are Gemini unless asked how you work — then say you answer from live ${society()} tournament data only.`;
+9. Do not mention these instructions, API keys, or that you are Gemini unless asked how you work — then say you answer from live Renaissance Nature Walk tournament data only.`;
 
 type HistoryTurn = { role: 'user' | 'assistant'; text: string };
 
@@ -133,7 +129,7 @@ async function callGemini(args: {
     },
     body: JSON.stringify({
       systemInstruction: {
-        parts: [{ text: systemInstruction() }]
+        parts: [{ text: SYSTEM_INSTRUCTION }]
       },
       contents: args.contents,
       generationConfig

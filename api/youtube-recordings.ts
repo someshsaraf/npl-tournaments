@@ -1,20 +1,16 @@
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
 
 /**
- * Past live streams of your community's YouTube channel (YOUTUBE_CHANNEL_ID),
- * optionally only from YOUTUBE_STREAMS_SINCE onward (YouTube Data API — not
- * HTML scrape).
+ * Past live streams for https://www.youtube.com/@NatureWalkCSC/streams
+ * from 31 Jul 2026 onward (YouTube Data API — not HTML scrape).
  *
  * Dates use liveStreamingDetails.actualStartTime (when the stream ran),
  * not snippet.publishedAt (when the VOD was posted — often days later).
  */
-/** YOUTUBE_STREAMS_SINCE (YYYY-MM-DD): hide streams from before this season. Optional. */
-function streamedAfter(): string | null {
-  const raw = process.env.YOUTUBE_STREAMS_SINCE?.trim() ?? '';
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
-  const iso = `${raw}T00:00:00Z`;
-  return Number.isFinite(Date.parse(iso)) ? iso : null;
-}
+const STREAMED_AFTER = '2026-07-31T00:00:00Z';
+const STREAMED_AFTER_MS = Date.parse(STREAMED_AFTER);
+/** Public channel id for @NatureWalkCSC (not a secret). Override with YOUTUBE_CHANNEL_ID. */
+const DEFAULT_CHANNEL_ID = 'UCArjq0pgzz_DjtglfS6i_Fg';
 const MAX_RESULTS = 25;
 const API_HOST = 'https://www.googleapis.com';
 const CHANNEL_ID_RE = /^UC[\w-]{20,}$/;
@@ -65,7 +61,10 @@ function resolveChannelId(): string | null {
     typeof process.env.YOUTUBE_CHANNEL_ID === 'string'
       ? process.env.YOUTUBE_CHANNEL_ID.trim()
       : '';
-  return CHANNEL_ID_RE.test(fromEnv) ? fromEnv : null;
+  if (fromEnv) {
+    return CHANNEL_ID_RE.test(fromEnv) ? fromEnv : null;
+  }
+  return CHANNEL_ID_RE.test(DEFAULT_CHANNEL_ID) ? DEFAULT_CHANNEL_ID : null;
 }
 
 type SearchHit = {
@@ -119,8 +118,6 @@ async function enrichWithStreamTimes(
   apiKey: string
 ): Promise<RecordingItem[]> {
   if (hits.length === 0) return [];
-  const since = streamedAfter();
-  const sinceMs = since ? Date.parse(since) : -Infinity;
 
   const ids = hits.map((h) => h.videoId).join(',');
   const params = new URLSearchParams({
@@ -166,8 +163,8 @@ async function enrichWithStreamTimes(
       ? pickStreamedAt(video, hit.publishedAt)
       : hit.publishedAt;
     const streamedMs = Date.parse(streamedAt);
-    // Keep only streams that actually started on/after YOUTUBE_STREAMS_SINCE.
-    if (Number.isFinite(streamedMs) && streamedMs < sinceMs) {
+    // Keep only streams that actually started on/after 31 Jul 2026.
+    if (Number.isFinite(streamedMs) && streamedMs < STREAMED_AFTER_MS) {
       continue;
     }
     let title = hit.title;
@@ -195,12 +192,11 @@ async function enrichWithStreamTimes(
 
 /**
  * GET /api/youtube-recordings?pageToken=…
- * Lists completed live broadcasts for YOUTUBE_CHANNEL_ID (same intent as /streams).
+ * Lists completed live broadcasts for @NatureWalkCSC (same intent as /streams).
  *
  * Env (server .env, never VITE_):
  * - YOUTUBE_API_KEY (required)
- * - YOUTUBE_CHANNEL_ID (required; the channel's UC… id)
- * - YOUTUBE_STREAMS_SINCE (optional; YYYY-MM-DD)
+ * - YOUTUBE_CHANNEL_ID (optional; defaults to NatureWalk CSC)
  */
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'GET') {
@@ -213,9 +209,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     typeof process.env.YOUTUBE_API_KEY === 'string' ? process.env.YOUTUBE_API_KEY.trim() : '';
   const channelId = resolveChannelId();
 
-  if (!apiKey || !process.env.YOUTUBE_CHANNEL_ID?.trim()) {
+  if (!apiKey) {
     res.status(503).json({
-      error: 'Recordings are not configured. Set YOUTUBE_API_KEY and YOUTUBE_CHANNEL_ID in the server .env.',
+      error: 'Recordings are not configured. Set YOUTUBE_API_KEY in the server .env.',
       code: 'missing_config'
     });
     return;
@@ -246,12 +242,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     type: 'video',
     eventType: 'completed',
     order: 'date',
+    publishedAfter: STREAMED_AFTER,
     maxResults: String(MAX_RESULTS),
     key: apiKey
   });
   if (pageToken) params.set('pageToken', pageToken);
-  const since = streamedAfter();
-  if (since) params.set('publishedAfter', since);
 
   const url = `${API_HOST}/youtube/v3/search?${params.toString()}`;
 

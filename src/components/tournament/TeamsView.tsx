@@ -1,0 +1,97 @@
+import { useEffect, useState } from 'react';
+import { ref, onValue } from '../../lib/realtime';
+import { db } from '../../db';
+import { TEAMS, type Team } from '../../data/tournamentData';
+import { getPlayerNameAliases, renamePlayerInTeams } from '../../utils/playerRename';
+
+function normalizeTeams(raw: unknown): Team[] {
+  if (!Array.isArray(raw)) return TEAMS;
+  const cleaned = raw.filter(
+    (t): t is Team =>
+      !!t &&
+      typeof t === 'object' &&
+      typeof (t as Team).id === 'string' &&
+      typeof (t as Team).name === 'string' &&
+      Array.isArray((t as Team).players)
+  );
+  const base = cleaned.length > 0 ? cleaned : TEAMS;
+  let withAliases = base;
+  for (const [from, to] of Object.entries(getPlayerNameAliases())) {
+    withAliases = renamePlayerInTeams(withAliases, from, to);
+  }
+  return withAliases;
+}
+
+/**
+ * Badminton Team Championship rosters — embedded in the Badminton event
+ * detail page. Tennis has no team-roster concept, so this view is
+ * badminton-only (no sport prop).
+ */
+export function TeamsView() {
+  const [teams, setTeams] = useState<Team[]>(TEAMS);
+
+  useEffect(() => {
+    const teamsRef = ref(db, 'teams');
+    const unsub = onValue(teamsRef, (snap) => {
+      setTeams(normalizeTeams(snap.val()));
+    });
+    return () => unsub();
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-500">
+        Team Championship rosters ({teams.length} teams).
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {teams.map((team, index) => {
+          const players = Array.isArray(team.players) ? team.players : [];
+          const accent =
+            index % 5 === 0
+              ? 'from-emerald-50'
+              : index % 5 === 1
+                ? 'from-amber-50'
+                : index % 5 === 2
+                  ? 'from-sky-50'
+                  : index % 5 === 3
+                    ? 'from-rose-50'
+                    : 'from-teal-50';
+
+          return (
+            <article
+              key={team.id || team.name}
+              className={`rounded-2xl border border-line bg-gradient-to-br ${accent} to-white overflow-hidden`}
+            >
+              <div className="px-4 pt-4 pb-3 border-b border-line">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+                  Team Championship
+                </p>
+                <h3 className="portal-display text-2xl text-ink tracking-wide mt-0.5">
+                  {team.name}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">{players.length} players</p>
+              </div>
+              <ol className="px-4 py-3 space-y-1.5">
+                {players.length === 0 ? (
+                  <li className="text-sm text-slate-500">No players listed.</li>
+                ) : (
+                  players.map((player, i) => (
+                    <li
+                      key={`${team.id}-${player}-${i}`}
+                      className="flex items-baseline gap-2 text-sm text-ink-soft"
+                    >
+                      <span className="font-mono text-[10px] text-slate-400 w-4 shrink-0">
+                        {i + 1}
+                      </span>
+                      <span>{typeof player === 'string' ? player : '—'}</span>
+                    </li>
+                  ))
+                )}
+              </ol>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

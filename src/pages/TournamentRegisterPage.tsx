@@ -16,7 +16,6 @@ import { TournamentDates } from '../components/TournamentDates';
 import { DeadlineTile, RegisteredCount } from '../components/RegistrationBanner';
 import { useRegisteredCount } from '../hooks/useRegisteredCount';
 import { useRegistrations } from '../hooks/useRegistrations';
-import { useSportImages } from '../hooks/useSiteImages';
 
 /**
  * Tournament registration (/lawn-tennis/register): full name + exactly one
@@ -28,7 +27,6 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
   const config = shown[sport];
   const card = SPORT_CARDS.find((c) => c.sport === sport || c.slug === sport)!;
   const slug = card.slug;
-  const { hero } = useSportImages(slug);
   const [name, setName] = useState('');
   const [group, setGroup] = useState('');
   const [formats, setFormats] = useState<string[]>([]);
@@ -114,8 +112,13 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
 
       <Reveal>
         <section className="relative rounded-3xl overflow-hidden border border-line shadow-xl bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)]">
-          {hero ? (
-            <img src={hero} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          {card.heroImage ? (
+            <img
+              src={card.heroImage}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{ objectPosition: card.heroFocus ?? 'center' }}
+            />
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/25" />
           <div className="relative p-6 sm:p-8 space-y-4">

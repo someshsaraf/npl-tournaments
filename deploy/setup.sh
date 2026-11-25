@@ -119,7 +119,7 @@ set_env MEDIA_STORAGE "$(get_env MEDIA_STORAGE | grep . || echo local)"
 
 domain="${SITE_DOMAIN:-$(get_env SITE_DOMAIN)}"
 while [ -z "$domain" ]; do
-  read -r -p "Site address (e.g. mycommunity-sports.duckdns.org): " domain
+  read -r -p "Site address (e.g. rnw-sports.duckdns.org): " domain
 done
 domain="$(printf '%s' "$domain" | tr 'A-Z' 'a-z' | sed -e 's#^https\{0,1\}://##' -e 's#/.*$##')"
 set_env SITE_DOMAIN "$domain"

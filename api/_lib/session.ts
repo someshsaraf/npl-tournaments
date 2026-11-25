@@ -12,20 +12,12 @@ import { getAccessCodeVersion } from './accessCode.js';
  *   Must differ from AUTH_PEPPER (two independent secrets, one purpose each).
  */
 
-/**
- * Cookie names start with COOKIE_PREFIX (letters/digits, default "sports").
- * Changing it signs every device out, so keep it once the site is live.
- */
-function cookiePrefix(): string {
-  const raw = process.env.COOKIE_PREFIX?.trim() ?? '';
-  return /^[A-Za-z0-9]{1,20}$/.test(raw) ? raw : 'sports';
-}
 /** Community pass (shared access code) — residents, court screens. */
-const accessCookie = () => `${cookiePrefix()}_access`;
+const ACCESS_COOKIE = 'rnw_access';
 /** Staff pass (admin code). Also grants community access. */
-const adminCookie = () => `${cookiePrefix()}_admin_session`;
+const ADMIN_COOKIE = 'rnw_admin_session';
 /** Old per-resident account cookie — only ever cleared now. */
-const legacyUserCookie = () => `${cookiePrefix()}_session`;
+const LEGACY_USER_COOKIE = 'rnw_session';
 const ACCESS_TTL_SECONDS = 60 * 60 * 24 * 180; // court TVs stay unlocked for a season
 const ADMIN_TTL_SECONDS = 60 * 60 * 24 * 30;
 
@@ -109,28 +101,28 @@ function setCookie(res: ApiResponse, name: string, value: string, maxAgeSeconds:
 }
 
 export async function setAccessSession(res: ApiResponse, payload: AccessSessionPayload): Promise<void> {
-  setCookie(res, accessCookie(), await sign(payload, ACCESS_TTL_SECONDS), ACCESS_TTL_SECONDS);
+  setCookie(res, ACCESS_COOKIE, await sign(payload, ACCESS_TTL_SECONDS), ACCESS_TTL_SECONDS);
 }
 
 export async function setAdminSession(res: ApiResponse): Promise<void> {
   const payload: AdminSessionPayload = { role: 'admin' };
-  setCookie(res, adminCookie(), await sign(payload, ADMIN_TTL_SECONDS), ADMIN_TTL_SECONDS);
+  setCookie(res, ADMIN_COOKIE, await sign(payload, ADMIN_TTL_SECONDS), ADMIN_TTL_SECONDS);
 }
 
 /** Drop just the staff pass (e.g. a staff device switching to the community code). */
 export function clearAdminSession(res: ApiResponse): void {
-  setCookie(res, adminCookie(), '', 0);
+  setCookie(res, ADMIN_COOKIE, '', 0);
 }
 
 export function clearSessionCookies(res: ApiResponse): void {
-  setCookie(res, accessCookie(), '', 0);
-  setCookie(res, adminCookie(), '', 0);
-  setCookie(res, legacyUserCookie(), '', 0);
+  setCookie(res, ACCESS_COOKIE, '', 0);
+  setCookie(res, ADMIN_COOKIE, '', 0);
+  setCookie(res, LEGACY_USER_COOKIE, '', 0);
 }
 
 /** Valid community pass for the current access-code version, or null. */
 export async function getAccessSession(req: HasHeaders): Promise<AccessSessionPayload | null> {
-  const token = parseCookies(req)[accessCookie()];
+  const token = parseCookies(req)[ACCESS_COOKIE];
   if (!token) return null;
   const payload = await verify<AccessSessionPayload>(token);
   if (!payload || payload.role !== 'community' || typeof payload.sid !== 'string') return null;
@@ -138,7 +130,7 @@ export async function getAccessSession(req: HasHeaders): Promise<AccessSessionPa
 }
 
 export async function getAdminSession(req: HasHeaders): Promise<AdminSessionPayload | null> {
-  const token = parseCookies(req)[adminCookie()];
+  const token = parseCookies(req)[ADMIN_COOKIE];
   if (!token) return null;
   const payload = await verify<AdminSessionPayload>(token);
   return payload && payload.role === 'admin' ? payload : null;

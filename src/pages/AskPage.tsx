@@ -27,7 +27,6 @@ import {
   getPlayerNameAliases,
   renamePlayerInTeams
 } from '../utils/playerRename';
-import { SITE, leagueTitle } from '../lib/site';
 
 const MAX_QUESTION = 500;
 const HISTORY_TURNS = 8;
@@ -228,7 +227,7 @@ export default function AskPage() {
       id: 'welcome',
       role: 'assistant',
       text:
-        `Hi — ask me anything about ${leagueTitle()}. I answer strictly from live schedule, results, teams, rules, and stats on this site.`,
+        'Hi — ask me anything about NPL 2026. I answer strictly from live schedule, results, teams, rules, and stats on this site.',
       links: [
         { label: 'Schedule', to: '/schedule' },
         { label: 'Results', to: '/results' },
@@ -422,7 +421,7 @@ export default function AskPage() {
     <div className="flex flex-col gap-4 max-w-3xl mx-auto min-h-[min(70vh,40rem)]">
       <header className="space-y-1">
         <h1 className="portal-display text-3xl sm:text-4xl text-ink tracking-wide">
-          Ask {SITE.league}
+          Ask NPL
         </h1>
         <p className="text-sm text-slate-500">
           Natural questions about schedule, rules, teams, results, and stats — answered strictly

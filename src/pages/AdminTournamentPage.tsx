@@ -18,6 +18,7 @@ import { useSportResults, useTournamentContext } from '../components/tournamentV
 import { buildBlankTournament, type PublishedTournament, type Tournament } from '../data/tournament';
 import { SPORT_LABEL, type Sport } from '../data/tournamentData';
 import { sportSlug } from '../data/sports';
+import { buildTournamentFromLegacyBadminton } from '../utils/legacyBadminton';
 import { useSportLiveMatch } from '../hooks/useSportLiveMatch';
 import {
   buildContext,
@@ -164,12 +165,16 @@ function StartNotice({
     <Notice tone="warn">
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-auto">
-          No {SPORT_LABEL[sport]} tournament yet — set it up below (your first change saves a draft)
-          {published ? ', or start from the published one.' : '.'}
+          No {SPORT_LABEL[sport]} tournament yet — set it up below (your first change saves a draft), or start from:
         </span>
+        {sport === 'badminton' ? (
+          <Btn small onClick={() => onLoad(buildTournamentFromLegacyBadminton())}>
+            The NPL 2026 schedule (keeps recorded results)
+          </Btn>
+        ) : null}
         {published ? (
           <Btn small onClick={() => onLoad({ ...published })}>
-            Start from published
+            The published tournament
           </Btn>
         ) : null}
       </div>

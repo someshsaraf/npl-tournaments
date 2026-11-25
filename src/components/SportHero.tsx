@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import type { SportCard } from '../data/sports';
-import { useSportImages } from '../hooks/useSiteImages';
 
 /**
  * Full-bleed photo header for a sport hub. `meta` is a short line under the
@@ -23,7 +22,6 @@ export function SportHero({
   live?: boolean;
   actions?: ReactNode;
 }) {
-  const { hero } = useSportImages(card.slug);
   return (
     <div className="space-y-4">
       <Link
@@ -34,15 +32,16 @@ export function SportHero({
         All sports
       </Link>
       <section className="relative rounded-3xl overflow-hidden border border-line shadow-xl min-h-[300px] sm:min-h-[380px]">
-        {hero ? (
+        {card.heroImage ? (
           <img
-            src={hero}
+            src={card.heroImage}
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition: card.heroFocus ?? 'center' }}
             loading="eager"
           />
         ) : (
-          // No photo chosen yet: a court-like pattern — centre line, net, ball.
+          // No photo yet (Table Tennis): a table-tennis table — centre line, net, ball.
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)]" aria-hidden>
             <div className="absolute inset-6 rounded-2xl border-2 border-white/10" />
             <div className="absolute inset-y-6 left-1/2 w-px bg-white/10" />

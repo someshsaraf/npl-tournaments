@@ -6,7 +6,6 @@ import { PastChampions } from '../components/PastChampions';
 import { HubTabs, SportHero } from '../components/SportHero';
 import { LiveView } from '../components/tournament/LiveView';
 import { RecordingsView } from '../components/tournament/RecordingsView';
-import { FunStatsView } from '../components/tournament/FunStatsView';
 import { PredictionsView } from '../components/tournament/PredictionsView';
 import { usePredictions } from '../hooks/usePredictions';
 import { predictionCategories } from '../data/predictions';
@@ -21,12 +20,11 @@ import type { ReactNode } from 'react';
 import type { Sport } from '../data/tournamentData';
 import { sportCardBySport, sportSlug } from '../data/sports';
 import { useRegistrations } from '../hooks/useRegistrations';
-import { useSportImages } from '../hooks/useSiteImages';
 import { RegisterButton, RegistrationBanner } from '../components/RegistrationBanner';
 import { isMatchOnCourt } from '../hooks/useSportLiveMatch';
 import { formatFixtureDate } from '../utils/tournament';
 
-type TabKey = 'schedule' | 'live' | 'pools' | 'knockouts' | 'predict' | 'fun' | 'recordings' | 'rules' | string;
+type TabKey = 'schedule' | 'live' | 'pools' | 'knockouts' | 'predict' | 'recordings' | 'rules' | string;
 
 /** Extra sport-specific tabs (e.g. Badminton's Results and Stats). */
 export interface ExtraTab {
@@ -44,10 +42,9 @@ export interface ExtraTab {
 export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sport; extraTabs?: ExtraTab[] }) {
   const card = sportCardBySport(sport);
   const slug = sportSlug(sport);
-  const { loaded, tournament, ctx, live, results } = usePublishedTournament(sport);
+  const { loaded, tournament, ctx, live } = usePublishedTournament(sport);
   const registration = useRegistrations().shown[sport];
   const onCourt = isMatchOnCourt(live);
-  const { gallery } = useSportImages(card.slug);
   const [tab, setTab] = useState<TabKey>('schedule');
   const predictions = usePredictions(sport);
   const votingOpen = useMemo(
@@ -64,8 +61,6 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
   }, [tournament]);
 
   const published = !!tournament && !!ctx;
-  // Badminton has its own Stats tab (extraTabs); this one is tennis-specific.
-  const funTab = sport === 'tennis' ? [{ key: 'fun', label: 'Fun stats' }] : [];
   const tabs: ReadonlyArray<{ key: TabKey; label: string; badge?: string }> = published
     ? [
         { key: 'schedule', label: 'Schedule' },
@@ -73,7 +68,6 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
         { key: 'pools', label: 'Pools' },
         { key: 'knockouts', label: 'Knockouts' },
         { key: 'predict', label: 'Predict', ...(votingOpen ? { badge: 'Vote' } : {}) },
-        ...funTab,
         ...extraTabs.map((t) => ({ key: t.key, label: t.label })),
         { key: 'recordings', label: 'Recordings' },
         { key: 'rules', label: 'Rules' }
@@ -81,7 +75,6 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
     : [
         { key: 'schedule', label: 'Schedule' },
         { key: 'live', label: 'Live', ...(onCourt ? { badge: '●' } : {}) },
-        ...funTab,
         { key: 'recordings', label: 'Recordings' }
       ];
 
@@ -129,7 +122,7 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
       </Reveal>
 
       <Reveal delayMs={80} className="relative z-10">
-        <PhotoStrip images={gallery} slug={slug} />
+        <PhotoStrip images={card.galleryImages} slug={slug} />
       </Reveal>
 
       <Reveal delayMs={120} className="relative z-10 space-y-4">
@@ -159,7 +152,6 @@ export default function TournamentHubPage({ sport, extraTabs = [] }: { sport: Sp
           {tab === 'pools' && ctx ? <TournamentPoolsView ctx={ctx} live={live} /> : null}
           {tab === 'knockouts' && ctx ? <TournamentBracketView ctx={ctx} live={live} /> : null}
           {tab === 'predict' && tournament ? <PredictionsView sport={sport} published={tournament} /> : null}
-          {tab === 'fun' ? <FunStatsView results={results} /> : null}
           {tab === 'recordings' ? <RecordingsView sport={sport} /> : null}
           {extraTabs.find((t) => t.key === tab)?.render() ?? null}
           {tab === 'rules' && ctx ? <TournamentRulesView ctx={ctx} /> : null}

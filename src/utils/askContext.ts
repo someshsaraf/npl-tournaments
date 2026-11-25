@@ -1,7 +1,6 @@
 import type { CompletedMatch, Fixture, MatchState, Team } from '../data/tournamentData';
 import { computeTournamentStats } from './resultStats';
 import { hasSeriesWinner } from './matchState';
-import { SITE } from '../lib/site';
 
 /** Max serialized context size sent to /api/ask (bytes, UTF-16-ish via JSON length). */
 export const ASK_CONTEXT_MAX_CHARS = 90_000;
@@ -134,7 +133,7 @@ export function buildAskContext(input: unknown): AskContextPack {
   const stats = computeTournamentStats(completed);
 
   const pack: AskContextPack = {
-    tournament: `${SITE.name} · Sports 2026 (Badminton + Lawn Tennis)`,
+    tournament: 'Renaissance Nature Walk · Sports 2026 (Badminton + Lawn Tennis)',
     rules: RULES_DIGEST,
     live: compactLive(live),
     teams: teams

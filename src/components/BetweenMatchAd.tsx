@@ -4,7 +4,7 @@ import { isSafeAdPosterPath } from '../data/eventAds';
 
 /**
  * Optional real clip. When this file exists under public/, pass videoSrc
- * (e.g. "/my-sponsor-ad.mp4") to prefer it over the Ken Burns poster.
+ * (e.g. "/Friends-Kitchen-ad.mp4") to prefer it over the Ken Burns poster.
  */
 const DEFAULT_DURATION_MS = 8000;
 const MIN_DURATION_MS = 5000;

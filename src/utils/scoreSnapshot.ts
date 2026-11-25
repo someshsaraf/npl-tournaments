@@ -2,7 +2,6 @@ import { isSafeMediaUrl, putToUploadUrl } from './mediaUrl';
 import type { MatchState } from '../data/tournamentData';
 import { formatGameScoresLine, formatGamesWonLabel, hasSeriesWinner } from './matchState';
 import { formatTennisGameLogLine, formatTennisGamesLabel, formatTennisStageLabel } from './tennisMatchState';
-import { SITE, leagueTitle } from '../lib/site';
 
 export type ScoreSnapshotResult = {
   blob: Blob;
@@ -21,7 +20,7 @@ function safeFilePart(raw: string, fallback: string): string {
 }
 
 /**
- * Draws a shareable score card on canvas (no DOM capture).
+ * Draws a shareable NPL score card on canvas (no DOM capture).
  * Concurrency: pure local canvas; caller owns the blob.
  * Validation: requires a finished series and finite scores.
  */
@@ -84,7 +83,7 @@ export function renderScoreSnapshotCanvas(match: MatchState): HTMLCanvasElement 
   ctx.fillStyle = '#34d399';
   ctx.font = '700 36px "Source Sans 3", system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(leagueTitle(), w / 2, 90);
+  ctx.fillText('NPL 2026', w / 2, 90);
 
   ctx.fillStyle = '#94a3b8';
   ctx.font = '600 28px "Source Sans 3", system-ui, sans-serif';
@@ -143,7 +142,7 @@ export function renderScoreSnapshotCanvas(match: MatchState): HTMLCanvasElement 
   ctx.fillStyle = '#64748b';
   ctx.font = '600 24px "Source Sans 3", system-ui, sans-serif';
   ctx.fillText(
-    `${SITE.name} · ${isTennis ? 'Lawn Tennis' : 'Badminton'}`,
+    `Renaissance Nature Walk · ${isTennis ? 'Lawn Tennis' : 'Badminton'}`,
     w / 2,
     1280
   );
@@ -255,7 +254,7 @@ export async function shareScoreSnapshot(options: {
   const shareText =
     typeof text === 'string' && text.trim()
       ? text.trim().slice(0, 1000)
-      : `${leagueTitle()} match result`;
+      : 'NPL 2026 match result';
 
   const safeName =
     typeof fileName === 'string' && fileName.trim().endsWith('.png')
@@ -271,7 +270,7 @@ export async function shareScoreSnapshot(options: {
   if (nav && typeof nav.share === 'function') {
     // Prefer file share so the OS app picker can upload the image.
     try {
-      const filePayload = { files: [file], title: `${leagueTitle()} Result`, text: shareText };
+      const filePayload = { files: [file], title: 'NPL 2026 Result', text: shareText };
       const canFiles =
         typeof nav.canShare !== 'function' || nav.canShare(filePayload);
       if (canFiles) {
@@ -284,7 +283,7 @@ export async function shareScoreSnapshot(options: {
     }
 
     try {
-      await nav.share({ title: `${leagueTitle()} Result`, text: withLink });
+      await nav.share({ title: 'NPL 2026 Result', text: withLink });
       return 'shared';
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return 'none';
@@ -347,7 +346,7 @@ export async function captureAndPersistScoreSnapshot(
       blob,
       fileName,
       downloadUrl: downloadUrl || undefined,
-      text: `${leagueTitle()} — ${match.category}\n${name1} vs ${name2}\n${result}\nWinner: ${winner}`
+      text: `NPL 2026 — ${match.category}\n${name1} vs ${name2}\n${result}\nWinner: ${winner}`
     });
   } else if (!downloadUrl) {
     downloadSnapshotBlob(blob, fileName);

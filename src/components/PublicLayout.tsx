@@ -3,8 +3,8 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { Camera, Home, Info, Lock, Menu, MessageCircleQuestion, Trophy, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { SITE } from '../lib/site';
-import { SiteLogo } from './SiteLogo';
+
+const LOGO_SRC = '/nature-walk-logo-1.png';
 
 type NavItem = { to: string; label: string; end: boolean; icon: LucideIcon; disabled?: boolean };
 
@@ -12,7 +12,7 @@ type NavItem = { to: string; label: string; end: boolean; icon: LucideIcon; disa
  * Whole-site nav. Sport-specific pages (Schedule/Live/Recordings/Rules…) are
  * NOT here — they live in each sport's hub (/badminton, /lawn-tennis),
  * reached from the sport picker on Home.
- * Ask and About are temporarily disabled — shown greyed out with a
+ * Ask and About RNW are temporarily disabled — shown greyed out with a
  * "Soon" tag rather than removed. Flip `disabled` to re-enable.
  */
 const NAV: ReadonlyArray<NavItem> = [
@@ -22,7 +22,7 @@ const NAV: ReadonlyArray<NavItem> = [
   { to: '/table-tennis', label: 'Table Tennis', end: false, icon: Trophy },
   { to: '/photos', label: 'Photos', end: false, icon: Camera },
   { to: '/ask', label: 'Ask', end: false, icon: MessageCircleQuestion, disabled: true },
-  { to: '/about', label: `About ${SITE.shortName}`, end: false, icon: Info, disabled: true }
+  { to: '/about', label: 'About RNW', end: false, icon: Info, disabled: true }
 ];
 
 /**
@@ -69,10 +69,19 @@ export function PublicLayout() {
             >
               <Menu className="size-5" aria-hidden />
             </button>
-            <SiteLogo className="size-10 sm:size-12 shadow-sm" />
+            <span className="shrink-0 rounded-xl bg-white p-1 shadow-sm ring-1 ring-line size-10 sm:size-12">
+              <img
+                src={LOGO_SRC}
+                alt="Renaissance Nature Walk"
+                width={48}
+                height={48}
+                className="h-full w-full rounded-lg object-cover"
+                draggable={false}
+              />
+            </span>
             <div className="min-w-0 leading-tight">
               <p className="portal-display text-2xl sm:text-3xl text-ink tracking-wide truncate">
-                {SITE.name}
+                Renaissance Nature Walk
               </p>
             </div>
           </div>
@@ -110,7 +119,16 @@ export function PublicLayout() {
             >
               <X className="size-5" aria-hidden />
             </button>
-            <SiteLogo decorative className="size-10 sm:size-12 shadow-sm" />
+            <span className="shrink-0 rounded-xl bg-white p-1 shadow-sm ring-1 ring-line size-10 sm:size-12">
+              <img
+                src={LOGO_SRC}
+                alt=""
+                width={48}
+                height={48}
+                className="h-full w-full rounded-lg object-cover"
+                draggable={false}
+              />
+            </span>
             <span className="w-10 sm:w-12" aria-hidden />
           </div>
 
@@ -178,9 +196,9 @@ export function PublicLayout() {
       <footer className="bg-ink text-white">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-10 grid gap-8 sm:grid-cols-[1.3fr_1fr_1fr]">
           <div className="space-y-2">
-            <p className="portal-display text-2xl tracking-wide">{SITE.name}</p>
+            <p className="portal-display text-2xl tracking-wide">Renaissance</p>
             <p className="text-sm text-slate-400 max-w-xs">
-              Sports tournaments for the {SITE.name} community.
+              Sports tournaments for the Renaissance Nature Walk community.
             </p>
           </div>
           <div className="space-y-2.5">
@@ -212,12 +230,12 @@ export function PublicLayout() {
                 </Link>
               </li>
               <li className="text-slate-600">Ask (Soon)</li>
-              <li className="text-slate-600">About {SITE.shortName} (Soon)</li>
+              <li className="text-slate-600">About RNW (Soon)</li>
             </ul>
           </div>
         </div>
         <div className="border-t border-white/10 py-4 text-center text-[11px] text-slate-500 tracking-wide">
-          {SITE.name} · Sports
+          Renaissance Nature Walk · Sports
         </div>
       </footer>
     </div>

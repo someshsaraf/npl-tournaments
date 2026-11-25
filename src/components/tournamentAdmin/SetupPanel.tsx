@@ -426,7 +426,7 @@ function BadmintonRulesPanel({
   return (
     <Panel
       title="Scoring rules"
-      subtitle="Applied when a match is started from the schedule. Deuce/golden-point caps follow the usual house rules (Team Championship plays golden point at the race-to score)."
+      subtitle="Applied when a match is started from the schedule. Deuce/golden-point caps follow the usual NPL rules (Team Championship plays golden point at the race-to score)."
     >
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[480px]">

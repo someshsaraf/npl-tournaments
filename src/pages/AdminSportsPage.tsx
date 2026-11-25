@@ -2,12 +2,10 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { AdminNav } from '../components/AdminNav';
 import { SPORT_CARDS, adminPathForSport } from '../data/sports';
-import { useSiteImages } from '../hooks/useSiteImages';
 import { DEFAULT_REGISTRATIONS, type RegistrationKey } from '../data/registration';
 
 /** Admin landing: one panel per sport, each opening its tournament console. */
 export default function AdminSportsPage() {
-  const images = useSiteImages();
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans space-y-8 max-w-6xl mx-auto">
       <AdminNav subtitle="Sports" />
@@ -17,8 +15,8 @@ export default function AdminSportsPage() {
             key={card.slug}
             className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[260px] flex flex-col"
           >
-            {images.sports[card.slug].card ? (
-              <img src={images.sports[card.slug].card} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" />
+            {card.cardImage ? (
+              <img src={card.cardImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" />
             ) : null}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
             <div className="relative mt-auto p-5 space-y-3">

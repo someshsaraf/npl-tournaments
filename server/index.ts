@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import express, { type Request, type Response } from 'express';
@@ -18,7 +18,6 @@ import { keepRegistrationStats } from './registrationStats.js';
 import { keepPredictionTallies } from './predictionTallies.js';
 import { mediaDir, receiveLocalUpload } from './media.js';
 import { runImport } from './importFirebase.js';
-import { renderIndexHtml, serveBackground, siteConfig } from './site.js';
 
 /**
  * Self-hosted server: serves the built site (dist/), the /api routes,
@@ -103,7 +102,6 @@ app.all('/api/snapshot-upload-url', api(snapshotUploadUrlHandler));
 app.all('/api/youtube-recordings', requireAccess, api(youtubeRecordingsHandler));
 app.all('/api/registrations', api(registrationsHandler));
 app.all('/api/predictions', api(predictionsHandler));
-app.get('/api/site/background', serveBackground(getStore()));
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
@@ -121,18 +119,11 @@ app.use(
 
 // Built site + single-page-app fallback.
 if (existsSync(STATIC_DIR)) {
-  // The page itself is rendered per request: it carries the society name
-  // and the current main background (window.__SITE__).
-  const indexTemplate = readFileSync(resolve(STATIC_DIR, 'index.html'), 'utf8');
-  const sendIndex = (_req: Request, res: Response) => {
-    res.setHeader('Cache-Control', 'no-cache');
-    res.type('html').send(renderIndexHtml(indexTemplate, siteConfig(getStore())));
-  };
-  app.get(['/', '/index.html'], sendIndex);
   app.use(express.static(STATIC_DIR, { index: false, maxAge: '1h' }));
   app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
-    sendIndex(req, res);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(resolve(STATIC_DIR, 'index.html'));
   });
 } else {
   console.warn(`No built site at ${STATIC_DIR} — API and /ws only (use "npm run dev" for the UI).`);
@@ -157,5 +148,5 @@ getStore().onChange((paths) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Sports server on http://localhost:${PORT} (data: ${resolve(process.env.DATA_DIR || './data')})`);
+  console.log(`NPL server on http://localhost:${PORT} (data: ${resolve(process.env.DATA_DIR || './data')})`);
 });
