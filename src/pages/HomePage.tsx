@@ -89,7 +89,7 @@ function SportTile({ card, sport }: { card: SportCard; sport: Sport }) {
         <h2 className="portal-display text-5xl sm:text-6xl text-white tracking-wide leading-none [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
           {card.label}
         </h2>
-        <p className="text-sm text-slate-200/90 leading-snug max-w-xs">{card.tagline}</p>
+        {card.tagline ? <p className="text-sm text-slate-200/90 leading-snug max-w-xs">{card.tagline}</p> : null}
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-950 text-xs font-bold uppercase tracking-wide px-4 py-2 mt-1 transition-all group-hover:gap-2.5">
           Enter
           <ArrowRight className="size-3.5" aria-hidden />
@@ -128,7 +128,7 @@ function ComingSoonTile({ card }: { card: SportCard }) {
           {card.label}
         </h2>
         <p className="text-sm text-slate-200/90 leading-snug max-w-xs">
-          {registration ? `${registration.shortDates} · ${card.tagline}` : card.tagline}
+          {[registration?.shortDates, card.tagline].filter(Boolean).join(' · ')}
         </p>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-950 text-xs font-bold uppercase tracking-wide px-4 py-2 mt-1 transition-all group-hover:gap-2.5">
           Enter

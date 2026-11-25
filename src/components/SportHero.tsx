@@ -49,8 +49,9 @@ export function SportHero({
             <span className="absolute top-[20%] right-[14%] size-5 rounded-full bg-orange-300 shadow-[0_0_24px_rgba(253,186,116,0.7)]" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/10" />
-        <div className="relative h-full min-h-[300px] sm:min-h-[380px] flex flex-col justify-end p-5 sm:p-8 space-y-2.5 max-w-3xl">
+        {/* Text sits along the top edge so the photo's players stay clear; dark at the top, clear below. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/40 via-45% to-transparent" />
+        <div className="relative flex flex-col justify-start p-5 sm:p-8 space-y-2.5 max-w-3xl">
           <div className="flex items-center gap-2 flex-wrap">
             {live ? (
               <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-rose-500 text-white">
@@ -66,7 +67,7 @@ export function SportHero({
             {title ?? card.label}
           </h1>
           {meta ? <p className="text-sm font-mono text-lime-200/90">{meta}</p> : null}
-          <p className="text-sm text-slate-200/90 leading-relaxed max-w-lg">{card.tagline}</p>
+          {card.tagline ? <p className="text-sm text-slate-200/90 leading-relaxed max-w-lg">{card.tagline}</p> : null}
           {actions ? <div className="flex flex-wrap gap-2 pt-1">{actions}</div> : null}
         </div>
       </section>

@@ -9,7 +9,8 @@ export interface SportCard {
   slug: 'badminton' | 'lawn-tennis' | 'table-tennis';
   sport: Sport | null;
   label: string;
-  tagline: string;
+  /** Short line under the name on the home card and sport hero; leave out for none. */
+  tagline?: string;
   /** Wide hero photo for the sport hub (path under /public). */
   heroImage: string;
   /** CSS object-position for heroImage. */
@@ -37,7 +38,6 @@ export const SPORT_CARDS: readonly SportCard[] = [
     slug: 'lawn-tennis',
     sport: 'tennis',
     label: 'Lawn Tennis',
-    tagline: 'Pools, knockouts and finals under the lights — singles, doubles and teams.',
     heroImage: '/sports/lawn-tennis/lt-2025-3.jpg',
     heroFocus: '50% 65%',
     cardImage: '/sports/lawn-tennis/lt-2025-2.jpg',

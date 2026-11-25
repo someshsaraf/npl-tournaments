@@ -156,7 +156,12 @@ function RegisteredPlayers({ config, stats }: { config: RegistrationConfig; stat
             <CountUp value={stats?.players.length ?? 0} /> players
           </span>
         </div>
-        <div className="-mx-1 flex gap-1 overflow-x-auto px-1" role="tablist" aria-label="Categories">
+        {/* Phones: a 2×2 grid of buttons, so every category is visible. Wider: folder tabs joined to the table. */}
+        <div
+          className="grid grid-cols-2 gap-1.5 pb-3 sm:-mx-1 sm:flex sm:gap-1 sm:overflow-x-auto sm:px-1 sm:pb-0"
+          role="tablist"
+          aria-label="Categories"
+        >
           {tabs.map((t) => {
             const on = t.cat.id === active.cat.id;
             return (
@@ -170,8 +175,8 @@ function RegisteredPlayers({ config, stats }: { config: RegistrationConfig; stat
                 role="tab"
                 aria-selected={on}
                 onClick={() => pickTab(t.cat.id)}
-                className={`shrink-0 whitespace-nowrap rounded-t-xl px-3.5 py-2 text-xs font-bold transition-all duration-300 ${
-                  on ? 'bg-white text-ink' : 'text-white/70 hover:bg-white/10 hover:text-white'
+                className={`flex shrink-0 flex-wrap items-center justify-center gap-y-0.5 rounded-xl px-2 py-2 text-center text-xs font-bold leading-tight sm:flex-nowrap sm:whitespace-nowrap transition-all duration-300 sm:rounded-b-none sm:rounded-t-xl sm:px-3.5 ${
+                  on ? 'bg-white text-ink shadow-md sm:shadow-none' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white sm:bg-transparent'
                 }`}
               >
                 <PlayerFigure kind={ageKind(t.cat.group)} className="mr-1 inline size-4 -translate-y-px" />
