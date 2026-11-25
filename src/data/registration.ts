@@ -300,6 +300,14 @@ export interface Registration {
   name: string;
   categories: string[];
   createdAt: string;
+  /** 'f' / 'm' when known — picks the figure shown next to the name (see also seed/{sport}-registrations.csv). */
+  gender?: PlayerGender;
+}
+
+export type PlayerGender = 'f' | 'm';
+
+export function parseGender(v: unknown): PlayerGender | undefined {
+  return v === 'f' || v === 'm' ? v : undefined;
 }
 
 /** Category ids of a stored row (rows saved before multi-event sign-up had a single `category`). */
@@ -319,7 +327,7 @@ export interface RegistrationStats {
   /** Per age group, in form order, e.g. [{ group: 'Kids (under 21)', count: 4 }, …]. */
   groups: { group: string; count: number }[];
   /** Everyone registered, sorted by name. */
-  players: { name: string; categories: string[] }[];
+  players: { name: string; categories: string[]; gender?: PlayerGender }[];
 }
 
 export const REGISTRATION_STATS_TOP = 'registrationStats';
@@ -329,10 +337,15 @@ export function registrationStatsPath(sport: RegistrationKey): string {
 }
 
 /** Count the stored registrations (as read from registrations/{sport}). */
-export function registrationStats(sport: RegistrationKey, rawRows: unknown): RegistrationStats {
+export function registrationStats(
+  sport: RegistrationKey,
+  rawRows: unknown,
+  /** Men/Women from the organisers' CSV, by normalizeName — used when a row has no gender of its own. */
+  genders?: ReadonlyMap<string, PlayerGender>
+): RegistrationStats {
   const raw = (rawRows && typeof rawRows === 'object' ? rawRows : {}) as Record<string, unknown>;
   const rows = Object.values(raw).filter(
-    (r): r is { name: string; categories?: unknown; category?: unknown } =>
+    (r): r is { name: string; categories?: unknown; category?: unknown; gender?: unknown } =>
       !!r && typeof r === 'object' && typeof (r as { name?: unknown }).name === 'string'
   );
   const config = DEFAULT_REGISTRATIONS[sport];
@@ -342,7 +355,10 @@ export function registrationStats(sport: RegistrationKey, rawRows: unknown): Reg
     count: rows.filter((r) => groupOf.get(registrationCategories(r)[0] ?? '') === group).length
   }));
   const players = rows
-    .map((r) => ({ name: r.name, categories: registrationCategories(r) }))
+    .map((r) => {
+      const gender = parseGender(r.gender) ?? genders?.get(normalizeName(r.name));
+      return { name: r.name, categories: registrationCategories(r), ...(gender ? { gender } : {}) };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
   return { count: rows.length, groups, players };
 }

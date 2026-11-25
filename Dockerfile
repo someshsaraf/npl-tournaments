@@ -14,6 +14,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/dist-server ./dist-server
 COPY scripts/hash-admin-password.mjs ./scripts/
+# Organisers' CSVs (e.g. Men/Women per registered player) — see server/registrationCsv.ts.
+COPY seed ./seed
 RUN mkdir -p /data && chown node:node /data
 USER node
 VOLUME /data

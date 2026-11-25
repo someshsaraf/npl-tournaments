@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { onValue, ref } from '../lib/realtime';
 import { db } from '../db';
-import { registrationStatsPath, type RegistrationKey, type RegistrationStats } from '../data/registration';
+import { parseGender, registrationStatsPath, type RegistrationKey, type RegistrationStats } from '../data/registration';
 
 export type RegisteredStats = RegistrationStats;
 
@@ -14,11 +14,15 @@ function parse(v: unknown): RegisteredStats | null {
     : [];
   const players = Array.isArray(d.players)
     ? d.players
-        .filter((p): p is { name: string; categories?: unknown } => typeof p?.name === 'string')
-        .map((p) => ({
-          name: p.name,
-          categories: Array.isArray(p.categories) ? p.categories.filter((c): c is string => typeof c === 'string') : []
-        }))
+        .filter((p): p is { name: string; categories?: unknown; gender?: unknown } => typeof p?.name === 'string')
+        .map((p) => {
+          const gender = parseGender(p.gender);
+          return {
+            name: p.name,
+            categories: Array.isArray(p.categories) ? p.categories.filter((c): c is string => typeof c === 'string') : [],
+            ...(gender ? { gender } : {})
+          };
+        })
     : [];
   return { count: d.count, groups, players };
 }

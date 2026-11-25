@@ -1,4 +1,5 @@
 import type { Store } from './store.js';
+import { gendersFromCsv } from './registrationCsv.js';
 import {
   DEFAULT_REGISTRATIONS,
   registrationStats,
@@ -14,8 +15,9 @@ import {
  */
 export function keepRegistrationStats(store: Store): void {
   const sports = Object.keys(DEFAULT_REGISTRATIONS) as RegistrationKey[];
+  const genders = new Map(sports.map((sport) => [sport, gendersFromCsv(sport)]));
   const refresh = (sport: RegistrationKey) => {
-    const next = registrationStats(sport, store.get(registrationsPath(sport)));
+    const next = registrationStats(sport, store.get(registrationsPath(sport)), genders.get(sport));
     const path = registrationStatsPath(sport);
     if (JSON.stringify(store.get(path)) !== JSON.stringify(next)) store.set(path, next);
   };
