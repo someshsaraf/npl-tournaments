@@ -22,6 +22,8 @@ export function SportHero({
   live?: boolean;
   actions?: ReactNode;
 }) {
+  // Skip the small line above the title when it would just repeat it.
+  const showEyebrow = !!eyebrow && eyebrow.toLowerCase() !== (title ?? card.label).toLowerCase();
   return (
     <div className="space-y-4">
       <Link
@@ -31,27 +33,37 @@ export function SportHero({
         <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
         All sports
       </Link>
-      <section className="relative rounded-3xl overflow-hidden border border-line shadow-xl min-h-[300px] sm:min-h-[380px]">
-        {card.heroImage ? (
-          <img
-            src={card.heroImage}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{ objectPosition: card.heroFocus ?? 'center' }}
-            loading="eager"
-          />
-        ) : (
-          // No photo yet (Table Tennis): a table-tennis table — centre line, net, ball.
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)]" aria-hidden>
-            <div className="absolute inset-6 rounded-2xl border-2 border-white/10" />
-            <div className="absolute inset-y-6 left-1/2 w-px bg-white/10" />
-            <div className="absolute inset-x-6 top-1/2 h-0.5 bg-white/15" />
-            <span className="absolute top-[20%] right-[14%] size-5 rounded-full bg-orange-300 shadow-[0_0_24px_rgba(253,186,116,0.7)]" />
-          </div>
-        )}
-        {/* Text sits along the top edge so the photo's players stay clear; dark at the top, clear below. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/40 via-45% to-transparent" />
-        <div className="relative flex flex-col justify-start p-5 sm:p-8 space-y-2.5 max-w-3xl">
+      {/*
+        Phones: title, dates and buttons in a dark band above the photo, so the
+        whole photo shows. Wider screens: the text sits over the photo's top edge.
+      */}
+      <section className="relative flex flex-col rounded-3xl overflow-hidden border border-line shadow-xl bg-slate-950 sm:min-h-[380px]">
+        <div
+          className={`relative order-2 sm:absolute sm:inset-0 ${card.heroImage ? 'aspect-[4/3] sm:aspect-auto' : 'hidden sm:block'}`}
+        >
+          {card.heroImage ? (
+            <img
+              src={card.heroImage}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{ objectPosition: card.heroFocus ?? 'center' }}
+              loading="eager"
+            />
+          ) : (
+            // No photo yet (Table Tennis): a table-tennis table — centre line, net, ball.
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_#1e3a8a_0%,_#0f172a_55%,_#020617_100%)]" aria-hidden>
+              <div className="absolute inset-6 rounded-2xl border-2 border-white/10" />
+              <div className="absolute inset-y-6 left-1/2 w-px bg-white/10" />
+              <div className="absolute inset-x-6 top-1/2 h-0.5 bg-white/15" />
+              <span className="absolute top-[20%] right-[14%] size-5 rounded-full bg-orange-300 shadow-[0_0_24px_rgba(253,186,116,0.7)]" />
+            </div>
+          )}
+          {/* Phones: a short fade from the text band into the photo. Wider: shade behind the text. */}
+          <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-slate-950 to-transparent sm:hidden" />
+          <div className="absolute inset-0 hidden sm:block bg-gradient-to-b from-black/90 via-black/40 via-45% to-transparent" />
+        </div>
+        <div className="relative order-1 flex flex-col justify-start p-5 pb-3 sm:p-8 space-y-2.5 max-w-3xl">
+          {live || showEyebrow ? (
           <div className="flex items-center gap-2 flex-wrap">
             {live ? (
               <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-rose-500 text-white">
@@ -59,11 +71,12 @@ export function SportHero({
                 Live now
               </span>
             ) : null}
-            {eyebrow ? (
+            {showEyebrow ? (
               <span className="text-[11px] uppercase tracking-[0.16em] text-lime-300 font-bold">{eyebrow}</span>
             ) : null}
           </div>
-          <h1 className="text-white portal-display text-5xl sm:text-7xl tracking-wide leading-[0.9] [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
+          ) : null}
+          <h1 className="text-white portal-display text-[2.75rem] sm:text-7xl tracking-wide leading-[0.9] [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
             {title ?? card.label}
           </h1>
           {meta ? <p className="text-sm font-mono text-lime-200/90">{meta}</p> : null}
