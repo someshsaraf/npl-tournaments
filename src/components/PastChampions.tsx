@@ -10,7 +10,7 @@ import { usePastWinners } from '../hooks/usePastWinners';
  * admin enters past winners (Admin → sport → Past winners).
  *
  * Celebration: a confetti shower the first time the section scrolls into
- * view, then — while it stays on screen — fireworks behind the cards every
+ * view, then — while it stays on screen — fireworks over the cards every
  * few seconds and a light confetti drizzle. A champion's card bursts
  * confetti from its trophy when tapped.
  */
@@ -63,7 +63,8 @@ export function PastChampions({ sport }: { sport: Sport }) {
         }
         start();
       },
-      { threshold: 0.4 }
+      // Low threshold: on phones the section can be taller than the screen.
+      { threshold: 0.15 }
     );
     const onVisibility = () => (running() ? start() : stop());
     io.observe(el);
@@ -84,8 +85,6 @@ export function PastChampions({ sport }: { sport: Sport }) {
       className="relative overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-yellow-50 p-5 sm:p-7 shadow-sm space-y-5"
       aria-labelledby="past-champions-heading"
     >
-      {/* Fireworks go behind everything else in the section. */}
-      <div ref={skyRef} className="pointer-events-none absolute inset-0" aria-hidden />
       <Trophy className="pointer-events-none absolute -right-6 -top-6 size-40 text-amber-200/50 rotate-12" aria-hidden />
       <header className="relative space-y-1">
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">Hall of champions</p>
@@ -135,6 +134,9 @@ export function PastChampions({ sport }: { sport: Sport }) {
           ) : null}
         </div>
       ) : null}
+      {/* Fireworks, then confetti, in front of the cards (on phones the cards fill the width, so behind them
+          they'd be hidden) — taps pass through. */}
+      <div ref={skyRef} className="pointer-events-none absolute inset-0 z-10" aria-hidden />
       <div ref={layerRef} className="pointer-events-none absolute inset-0 z-10" aria-hidden />
     </section>
   );
@@ -284,7 +286,12 @@ function launchFirework(sky: HTMLElement) {
   const { width, height } = sky.getBoundingClientRect();
   if (!width || !height) return;
   const x = rand(width * 0.12, width * 0.88);
-  const y = rand(height * 0.12, height * 0.45);
+  // Burst within the part of the section that's on screen (it can be taller than a phone).
+  const box = sky.getBoundingClientRect();
+  const top = Math.max(0, -box.top);
+  const bottom = Math.min(height, window.innerHeight - box.top);
+  if (bottom - top < 120) return;
+  const y = top + rand(0.15, 0.5) * (bottom - top);
   const colour = FIREWORK_COLOURS[Math.floor(Math.random() * FIREWORK_COLOURS.length)];
   const second = FIREWORK_COLOURS[Math.floor(Math.random() * FIREWORK_COLOURS.length)];
 
@@ -292,7 +299,7 @@ function launchFirework(sky: HTMLElement) {
   Object.assign(rocket.style, {
     position: 'absolute',
     left: `${x - 1.5}px`,
-    top: `${height}px`,
+    top: `${bottom}px`,
     width: '3px',
     height: '14px',
     borderRadius: '2px',
@@ -303,7 +310,7 @@ function launchFirework(sky: HTMLElement) {
   const climb = rocket.animate(
     [
       { transform: 'translate(0, 0)', opacity: 0.9 },
-      { transform: `translate(${rand(-12, 12)}px, ${y - height}px)`, opacity: 1 }
+      { transform: `translate(${rand(-12, 12)}px, ${y - bottom}px)`, opacity: 1 }
     ],
     { duration: rand(650, 900), easing: 'cubic-bezier(0.2, 0.6, 0.35, 1)', fill: 'forwards' }
   );
