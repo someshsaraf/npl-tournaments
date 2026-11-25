@@ -1,35 +1,43 @@
-import { useState, type ReactNode } from 'react';
-import { Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil, Users, X } from 'lucide-react';
 import {
   ENTRY_SIZE,
-  STAGE_LABEL,
   categoryLabel,
-  type KnockoutStart,
   type TournamentFormat,
   type Tournament,
   type TournamentCategory,
   type TournamentEntry,
   type TournamentPool
 } from '../../data/tournament';
-import {
-  buildEntry,
-  distributeIntoPools,
-  entryCount,
-  newId,
-  parseEntryLines,
-  poolName,
-  resolvedKnockoutStart,
-  suggestPoolCount
-} from '../../utils/tournament';
-import { Btn, Chip, CommitInput, ConfirmBtn, FieldLabel, Notice, Panel, inputCls } from './ui';
+import { buildEntry, newId, resolvedKnockoutStart } from '../../utils/tournament';
+import { Btn, ConfirmBtn, Notice, Panel, inputCls } from './ui';
 
-const PASTE_HINT: Record<TournamentFormat, string> = {
-  singles: 'One player per line\nRahul Mehta\nPriya Nair\n…',
-  doubles: 'One pair per line\nRahul & Priya\nAmit / Neha\n…',
-  team: 'One team per line — Team name: players\nAces: Rahul, Priya, Amit\nSmashers: Neha, Ravi, Sam, Jo\n…'
+/** buildEntry's hard cap on team size. */
+const TEAM_HARD_MAX = 8;
+
+const NOUN: Record<TournamentFormat, [string, string]> = {
+  singles: ['player', 'players'],
+  doubles: ['pair', 'pairs'],
+  team: ['team', 'teams']
 };
 
-/** Entries, pools and qualification for each category. */
+const countLabel = (format: TournamentFormat, n: number) => `${n} ${NOUN[format][n === 1 ? 0 : 1]}`;
+
+/** Every entry in a category, whatever pools it was split into. */
+const entriesOf = (cat: TournamentCategory) => cat.pools.filter((p) => !p.listOnly).flatMap((p) => p.entries);
+
+type Finish = 'none' | 'final' | 'semifinal';
+const FINISH: Record<Finish, { label: string; qualifiers: number }> = {
+  none: { label: 'Round robin decides — top of the table wins', qualifiers: 1 },
+  final: { label: 'Top 2 play a final', qualifiers: 2 },
+  semifinal: { label: 'Top 4 play semifinals, then a final', qualifiers: 4 }
+};
+
+/**
+ * Who plays in each category. Every category is one round robin (everyone
+ * plays everyone), stored as a single pool so fixtures and tables work as
+ * before; the Team Championship's teams are added after the chit draw.
+ */
 export function DrawPanel({
   t,
   onChange
@@ -42,7 +50,7 @@ export function DrawPanel({
 
   if (!cat) {
     return (
-      <Panel title="Draw">
+      <Panel title="Teams & Draw">
         <p className="text-sm text-slate-400">Pick formats and divisions on the Setup tab first.</p>
       </Panel>
     );
@@ -65,344 +73,169 @@ export function DrawPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        {t.categories.map((c) => (
-          <Chip key={c.id} active={c.id === cat.id} onClick={() => setCategoryId(c.id)}>
-            {categoryLabel(c)} <span className="opacity-60">· {entryCount(c)}</span>
-          </Chip>
-        ))}
-      </div>
+      <Panel title="Players by category" subtitle="Every category is a round robin — everyone plays everyone. Click a category to edit it.">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {t.categories.map((c) => (
+            <CategoryCard key={c.id} cat={c} active={c.id === cat.id} onSelect={() => setCategoryId(c.id)} />
+          ))}
+        </div>
+      </Panel>
 
       {drawChangedSinceFixtures ? (
         <Notice tone="warn">
-          The draw for {categoryLabel(cat)} changed after fixtures were generated. Regenerate its fixtures on the
-          Schedule tab so every entry is scheduled.
+          The players in {categoryLabel(cat)} changed after fixtures were generated. Regenerate its fixtures on the
+          Schedule tab so everyone is scheduled.
         </Notice>
       ) : null}
 
-      <QualifyingPanel cat={cat} onChange={setCat} />
-      <QuickDrawPanel cat={cat} onChange={setCat} hasEntries={entryCount(cat) > 0} />
-
-      <Panel
-        title={`${categoryLabel(cat)} pools`}
-        subtitle={`${cat.pools.length} pool${cat.pools.length === 1 ? '' : 's'} · ${entryCount(cat)} ${
-          cat.format === 'team' ? 'teams' : cat.format === 'doubles' ? 'pairs' : 'players'
-        }. Pools of 3-4 work best.`}
-        actions={
-          <>
-            <Btn
-              small
-              onClick={() =>
-                setCat({ ...cat, pools: [...cat.pools, { id: newId('p'), name: poolName(cat.pools.length), entries: [] }] })
-              }
-            >
-              <Plus className="size-3" aria-hidden /> Add pool
-            </Btn>
-            <ConfirmBtn
-              small
-              disabled={cat.pools.length === 0}
-              onConfirm={() => {
-                onChange({
-                  ...t,
-                  categories: t.categories.map((c) => (c.id === cat.id ? { ...cat, pools: [] } : c)),
-                  fixtures: t.fixtures.filter((f) => f.categoryId !== cat.id)
-                });
-              }}
-              confirmLabel="Clear pools + fixtures?"
-            >
-              Clear draw
-            </ConfirmBtn>
-          </>
+      <RoundRobinEditor
+        cat={cat}
+        onChange={setCat}
+        onCombine={(next) =>
+          onChange({
+            ...t,
+            categories: t.categories.map((c) => (c.id === next.id ? next : c)),
+            fixtures: t.fixtures.filter((f) => f.categoryId !== next.id)
+          })
         }
-      >
-        {cat.pools.length === 0 ? (
-          <p className="text-sm text-slate-500">No pools yet — use Quick draw above, or Add pool.</p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {cat.pools.map((pool) => (
-              <PoolCard key={pool.id} cat={cat} pool={pool} onChange={setCat} />
-            ))}
-          </div>
-        )}
-      </Panel>
+      />
     </div>
   );
 }
 
-function QualifyingPanel({ cat, onChange }: { cat: TournamentCategory; onChange: (c: TournamentCategory) => void }) {
-  const start = resolvedKnockoutStart(cat);
-  const qualifiers = cat.pools.length * cat.qualifiersPerPool;
+/** Overview card: a category and the names in it. */
+function CategoryCard({ cat, active, onSelect }: { cat: TournamentCategory; active: boolean; onSelect: () => void }) {
+  const entries = entriesOf(cat);
+  const pendingTeams = cat.format === 'team' && entries.length === 0;
   return (
-    <Panel title="Qualifying" subtitle="Who advances from the pools, and which knockout round they enter.">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <label className="block">
-          <FieldLabel>Advance per pool</FieldLabel>
-          <select
-            value={cat.qualifiersPerPool}
-            onChange={(e) => onChange({ ...cat, qualifiersPerPool: Number(e.target.value) })}
-            className={inputCls}
-          >
-            <option value={1}>Pool winner only</option>
-            <option value={2}>Top 2</option>
-            <option value={3}>Top 3</option>
-          </select>
-        </label>
-        <label className="block">
-          <FieldLabel>Knockout starts at</FieldLabel>
-          <select
-            value={cat.knockoutStart}
-            onChange={(e) => onChange({ ...cat, knockoutStart: e.target.value as KnockoutStart })}
-            className={inputCls}
-          >
-            <option value="auto">Auto (from qualifier count)</option>
-            <option value="quarterfinal">Quarterfinals</option>
-            <option value="semifinal">Semifinals</option>
-            <option value="final">Final</option>
-            <option value="none">No knockout (pool decides)</option>
-          </select>
-        </label>
-        <div className="rounded-lg bg-slate-800/60 border border-slate-700 px-3 py-2 text-xs text-slate-300 self-end">
-          {qualifiers} qualifier{qualifiers === 1 ? '' : 's'} →{' '}
-          <span className="font-bold text-lime-300">{start === 'none' ? 'no knockout' : STAGE_LABEL[start]}</span>
-          {start !== 'none' && qualifiers > 0 && qualifiers < { quarterfinal: 8, semifinal: 4, final: 2 }[start] ? (
-            <span className="text-slate-500"> (top seeds get byes)</span>
-          ) : null}
-        </div>
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={active}
+      className={`text-left rounded-xl border p-3 space-y-2 transition-colors ${
+        active ? 'border-lime-400 bg-slate-800/80' : 'border-slate-700 bg-slate-950/50 hover:border-slate-500'
+      }`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="font-black text-lime-300">{categoryLabel(cat)}</p>
+        <span className="text-[10px] font-bold text-slate-500 shrink-0">{countLabel(cat.format, entries.length)}</span>
       </div>
-    </Panel>
+      {pendingTeams ? (
+        <p className="inline-flex items-center gap-1.5 text-xs text-amber-300">
+          <Users className="size-3.5" aria-hidden /> Teams by chit draw — pending
+        </p>
+      ) : entries.length === 0 ? (
+        <p className="text-xs text-slate-500">No {NOUN[cat.format][1]} yet</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {entries.map((e) => (
+            <li key={e.id} className="text-sm text-slate-200 leading-snug">
+              {e.name}
+              {cat.format === 'team' && e.players.length ? (
+                <span className="block text-[11px] text-slate-400">{e.players.join(', ')}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </button>
   );
 }
 
-function QuickDrawPanel({
+/** Add, edit and remove a category's entries, and choose how it finishes. */
+function RoundRobinEditor({
   cat,
   onChange,
-  hasEntries
+  onCombine
 }: {
   cat: TournamentCategory;
   onChange: (c: TournamentCategory) => void;
-  hasEntries: boolean;
+  onCombine: (c: TournamentCategory) => void;
 }) {
-  const [text, setText] = useState('');
-  const [poolCountInput, setPoolCountInput] = useState('');
-  const [teamCount, setTeamCount] = useState('4');
-  const [errors, setErrors] = useState<string[]>([]);
-  const lines = text.split(/\r?\n/).filter((l) => l.trim()).length;
-  const poolCount = Number(poolCountInput) || suggestPoolCount(lines);
+  const label = categoryLabel(cat);
+  const realPools = cat.pools.filter((p) => !p.listOnly);
+  const entries = entriesOf(cat);
+  const n = entries.length;
+  const matches = (n * (n - 1)) / 2;
 
-  const draw = () => {
-    const { entries, errors: errs } = parseEntryLines(cat.format, text);
-    setErrors(errs);
-    if (errs.length > 0 || entries.length === 0) return;
-    // A single pool can't feed a bracket with its winner alone — default to top 2 → Final.
-    onChange({
-      ...cat,
-      pools: distributeIntoPools(entries, poolCount),
-      qualifiersPerPool: poolCount === 1 ? 2 : cat.qualifiersPerPool
-    });
-    setText('');
-  };
+  // Single round-robin group; reuse the existing one so fixture links survive.
+  const group: TournamentPool = realPools[0] ?? { id: newId('p'), name: 'Round robin', entries: [] };
+  const setEntries = (next: TournamentEntry[]) =>
+    onChange({ ...cat, pools: [{ ...group, name: 'Round robin', entries: next }, ...cat.pools.filter((p) => p.listOnly)] });
 
-  const createTeams = () => {
-    const n = Math.max(2, Math.min(32, Math.trunc(Number(teamCount)) || 0));
-    const teams: TournamentEntry[] = Array.from({ length: n }, (_, i) => ({
-      id: newId('e'),
-      name: `Team ${i + 1}`,
-      players: []
-    }));
-    const pools = Number(poolCountInput) || 1;
-    onChange({
-      ...cat,
-      pools: distributeIntoPools(teams, pools),
-      qualifiersPerPool: pools === 1 ? 2 : cat.qualifiersPerPool
-    });
-  };
+  const start = resolvedKnockoutStart(cat);
+  const finish: Finish = start === 'final' ? 'final' : start === 'none' ? 'none' : 'semifinal';
+  const setFinish = (f: Finish) => onChange({ ...cat, qualifiersPerPool: FINISH[f].qualifiers, knockoutStart: f });
 
   return (
     <Panel
-      title="Quick draw"
-      subtitle="Paste every entry, choose the number of pools, and they're spread evenly in the order pasted (paste seeds first to keep them apart)."
+      title={label}
+      subtitle={`Round robin · ${countLabel(cat.format, n)}${n >= 2 ? ` · ${matches} match${matches === 1 ? '' : 'es'}` : ''}`}
     >
-      <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={6}
-          placeholder={PASTE_HINT[cat.format]}
-          className={`${inputCls} font-mono`}
-          aria-label="Entries to draw"
-        />
-        <div className="space-y-3">
-          <label className="block">
-            <FieldLabel>Number of pools</FieldLabel>
-            <input
-              type="number"
-              min={1}
-              max={26}
-              value={poolCountInput}
-              placeholder={`${suggestPoolCount(lines)} (suggested)`}
-              onChange={(e) => setPoolCountInput(e.target.value)}
-              className={inputCls}
-            />
-          </label>
-          <p className="text-[11px] text-slate-500">
-            {lines} entr{lines === 1 ? 'y' : 'ies'} → {poolCount} pool{poolCount === 1 ? '' : 's'} of ~
-            {Math.ceil(lines / Math.max(1, poolCount)) || 0}
-          </p>
-          <MaybeConfirm confirm={hasEntries} tone="primary" onRun={draw} disabled={lines === 0} confirmLabel="Replace current pools?">
-            Draw pools
-          </MaybeConfirm>
-        </div>
-      </div>
-      {cat.format === 'team' ? (
-        <div className="flex flex-wrap items-end gap-3 border-t border-slate-800 pt-4">
-          <label className="block w-40">
-            <FieldLabel>Or: number of teams</FieldLabel>
-            <input
-              type="number"
-              min={2}
-              max={32}
-              value={teamCount}
-              onChange={(e) => setTeamCount(e.target.value)}
-              className={inputCls}
-            />
-          </label>
-          <MaybeConfirm confirm={hasEntries} onRun={createTeams} confirmLabel="Replace current teams?">
-            Create blank teams
-          </MaybeConfirm>
-          <p className="text-[11px] text-slate-500 pb-2">Then name each team and add its 3-4 players below.</p>
-        </div>
-      ) : null}
-      {errors.length > 0 ? (
-        <Notice tone="error">
-          <p className="font-bold mb-1">Fix these lines and draw again:</p>
-          <ul className="list-disc pl-4 space-y-0.5">
-            {errors.map((e) => (
-              <li key={e}>{e}</li>
-            ))}
-          </ul>
+      {realPools.length > 1 ? (
+        <Notice tone="warn">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-auto">
+              {label} is still split into {realPools.length} pools. Combine them into one round robin (its fixtures are
+              cleared — regenerate them on the Schedule tab).
+            </span>
+            <ConfirmBtn
+              small
+              tone="primary"
+              onConfirm={() =>
+                onCombine({ ...cat, pools: [{ ...realPools[0], name: 'Round robin', entries }, ...cat.pools.filter((p) => p.listOnly)] })
+              }
+              confirmLabel="Combine + clear fixtures?"
+            >
+              Combine into one round robin
+            </ConfirmBtn>
+          </div>
         </Notice>
       ) : null}
-    </Panel>
-  );
-}
 
-/** Plain button, or a two-step confirm when the action would overwrite something. */
-function MaybeConfirm({
-  confirm,
-  onRun,
-  confirmLabel,
-  tone = 'neutral',
-  disabled,
-  children
-}: {
-  confirm: boolean;
-  onRun: () => void;
-  confirmLabel: string;
-  tone?: 'primary' | 'neutral';
-  disabled?: boolean;
-  children: ReactNode;
-}) {
-  return confirm ? (
-    <ConfirmBtn onConfirm={onRun} confirmLabel={confirmLabel} tone={tone} disabled={disabled}>
-      {children}
-    </ConfirmBtn>
-  ) : (
-    <Btn onClick={onRun} tone={tone} disabled={disabled}>
-      {children}
-    </Btn>
-  );
-}
+      {cat.format === 'team' && n === 0 ? (
+        <Notice tone="warn">
+          Teams will be formed by chit draw. After the draw, add each team here with its name and players.
+        </Notice>
+      ) : null}
 
-function PoolCard({
-  cat,
-  pool,
-  onChange
-}: {
-  cat: TournamentCategory;
-  pool: TournamentPool;
-  onChange: (c: TournamentCategory) => void;
-}) {
-  const setPool = (next: TournamentPool) =>
-    onChange({ ...cat, pools: cat.pools.map((p) => (p.id === pool.id ? next : p)) });
-
-  const moveEntry = (entry: TournamentEntry, toPoolId: string) =>
-    onChange({
-      ...cat,
-      pools: cat.pools.map((p) =>
-        p.id === pool.id
-          ? { ...p, entries: p.entries.filter((e) => e.id !== entry.id) }
-          : p.id === toPoolId
-            ? { ...p, entries: [...p.entries, entry] }
-            : p
-      )
-    });
-
-  const size = pool.entries.length;
-  return (
-    <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 space-y-3">
-      <div className="flex items-center gap-2">
-        <CommitInput
-          value={pool.name}
-          maxLength={40}
-          onCommit={(v) => setPool({ ...pool, name: v.trim() || pool.name })}
-          className="flex-1 bg-transparent border-b border-slate-700 text-base font-black text-lime-300 focus:outline-none focus:border-lime-400"
-          aria-label="Pool name"
-        />
-        <span className={`text-[10px] font-bold ${pool.listOnly || (size >= 3 && size <= 4) ? 'text-slate-500' : 'text-amber-400'}`}>
-          {size} {size === 1 ? 'entry' : 'entries'}
-        </span>
-        <ConfirmBtn
-          small
-          onConfirm={() => onChange({ ...cat, pools: cat.pools.filter((p) => p.id !== pool.id) })}
-          confirmLabel="Delete?"
-        >
-          <Trash2 className="size-3" aria-label="Delete pool" />
-        </ConfirmBtn>
-      </div>
-      <label className="flex items-center gap-2 text-[11px] text-slate-400">
-        <input
-          type="checkbox"
-          checked={!!pool.listOnly}
-          onChange={(e) => setPool({ ...pool, listOnly: e.target.checked || undefined })}
-          className="accent-lime-400"
-        />
-        Entry list only — no pool matches (e.g. finalists)
-      </label>
       <ul className="space-y-1.5">
-        {pool.entries.map((entry) => (
+        {entries.map((entry) => (
           <EntryRow
             key={entry.id}
             format={cat.format}
             entry={entry}
-            pools={cat.pools}
-            currentPoolId={pool.id}
-            onSave={(next) => setPool({ ...pool, entries: pool.entries.map((e) => (e.id === entry.id ? next : e)) })}
-            onRemove={() => setPool({ ...pool, entries: pool.entries.filter((e) => e.id !== entry.id) })}
-            onMove={(toPoolId) => moveEntry(entry, toPoolId)}
+            onSave={(next) => setEntries(entries.map((e) => (e.id === entry.id ? next : e)))}
+            onRemove={() => setEntries(entries.filter((e) => e.id !== entry.id))}
           />
         ))}
       </ul>
-      <AddEntryForm format={cat.format} onAdd={(entry) => setPool({ ...pool, entries: [...pool.entries, entry] })} />
-    </div>
+      <AddEntryForm format={cat.format} onAdd={(entry) => setEntries([...entries, entry])} />
+
+      <label className="flex flex-wrap items-center gap-2 text-sm text-slate-300 border-t border-slate-800 pt-4">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">After the round robin</span>
+        <select value={finish} onChange={(e) => setFinish(e.target.value as Finish)} className={`${inputCls} sm:w-auto`}>
+          {(Object.keys(FINISH) as Finish[]).map((f) => (
+            <option key={f} value={f} disabled={f !== 'none' && n > 0 && n < FINISH[f].qualifiers}>
+              {FINISH[f].label}
+            </option>
+          ))}
+        </select>
+      </label>
+    </Panel>
   );
 }
 
 function EntryRow({
   format,
   entry,
-  pools,
-  currentPoolId,
   onSave,
-  onRemove,
-  onMove
+  onRemove
 }: {
   format: TournamentFormat;
   entry: TournamentEntry;
-  pools: TournamentPool[];
-  currentPoolId: string;
   onSave: (e: TournamentEntry) => void;
   onRemove: () => void;
-  onMove: (poolId: string) => void;
 }) {
   const [editing, setEditing] = useState(format === 'team' && entry.players.length === 0);
   if (editing) {
@@ -421,7 +254,8 @@ function EntryRow({
       </li>
     );
   }
-  const teamShort = format === 'team' && (entry.players.length < 3 || entry.players.length > 4);
+  const { min, max } = ENTRY_SIZE.team;
+  const teamShort = format === 'team' && (entry.players.length < min || entry.players.length > max);
   return (
     <li className="group flex items-start gap-2 rounded-lg bg-slate-800/60 px-2.5 py-1.5">
       <div className="min-w-0 flex-1">
@@ -429,27 +263,10 @@ function EntryRow({
         {format === 'team' ? (
           <p className={`text-[11px] truncate ${teamShort ? 'text-amber-400' : 'text-slate-400'}`}>
             {entry.players.length > 0 ? entry.players.join(', ') : 'No players yet'}
-            {teamShort ? ` · ${entry.players.length}/3-4` : ''}
+            {teamShort ? ` · ${entry.players.length}/${min}-${max}` : ''}
           </p>
         ) : null}
       </div>
-      {pools.length > 1 ? (
-        <select
-          value=""
-          onChange={(e) => e.target.value && onMove(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded text-[10px] text-slate-300 px-1 py-1 max-w-[5.5rem]"
-          aria-label={`Move ${entry.name} to another pool`}
-        >
-          <option value="">Move…</option>
-          {pools
-            .filter((p) => p.id !== currentPoolId)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-        </select>
-      ) : null}
       <button type="button" onClick={() => setEditing(true)} className="text-slate-400 hover:text-white p-1" aria-label={`Edit ${entry.name}`}>
         <Pencil className="size-3.5" />
       </button>
@@ -545,13 +362,13 @@ function EntryForm({
             autoFocus={format !== 'team' && i === 0}
             value={p}
             onChange={(e) => setPlayers(players.map((x, j) => (j === i ? e.target.value : x)))}
-            placeholder={format === 'team' ? `Player ${i + 1}${i >= 3 ? ' (optional)' : ''}` : `Player ${i + 1}`}
+            placeholder={format === 'team' ? `Player ${i + 1}${i >= ENTRY_SIZE.team.min ? ' (optional)' : ''}` : `Player ${i + 1}`}
             maxLength={60}
             className={inputCls}
           />
         ))}
       </div>
-      {format === 'team' && players.length < 6 ? (
+      {format === 'team' && players.length < TEAM_HARD_MAX ? (
         <button
           type="button"
           onClick={() => setPlayers([...players, ''])}

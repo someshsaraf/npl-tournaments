@@ -338,7 +338,7 @@ export function buildEntry(format: TournamentFormat, players: string[], teamName
   const clean = players.map((p) => p.trim().replace(/\s+/g, ' ').slice(0, 60)).filter(Boolean);
   const { min, max } = ENTRY_SIZE[format];
   if (format === 'team') {
-    if (clean.length > 6) throw new Error('A team can have at most 6 players.');
+    if (clean.length > 8) throw new Error('A team can have at most 8 players.');
     const name = (teamName ?? '').trim().slice(0, 60);
     if (!name) throw new Error('Give the team a name.');
     return { id: newId('e'), name, players: clean };
@@ -694,7 +694,11 @@ export function resolveSide(ctx: TournamentContext, side: FixtureSide, depth = 0
       return { label: 'TBD', entry: null, isBye: false };
     case 'poolRank': {
       const pool = ctx.poolsById.get(side.poolId);
-      const label = `${ordinalPlace(side.rank)} ${pool?.name ?? 'Pool'}`;
+      // One round-robin group → "1st place"; several pools → "Winner Pool A".
+      const label =
+        ctx.poolsById.size === 1 || (pool && pool.name === 'Round robin')
+          ? `${['1st', '2nd', '3rd', '4th'][side.rank - 1] ?? `#${side.rank}`} place`
+          : `${ordinalPlace(side.rank)} ${pool?.name ?? 'Pool'}`;
       if (!pool || !isPoolComplete(ctx, pool.id)) return { label, entry: null, isBye: false };
       const row = poolStandings(ctx, pool.id)[side.rank - 1];
       return row ? { label: row.entry.name, entry: row.entry, isBye: false } : { label, entry: null, isBye: false };
@@ -836,8 +840,8 @@ export function validateTournament(t: Tournament): { errors: string[]; warnings:
       if (!p.listOnly && p.entries.length < 2) warnings.push(`${label} · ${p.name}: needs at least 2 entries.`);
       if (c.format === 'team') {
         for (const e of p.entries) {
-          if (e.players.length < 3 || e.players.length > 4) {
-            warnings.push(`${label} · ${e.name}: ${e.players.length} players (expected 3-4).`);
+          if (e.players.length < ENTRY_SIZE.team.min || e.players.length > ENTRY_SIZE.team.max) {
+            warnings.push(`${label} · ${e.name}: ${e.players.length} players (expected ${ENTRY_SIZE.team.min}-${ENTRY_SIZE.team.max}).`);
           }
         }
       }

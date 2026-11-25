@@ -15,6 +15,7 @@ import {
   isPoolComplete,
   poolStandings,
   resolveSide,
+  resolvedKnockoutStart,
   type FixtureStatus,
   type TournamentContext
 } from '../../utils/tournament';
@@ -372,8 +373,14 @@ export function TournamentRulesView({ ctx }: { ctx: TournamentContext }) {
               <span className="font-bold text-ink">{categoryLabel(c)}</span> —{' '}
               {pools === 0
                 ? 'knockout only'
-                : `${pools} pool${pools === 1 ? '' : 's'}, top ${c.qualifiersPerPool} per pool advance`}
-              {c.format === 'team' ? '. Teams of 3–4 players.' : '.'}
+                : pools === 1
+                  ? `round robin (everyone plays everyone)${
+                      { none: ', top of the table wins', final: ', top 2 play the final', semifinal: ', top 4 play semifinals', quarterfinal: ', top 8 play quarterfinals' }[
+                        resolvedKnockoutStart(c)
+                      ]
+                    }`
+                  : `${pools} pools, top ${c.qualifiersPerPool} per pool advance`}
+              {c.format === 'team' ? (c.pools.some((p) => p.entries.length) ? '.' : '. Teams to be formed by chit draw.') : '.'}
             </li>
             );
           })}

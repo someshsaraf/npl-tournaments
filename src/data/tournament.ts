@@ -33,7 +33,7 @@ export const DIVISION_LABEL: Record<TournamentDivision, string> = {
   women: 'Women'
 };
 
-/** A player (singles), a pair (doubles) or a team of 3-4 (team). */
+/** A player (singles), a pair (doubles) or a team of 3-6 (team). */
 export interface TournamentEntry {
   id: string;
   /** Display name: the player, "A & B", or the team name. */
@@ -238,9 +238,9 @@ export function matchTypeForFormat(format: TournamentFormat): TennisMatchType {
   return format;
 }
 
-/** Players per entry the UI asks for. Team size is a soft range (3-4). */
+/** Players per entry the UI asks for. Team size is a soft range (3-6; up to 8 allowed). */
 export const ENTRY_SIZE: Record<TournamentFormat, { min: number; max: number }> = {
   singles: { min: 1, max: 1 },
   doubles: { min: 2, max: 2 },
-  team: { min: 3, max: 4 }
+  team: { min: 3, max: 6 }
 };
