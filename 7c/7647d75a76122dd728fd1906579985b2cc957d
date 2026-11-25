@@ -1,0 +1,26 @@
+src/components/RegistrationBanner.tsx
+  s_817f7292661c84::t_5c13df497a6fbf 159-164,179
+  s_817f7292661c84::t_786077c76af631 178
+src/pages/HomePage.tsx
+  s_817f7292661c84::t_bfb8929ad46e7d 92,131
+src/data/sports.ts
+  s_817f7292661c84::t_bfb8929ad46e7d 12-13
+src/components/SportHero.tsx
+  s_817f7292661c84::t_bfb8929ad46e7d 52-54,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c7647d75a76122dd728fd1906579985b2cc957d",
+  "prompts": {},
+  "sessions": {
+    "s_817f7292661c84": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "74f2b191-ef87-4df8-b61c-05c66d09126e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@gmail.com>"
+    }
+  }
+}
