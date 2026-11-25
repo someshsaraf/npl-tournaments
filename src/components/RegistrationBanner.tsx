@@ -53,7 +53,7 @@ export function DeadlineTile({ config, tone = 'light' }: { config: RegistrationC
 
 /**
  * Big "32 players registered" tile with the split by age group (Kids under
- * 21 / Adults 21+) — numbers only, names stay admin-only. Hidden until known.
+ * 21 / Adults 21+). Hidden until known.
  */
 export function RegisteredCount({ stats, open }: { stats: RegisteredStats | null; open: boolean }) {
   if (stats === null) return null;
@@ -88,6 +88,35 @@ export function RegisteredCount({ stats, open }: { stats: RegisteredStats | null
   );
 }
 
+/** Everyone registered, listed by category (Kids · Singles, …). */
+function RegisteredPlayers({ config, stats }: { config: RegistrationConfig; stats: RegisteredStats | null }) {
+  if (!stats || stats.players.length === 0) return null;
+  const lists = config.categories
+    .map((c) => ({ cat: c, names: stats.players.filter((p) => p.categories.includes(c.id)).map((p) => p.name) }))
+    .filter((l) => l.names.length > 0);
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-ink">Registered players</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {lists.map(({ cat, names }) => (
+          <section key={cat.id} className="rounded-xl border border-line bg-white px-4 py-3">
+            <h3 className="text-xs font-black uppercase tracking-wide text-emerald-700">
+              {cat.label} <span className="text-slate-500">· {names.length}</span>
+            </h3>
+            <ol className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-sm text-ink sm:grid-cols-2">
+              {names.map((n, i) => (
+                <li key={`${n}-${i}`} className="truncate">
+                  <span className="tabular-nums text-slate-400">{i + 1}.</span> {n}
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Lime "Register" pill for a sport hero — only while registration is open. */
 export function RegisterButton({ config, slug }: { config: RegistrationConfig; slug: string }) {
   if (!registrationOpen(config)) return null;
@@ -116,14 +145,21 @@ export function RegistrationBanner({ config, slug, sport }: { config: Registrati
 
   if (!open) {
     return (
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl border border-line bg-paper-soft px-5 py-5">
-        <div className="min-w-0 flex-1 basis-60 space-y-1">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Registration closed on {closes}</p>
-          <p className="portal-display text-3xl text-ink tracking-wide leading-none">{config.title}</p>
-          <p className="text-xs text-ink-soft">{who} — the draw and match times will be published here.</p>
+      <div className="rounded-2xl border border-line bg-paper-soft px-5 py-5 space-y-5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          <div className="min-w-0 flex-1 basis-60 space-y-1">
+            <p className="inline-flex rounded-full bg-rose-600 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white">
+              Registrations closed
+            </p>
+            <p className="portal-display text-3xl text-ink tracking-wide leading-none">{config.title}</p>
+            <p className="text-xs text-ink-soft">
+              Closed on {closes}. {who} — the draw and match times will be published here.
+            </p>
+          </div>
+          <RegisteredCount stats={stats} open={false} />
+          <TournamentDates weekends={config.weekends} />
         </div>
-        <RegisteredCount stats={stats} open={false} />
-        <TournamentDates weekends={config.weekends} />
+        <RegisteredPlayers config={config} stats={stats} />
       </div>
     );
   }

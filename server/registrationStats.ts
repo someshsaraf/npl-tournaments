@@ -9,7 +9,7 @@ import {
 
 /**
  * Keep registrationStats/{sport} (numbers only — community-readable) in step
- * with registrations/{sport} (names — admins only), so resident pages see the
+ * with registrations/{sport} (admins only; the public copy carries names + categories only), so resident pages see the
  * count change the moment someone registers, or an admin edits or removes one.
  */
 export function keepRegistrationStats(store: Store): void {

@@ -24,11 +24,10 @@ import {
  * readable only by admins (server/rules.ts). One registration per person:
  * a name that's already registered (case/spacing-insensitive) is refused.
  *
- * GET /api/registrations?sport=tennis  → { count, groups: [{ group, count }] }
+ * GET /api/registrations?sport=tennis  → { count, groups: [{ group, count }], players: [{ name, categories }] }
  *
- * How many people have registered, overall and per age group — numbers only,
- * never names, so the
- * resident form can show it. Counted live, so admin edits show straight away.
+ * How many people have registered, overall and per age group, plus who —
+ * residents see the list once registration closes. Counted live, so admin edits show straight away.
  */
 
 const NAME_RE = /^[\p{L}][\p{L}\p{M}.' -]{1,59}$/u;

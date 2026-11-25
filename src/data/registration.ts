@@ -309,14 +309,17 @@ export function registrationCategories(row: { categories?: unknown; category?: u
 }
 
 /**
- * Public registration numbers — overall and per age group, never names.
- * The server keeps a copy at registrationStats/{sport} (community-readable)
+ * Public registration numbers — overall and per age group — plus the
+ * registered players (name + category ids, shown to residents once
+ * registration closes). The server keeps a copy at registrationStats/{sport} (community-readable)
  * so pages update the moment someone registers.
  */
 export interface RegistrationStats {
   count: number;
   /** Per age group, in form order, e.g. [{ group: 'Kids (under 21)', count: 4 }, …]. */
   groups: { group: string; count: number }[];
+  /** Everyone registered, sorted by name. */
+  players: { name: string; categories: string[] }[];
 }
 
 export const REGISTRATION_STATS_TOP = 'registrationStats';
@@ -338,7 +341,10 @@ export function registrationStats(sport: RegistrationKey, rawRows: unknown): Reg
     group,
     count: rows.filter((r) => groupOf.get(registrationCategories(r)[0] ?? '') === group).length
   }));
-  return { count: rows.length, groups };
+  const players = rows
+    .map((r) => ({ name: r.name, categories: registrationCategories(r) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return { count: rows.length, groups, players };
 }
 
 export function groupsOf(config: RegistrationConfig): string[] {

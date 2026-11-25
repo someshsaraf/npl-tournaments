@@ -7,12 +7,20 @@ export type RegisteredStats = RegistrationStats;
 
 function parse(v: unknown): RegisteredStats | null {
   if (!v || typeof v !== 'object') return null;
-  const d = v as { count?: unknown; groups?: unknown };
+  const d = v as { count?: unknown; groups?: unknown; players?: unknown };
   if (typeof d.count !== 'number') return null;
   const groups = Array.isArray(d.groups)
     ? d.groups.filter((g): g is RegisteredStats['groups'][number] => typeof g?.group === 'string' && typeof g?.count === 'number')
     : [];
-  return { count: d.count, groups };
+  const players = Array.isArray(d.players)
+    ? d.players
+        .filter((p): p is { name: string; categories?: unknown } => typeof p?.name === 'string')
+        .map((p) => ({
+          name: p.name,
+          categories: Array.isArray(p.categories) ? p.categories.filter((c): c is string => typeof c === 'string') : []
+        }))
+    : [];
+  return { count: d.count, groups, players };
 }
 
 /**
@@ -25,7 +33,7 @@ export function useRegisteredCount(sport: RegistrationKey): RegisteredStats | nu
   useEffect(() => {
     const unsub = onValue(
       ref(db, registrationStatsPath(sport)),
-      (snap) => setStats(parse(snap.val()) ?? { count: 0, groups: [] }),
+      (snap) => setStats(parse(snap.val()) ?? { count: 0, groups: [], players: [] }),
       () => {}
     );
     return () => unsub();

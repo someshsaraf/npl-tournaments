@@ -139,7 +139,7 @@ export default function TournamentRegisterPage({ sport }: { sport: RegistrationK
         <Reveal>
           <section className="rounded-3xl border border-line bg-paper-soft p-6 sm:p-8 text-center space-y-3" role="status">
             <CalendarX2 className="size-12 mx-auto text-slate-400" aria-hidden />
-            <h2 className="portal-display text-4xl text-ink tracking-wide">Registration closed</h2>
+            <h2 className="portal-display text-4xl text-ink tracking-wide">Registrations closed</h2>
             <p className="text-ink-soft">
               Registration for the {config.title} closed on <span className="font-bold text-ink">{closes}</span>.
             </p>
