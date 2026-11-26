@@ -1,0 +1,21 @@
+src/components/SportHero.tsx
+  s_817f7292661c84::t_5380a1b7c29a46 37-38,40,42,61-63,65,79
+src/data/pastWinners.ts
+  s_817f7292661c84::t_76f7564afdf887 28-40,55-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d094055c0f78594590dc15baf3ad7733732d3be",
+  "prompts": {},
+  "sessions": {
+    "s_817f7292661c84": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "74f2b191-ef87-4df8-b61c-05c66d09126e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@gmail.com>"
+    }
+  }
+}
