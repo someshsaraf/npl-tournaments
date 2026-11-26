@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pencil, Users, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Pencil, UserPlus, Users, X } from 'lucide-react';
 import {
   ENTRY_SIZE,
   categoryLabel,
@@ -10,6 +10,7 @@ import {
   type TournamentPool
 } from '../../data/tournament';
 import { buildEntry, newId, resolvedKnockoutStart } from '../../utils/tournament';
+import { isRegistrationKey, normalizeName, singlesRosterFor, type RosterPlayer } from '../../data/registration';
 import { Btn, ConfirmBtn, Notice, Panel, inputCls } from './ui';
 
 /** buildEntry's hard cap on team size. */
@@ -46,6 +47,7 @@ export function DrawPanel({
   onChange: (next: Tournament) => void;
 }) {
   const [categoryId, setCategoryId] = useState(t.categories[0]?.id ?? '');
+  const roster = useRoster(t.sport);
   const cat = t.categories.find((c) => c.id === categoryId) ?? t.categories[0];
 
   if (!cat) {
@@ -90,6 +92,7 @@ export function DrawPanel({
 
       <RoundRobinEditor
         cat={cat}
+        roster={roster}
         onChange={setCat}
         onCombine={(next) =>
           onChange({
@@ -99,6 +102,61 @@ export function DrawPanel({
           })
         }
       />
+    </div>
+  );
+}
+
+/** The organisers' CSV roster (admins only); empty when there's none. */
+function useRoster(sport: string): RosterPlayer[] {
+  const [roster, setRoster] = useState<RosterPlayer[]>([]);
+  useEffect(() => {
+    if (!isRegistrationKey(sport)) return;
+    let live = true;
+    fetch(`/api/registration-roster?sport=${sport}`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : { players: [] }))
+      .then((d: { players?: RosterPlayer[] }) => live && setRoster(Array.isArray(d.players) ? d.players : []))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [sport]);
+  return roster;
+}
+
+/**
+ * Singles categories named Kids, Women, Adult A or Adult B: one click adds the
+ * registered singles players for it (from the CSV) who aren't in yet.
+ */
+function PrefillSingles({
+  label,
+  division,
+  roster,
+  entries,
+  onAdd
+}: {
+  label: string;
+  division?: string;
+  roster: RosterPlayer[];
+  entries: TournamentEntry[];
+  onAdd: (names: string[]) => void;
+}) {
+  const matched = singlesRosterFor(label, division, roster);
+  if (!matched) return null;
+  const have = new Set(entries.flatMap((e) => e.players.map(normalizeName)));
+  const missing = matched.map((p) => p.name).filter((n) => !have.has(normalizeName(n)));
+  if (missing.length === 0) {
+    return matched.length ? (
+      <p className="text-[11px] text-slate-500">All {matched.length} registered singles players for {label} are in.</p>
+    ) : null;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-lime-400/30 bg-lime-400/5 px-2.5 py-2">
+      <p className="mr-auto text-xs text-slate-300">
+        <span className="font-bold text-lime-300">From registrations:</span> {missing.join(', ')}
+      </p>
+      <Btn small tone="primary" onClick={() => onAdd(missing)}>
+        <UserPlus className="size-3.5" aria-hidden /> Add {missing.length}
+      </Btn>
     </div>
   );
 }
@@ -145,10 +203,12 @@ function CategoryCard({ cat, active, onSelect }: { cat: TournamentCategory; acti
 /** Add, edit and remove a category's entries, and choose how it finishes. */
 function RoundRobinEditor({
   cat,
+  roster,
   onChange,
   onCombine
 }: {
   cat: TournamentCategory;
+  roster: RosterPlayer[];
   onChange: (c: TournamentCategory) => void;
   onCombine: (c: TournamentCategory) => void;
 }) {
@@ -210,6 +270,15 @@ function RoundRobinEditor({
           />
         ))}
       </ul>
+      {cat.format === 'singles' ? (
+        <PrefillSingles
+          label={label}
+          division={cat.division}
+          roster={roster}
+          entries={entries}
+          onAdd={(names) => setEntries([...entries, ...names.map((name) => buildEntry('singles', [name]))])}
+        />
+      ) : null}
       <AddEntryForm format={cat.format} onAdd={(entry) => setEntries([...entries, entry])} />
 
       <label className="flex flex-wrap items-center gap-2 text-sm text-slate-300 border-t border-slate-800 pt-4">

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { normalizeName, type PlayerGender, type RegistrationKey } from '../src/data/registration.js';
+import { normalizeName, type PlayerGender, type RegistrationKey, type RosterPlayer } from '../src/data/registration.js';
 
 /**
  * Men/Women for registered players, read from the organisers' CSV at
@@ -11,22 +11,59 @@ import { normalizeName, type PlayerGender, type RegistrationKey } from '../src/d
  */
 export function gendersFromCsv(sport: RegistrationKey): Map<string, PlayerGender> {
   const out = new Map<string, PlayerGender>();
+  for (const p of rosterFromCsv(sport, true)) {
+    if (p.group !== 'kids') out.set(normalizeName(p.name), p.group === 'women' ? 'f' : 'm');
+  }
+  if (out.size) console.log(`${sport}: Men/Women for ${out.size} player(s) from the seed CSV`);
+  return out;
+}
+
+/**
+ * Every player in seed/{sport}-registrations.csv: Kids / Women / Men (from the
+ * "Category" column, or the age group for kids), Level A/B, and whether they
+ * entered singles / doubles. Read fresh on each call, so a replaced CSV
+ * shows up without a restart. Admin-only (api/registration-roster.ts).
+ */
+export function rosterFromCsv(sport: RegistrationKey, quiet = false): RosterPlayer[] {
   const file = resolve(process.env.SEED_DIR || 'seed', `${sport}-registrations.csv`);
-  if (!existsSync(file)) return out;
+  if (!existsSync(file)) return [];
   const rows = parseCsv(readFileSync(file, 'utf8'));
   const header = (rows.shift() ?? []).map((h) => h.trim().toLowerCase());
-  const nameCol = header.indexOf('name');
-  const genderCol = header.findIndex((h) => h === 'category' || h === 'gender');
-  if (nameCol < 0 || genderCol < 0) {
-    console.warn(`${file}: needs a "Name" and a "Category" (Men / Women) column — ignored.`);
-    return out;
+  const col = (...names: string[]) => header.findIndex((h) => names.includes(h));
+  const nameCol = col('name');
+  const groupCol = col('category', 'gender');
+  const ageCol = col('age group');
+  const levelCol = col('level');
+  const singlesCol = col('singles');
+  const doublesCol = col('doubles');
+  if (nameCol < 0 || groupCol < 0) {
+    if (!quiet) console.warn(`${file}: needs a "Name" and a "Category" (Men / Women / Kid) column — ignored.`);
+    return [];
   }
+  const yes = (r: string[], c: number) => c >= 0 && /^(yes|y|true|1|x|✓)$/i.test((r[c] ?? '').trim());
+  const out: RosterPlayer[] = [];
   for (const r of rows) {
-    const g = (r[genderCol] ?? '').trim().toLowerCase();
-    const gender = /^(women|woman|female|f)$/.test(g) ? 'f' : /^(men|man|male|m)$/.test(g) ? 'm' : null;
-    if (gender && r[nameCol]?.trim()) out.set(normalizeName(r[nameCol]), gender);
+    const name = (r[nameCol] ?? '').trim().replace(/\s+/g, ' ');
+    if (!name) continue;
+    const g = (r[groupCol] ?? '').trim().toLowerCase();
+    const age = ageCol >= 0 ? (r[ageCol] ?? '').toLowerCase() : '';
+    const group = /^(kid|kids|child|junior)$/.test(g) || /kid/.test(age)
+      ? 'kids'
+      : /^(women|woman|female|f)$/.test(g)
+        ? 'women'
+        : /^(men|man|male|m)$/.test(g)
+          ? 'men'
+          : null;
+    if (!group) continue;
+    const lv = levelCol >= 0 ? (r[levelCol] ?? '').trim().toUpperCase() : '';
+    out.push({
+      name,
+      group,
+      level: lv === 'A' || lv === 'B' ? lv : '',
+      singles: singlesCol < 0 || yes(r, singlesCol),
+      doubles: doublesCol < 0 || yes(r, doublesCol)
+    });
   }
-  console.log(`${sport}: Men/Women for ${out.size} player(s) from ${file}`);
   return out;
 }
 

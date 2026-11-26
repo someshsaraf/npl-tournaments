@@ -9,6 +9,7 @@ import galleryDeleteHandler from '../api/gallery-delete.js';
 import snapshotUploadUrlHandler from '../api/snapshot-upload-url.js';
 import youtubeRecordingsHandler from '../api/youtube-recordings.js';
 import registrationsHandler from '../api/registrations.js';
+import registrationRosterHandler from '../api/registration-roster.js';
 import predictionsHandler from '../api/predictions.js';
 import { getAccessSession, getAdminSession } from '../api/_lib/session.js';
 import { getAccessCodeVersion } from '../api/_lib/accessCode.js';
@@ -101,6 +102,7 @@ app.all('/api/gallery-delete', api(galleryDeleteHandler));
 app.all('/api/snapshot-upload-url', api(snapshotUploadUrlHandler));
 app.all('/api/youtube-recordings', requireAccess, api(youtubeRecordingsHandler));
 app.all('/api/registrations', api(registrationsHandler));
+app.all('/api/registration-roster', api(registrationRosterHandler));
 app.all('/api/predictions', api(predictionsHandler));
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });

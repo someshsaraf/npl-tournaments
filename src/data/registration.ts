@@ -397,6 +397,31 @@ export function describeSelection(config: RegistrationConfig, ids: string[]): st
 }
 
 /** "  priya   nair " → "priya nair" — how duplicate names are compared. */
+/** A player from the organisers' CSV (seed/{sport}-registrations.csv), for prefilling the draw. */
+export interface RosterPlayer {
+  name: string;
+  group: 'kids' | 'women' | 'men';
+  level: 'A' | 'B' | '';
+  singles: boolean;
+  doubles: boolean;
+}
+
+/**
+ * Who belongs in a singles category, by its name: Kids → kids; Women → women
+ * not in Level A; "Adult(s) A" → everyone in Level A (women included);
+ * "Adult(s) B" → Level B men. Null when the name doesn't say which.
+ */
+export function singlesRosterFor(label: string, division: string | undefined, roster: RosterPlayer[]): RosterPlayer[] | null {
+  const l = label.toLowerCase();
+  const pick = (f: (p: RosterPlayer) => boolean) => roster.filter((p) => p.singles && f(p));
+  if (division === 'kids' || /\bkids?\b|kid's|kids'/.test(l)) return pick((p) => p.group === 'kids');
+  if (division === 'women' || /\b(women|woman|ladies)\b|women's/.test(l)) return pick((p) => p.group === 'women' && p.level !== 'A');
+  const level = /(?:^|[\s(])([ab])(?=[\s)]|$)/.exec(l)?.[1]?.toUpperCase();
+  if (level === 'A') return pick((p) => p.group !== 'kids' && p.level === 'A');
+  if (level === 'B') return pick((p) => p.group === 'men' && p.level === 'B');
+  return null;
+}
+
 export function normalizeName(raw: string): string {
   return raw.trim().replace(/\s+/g, ' ').toLowerCase();
 }
