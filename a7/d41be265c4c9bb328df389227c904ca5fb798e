@@ -1,0 +1,19 @@
+src/data/registration.ts
+  s_817f7292661c84::t_d04978e502f73d 417-418
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a7d41be265c4c9bb328df389227c904ca5fb798e",
+  "prompts": {},
+  "sessions": {
+    "s_817f7292661c84": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "74f2b191-ef87-4df8-b61c-05c66d09126e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Somesh Saraf <somesh.saraf@gmail.com>"
+    }
+  }
+}
