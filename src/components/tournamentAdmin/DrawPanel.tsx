@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pencil, UserPlus, Users, X } from 'lucide-react';
+import { Pencil, Users, X } from 'lucide-react';
 import {
   ENTRY_SIZE,
   categoryLabel,
@@ -10,7 +10,7 @@ import {
   type TournamentPool
 } from '../../data/tournament';
 import { buildEntry, newId, resolvedKnockoutStart } from '../../utils/tournament';
-import { isRegistrationKey, normalizeName, singlesRosterFor, type RosterPlayer } from '../../data/registration';
+import { isRegistrationKey, normalizeName, type RosterPlayer } from '../../data/registration';
 import { Btn, ConfirmBtn, Notice, Panel, inputCls } from './ui';
 
 /** buildEntry's hard cap on team size. */
@@ -48,6 +48,21 @@ export function DrawPanel({
 }) {
   const [categoryId, setCategoryId] = useState(t.categories[0]?.id ?? '');
   const roster = useRoster(t.sport);
+  // Everyone who opted for singles, with any singles category they're already in.
+  const singlesIn = new Map<string, string>();
+  for (const c of t.categories) {
+    if (c.format !== 'singles') continue;
+    for (const e of entriesOf(c)) for (const pl of e.players) singlesIn.set(normalizeName(pl), categoryLabel(c));
+  }
+  const singlesChoices: Choice[] = roster
+    .filter((p) => p.singles)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => ({
+      name: p.name,
+      note: [p.group === 'kids' ? 'Kid' : `${p.group === 'women' ? 'Women' : 'Men'}${p.level ? ` ${p.level}` : ''}`, singlesIn.get(normalizeName(p.name))]
+        .filter(Boolean)
+        .join(' · ')
+    }));
   const cat = t.categories.find((c) => c.id === categoryId) ?? t.categories[0];
 
   if (!cat) {
@@ -92,7 +107,7 @@ export function DrawPanel({
 
       <RoundRobinEditor
         cat={cat}
-        roster={roster}
+        choices={cat.format === 'singles' ? singlesChoices : []}
         onChange={setCat}
         onCombine={(next) =>
           onChange({
@@ -105,6 +120,9 @@ export function DrawPanel({
     </div>
   );
 }
+
+/** A registered player offered in the singles "Add player" dropdown; note = level and any singles category they're in. */
+type Choice = { name: string; note: string };
 
 /** The organisers' CSV roster (admins only); empty when there's none. */
 function useRoster(sport: string): RosterPlayer[] {
@@ -121,44 +139,6 @@ function useRoster(sport: string): RosterPlayer[] {
     };
   }, [sport]);
   return roster;
-}
-
-/**
- * Singles categories named Kids, Women, Adult A or Adult B: one click adds the
- * registered singles players for it (from the CSV) who aren't in yet.
- */
-function PrefillSingles({
-  label,
-  division,
-  roster,
-  entries,
-  onAdd
-}: {
-  label: string;
-  division?: string;
-  roster: RosterPlayer[];
-  entries: TournamentEntry[];
-  onAdd: (names: string[]) => void;
-}) {
-  const matched = singlesRosterFor(label, division, roster);
-  if (!matched) return null;
-  const have = new Set(entries.flatMap((e) => e.players.map(normalizeName)));
-  const missing = matched.map((p) => p.name).filter((n) => !have.has(normalizeName(n)));
-  if (missing.length === 0) {
-    return matched.length ? (
-      <p className="text-[11px] text-slate-500">All {matched.length} registered singles players for {label} are in.</p>
-    ) : null;
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-lime-400/30 bg-lime-400/5 px-2.5 py-2">
-      <p className="mr-auto text-xs text-slate-300">
-        <span className="font-bold text-lime-300">From registrations:</span> {missing.join(', ')}
-      </p>
-      <Btn small tone="primary" onClick={() => onAdd(missing)}>
-        <UserPlus className="size-3.5" aria-hidden /> Add {missing.length}
-      </Btn>
-    </div>
-  );
 }
 
 /** Overview card: a category and the names in it. */
@@ -203,12 +183,12 @@ function CategoryCard({ cat, active, onSelect }: { cat: TournamentCategory; acti
 /** Add, edit and remove a category's entries, and choose how it finishes. */
 function RoundRobinEditor({
   cat,
-  roster,
+  choices,
   onChange,
   onCombine
 }: {
   cat: TournamentCategory;
-  roster: RosterPlayer[];
+  choices: Choice[];
   onChange: (c: TournamentCategory) => void;
   onCombine: (c: TournamentCategory) => void;
 }) {
@@ -270,16 +250,12 @@ function RoundRobinEditor({
           />
         ))}
       </ul>
-      {cat.format === 'singles' ? (
-        <PrefillSingles
-          label={label}
-          division={cat.division}
-          roster={roster}
-          entries={entries}
-          onAdd={(names) => setEntries([...entries, ...names.map((name) => buildEntry('singles', [name]))])}
-        />
-      ) : null}
-      <AddEntryForm format={cat.format} onAdd={(entry) => setEntries([...entries, entry])} />
+      <AddEntryForm
+        format={cat.format}
+        // Players already in this category aren't offered again.
+        choices={choices.filter((c) => !entries.some((e) => e.players.some((pl) => normalizeName(pl) === normalizeName(c.name))))}
+        onAdd={(entry) => setEntries([...entries, entry])}
+      />
 
       <label className="flex flex-wrap items-center gap-2 text-sm text-slate-300 border-t border-slate-800 pt-4">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">After the round robin</span>
@@ -346,7 +322,15 @@ function EntryRow({
   );
 }
 
-function AddEntryForm({ format, onAdd }: { format: TournamentFormat; onAdd: (e: TournamentEntry) => void }) {
+function AddEntryForm({
+  format,
+  choices,
+  onAdd
+}: {
+  format: TournamentFormat;
+  choices: Choice[];
+  onAdd: (e: TournamentEntry) => void;
+}) {
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -362,6 +346,7 @@ function AddEntryForm({ format, onAdd }: { format: TournamentFormat; onAdd: (e: 
   return (
     <EntryForm
       format={format}
+      choices={choices}
       submitLabel="Add"
       keepOpen
       onSubmit={(e) => onAdd(e)}
@@ -373,6 +358,7 @@ function AddEntryForm({ format, onAdd }: { format: TournamentFormat; onAdd: (e: 
 /** Player inputs sized to the format: 1 (singles), 2 (doubles), team name + up to 6 players. */
 function EntryForm({
   format,
+  choices = [],
   initial,
   submitLabel,
   keepOpen,
@@ -380,6 +366,8 @@ function EntryForm({
   onCancel
 }: {
   format: TournamentFormat;
+  /** Singles: registered players to pick from (a typed name still works). */
+  choices?: Choice[];
   initial?: TournamentEntry;
   submitLabel: string;
   keepOpen?: boolean;
@@ -391,15 +379,18 @@ function EntryForm({
   const [players, setPlayers] = useState<string[]>(blank);
   const [teamName, setTeamName] = useState(initial?.name ?? '');
   const [error, setError] = useState<string | null>(null);
+  const pickList = format === 'singles' && choices.length > 0;
+  const [typing, setTyping] = useState(!pickList);
 
-  const submit = () => {
+  const submit = (picked?: string) => {
     try {
-      const entry = buildEntry(format, players, teamName);
+      const entry = buildEntry(format, picked ? [picked] : players, teamName);
       onSubmit(entry);
       setError(null);
       if (keepOpen) {
         setPlayers(Array.from({ length: slots }, () => ''));
         setTeamName('');
+        setTyping(!pickList);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid entry');
@@ -410,7 +401,7 @@ function EntryForm({
     <div
       className="rounded-lg border border-lime-400/40 bg-slate-900 p-2.5 space-y-2"
       onKeyDown={(e) => {
-        if (e.key === 'Enter') submit();
+        if (e.key === 'Enter' && (typing || !pickList)) submit();
         if (e.key === 'Escape') onCancel();
       }}
     >
@@ -424,6 +415,27 @@ function EntryForm({
           className={inputCls}
         />
       ) : null}
+      {pickList && !typing ? (
+        <select
+          autoFocus
+          value=""
+          onChange={(e) => {
+            if (e.target.value === '\u0000other') setTyping(true);
+            else if (e.target.value) submit(e.target.value);
+          }}
+          className={inputCls}
+          aria-label="Registered singles player"
+        >
+          <option value="">Pick a registered singles player…</option>
+          {choices.map((c) => (
+            <option key={c.name} value={c.name}>
+              {c.name}
+              {c.note ? ` — ${c.note}` : ''}
+            </option>
+          ))}
+          <option value={'\u0000other'}>Someone else (type a name)…</option>
+        </select>
+      ) : (
       <div className={`grid gap-2 ${format === 'singles' ? '' : 'grid-cols-2'}`}>
         {players.map((p, i) => (
           <input
@@ -437,6 +449,7 @@ function EntryForm({
           />
         ))}
       </div>
+      )}
       {format === 'team' && players.length < TEAM_HARD_MAX ? (
         <button
           type="button"
@@ -448,9 +461,11 @@ function EntryForm({
       ) : null}
       {error ? <p className="text-[11px] text-amber-300">{error}</p> : null}
       <div className="flex gap-2">
-        <Btn tone="primary" small onClick={submit}>
-          {submitLabel}
-        </Btn>
+        {pickList && !typing ? null : (
+          <Btn tone="primary" small onClick={() => submit()}>
+            {submitLabel}
+          </Btn>
+        )}
         <Btn small onClick={onCancel}>
           {keepOpen ? 'Done' : 'Cancel'}
         </Btn>
