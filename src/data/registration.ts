@@ -414,8 +414,8 @@ export interface RosterPlayer {
 export function singlesRosterFor(label: string, division: string | undefined, roster: RosterPlayer[]): RosterPlayer[] | null {
   const l = label.toLowerCase();
   const pick = (f: (p: RosterPlayer) => boolean) => roster.filter((p) => p.singles && f(p));
-  if (division === 'kids' || /\bkids?\b|kid's|kids'/.test(l)) return pick((p) => p.group === 'kids');
-  if (division === 'women' || /\b(women|woman|ladies)\b|women's/.test(l)) return pick((p) => p.group === 'women' && p.level !== 'A');
+  if (division === 'kids' || /\b(kids?|junior)\b|kid's|kids'/.test(l)) return pick((p) => p.group === 'kids');
+  if (division === 'women' || /\b(women|womens|woman|ladies)\b|women's/.test(l)) return pick((p) => p.group === 'women' && p.level !== 'A');
   const level = /(?:^|[\s(])([ab])(?=[\s)]|$)/.exec(l)?.[1]?.toUpperCase();
   if (level === 'A') return pick((p) => p.group !== 'kids' && p.level === 'A');
   if (level === 'B') return pick((p) => p.group === 'men' && p.level === 'B');
