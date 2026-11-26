@@ -25,7 +25,19 @@ function str(v: unknown, max = 80): string {
   return typeof v === 'string' ? v.trim().slice(0, max) : '';
 }
 
-/** Raw data-store value → clean list, newest year first, then by category. */
+/**
+ * Display order within a season: Kids, then Women, then Men (including
+ * team categories like "NW Team (A)"), then Combination/Mixed.
+ */
+export function categoryRank(category: string): number {
+  const c = category.toLowerCase();
+  if (/\b(kid|kids|junior|boys?|girls?|u-?\d+)\b|kid's|kids'/.test(c)) return 0;
+  if (/\b(women|woman|ladies|lady)\b|women's/.test(c)) return 1;
+  if (/\b(combination|combo|mixed)\b/.test(c)) return 3;
+  return 2;
+}
+
+/** Raw data-store value → clean list, newest year first, then Kids/Women/Men/Combination, then entry order. */
 export function parsePastWinners(raw: unknown): PastWinner[] {
   if (!raw || typeof raw !== 'object') return [];
   const out: PastWinner[] = [];
@@ -40,7 +52,13 @@ export function parsePastWinners(raw: unknown): PastWinner[] {
     const order = typeof r.order === 'number' && Number.isFinite(r.order) ? r.order : 0;
     out.push({ id, year, category, winner, runnerUp: str(r.runnerUp), score: str(r.score, 40), order });
   }
-  return out.sort((a, b) => b.year - a.year || a.order - b.order || a.id.localeCompare(b.id));
+  return out.sort(
+    (a, b) =>
+      b.year - a.year ||
+      categoryRank(a.category) - categoryRank(b.category) ||
+      a.order - b.order ||
+      a.id.localeCompare(b.id)
+  );
 }
 
 /** Group a sorted list by year, newest first. */

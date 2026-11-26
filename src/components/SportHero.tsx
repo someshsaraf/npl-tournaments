@@ -34,12 +34,12 @@ export function SportHero({
         All sports
       </Link>
       {/*
-        Phones: title, dates and buttons in a dark band above the photo, so the
-        whole photo shows. Wider screens: the text sits over the photo's top edge.
+        Never over the photo: phones and tablets put the title, dates and buttons
+        in a dark band above it; laptops put them in a dark panel beside it.
       */}
-      <section className="relative flex flex-col rounded-3xl overflow-hidden border border-line shadow-xl bg-slate-950 sm:min-h-[380px]">
+      <section className="relative flex flex-col lg:flex-row rounded-3xl overflow-hidden border border-line shadow-xl bg-slate-950">
         <div
-          className={`relative order-2 sm:absolute sm:inset-0 ${card.heroImage ? 'aspect-[4/3] sm:aspect-auto' : 'hidden sm:block'}`}
+          className={`relative order-2 lg:flex-1 lg:min-h-[380px] ${card.heroImage ? 'aspect-[4/3] sm:aspect-[2/1] lg:aspect-auto' : 'hidden lg:block'}`}
         >
           {card.heroImage ? (
             <img
@@ -58,11 +58,11 @@ export function SportHero({
               <span className="absolute top-[20%] right-[14%] size-5 rounded-full bg-orange-300 shadow-[0_0_24px_rgba(253,186,116,0.7)]" />
             </div>
           )}
-          {/* Phones: a short fade from the text band into the photo. Wider: shade behind the text. */}
-          <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-slate-950 to-transparent sm:hidden" />
-          <div className="absolute inset-0 hidden sm:block bg-gradient-to-b from-black/90 via-black/40 via-45% to-transparent" />
+          {/* A short fade from the text band (above, or to the left on laptops) into the photo. */}
+          <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-slate-950 to-transparent lg:hidden" />
+          <div className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-slate-950 to-transparent lg:block" />
         </div>
-        <div className="relative order-1 flex flex-col justify-start p-5 pb-3 sm:p-8 space-y-2.5 max-w-3xl">
+        <div className="relative order-1 flex flex-col justify-start p-5 pb-3 sm:p-8 lg:w-[38%] lg:shrink-0 lg:justify-center lg:p-10 space-y-2.5">
           {live || showEyebrow ? (
           <div className="flex items-center gap-2 flex-wrap">
             {live ? (
@@ -76,7 +76,7 @@ export function SportHero({
             ) : null}
           </div>
           ) : null}
-          <h1 className="text-white portal-display text-[2.75rem] sm:text-7xl tracking-wide leading-[0.9] [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
+          <h1 className="text-white portal-display text-[2.75rem] sm:text-7xl lg:text-6xl xl:text-7xl tracking-wide leading-[0.9] [text-shadow:0_2px_24px_rgba(0,0,0,0.5)]">
             {title ?? card.label}
           </h1>
           {meta ? <p className="text-sm font-mono text-lime-200/90">{meta}</p> : null}
